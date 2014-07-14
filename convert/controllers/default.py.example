@@ -1,0 +1,60 @@
+# -*- coding: utf-8 -*-
+import os
+def index():
+    form = SQLFORM(db.converter)
+    """
+    # With database I/O
+    if form.accepts(request.vars,session):
+        session.upload_input_file = form.vars.upload_input_file
+	redirect(URL('default/download', session.upload_input_file))
+    return dict(form=form)
+    """
+    # without database I/O
+    if form.validate():
+        from subprocess import Popen, PIPE
+        Popen('convert {0} {0}.{1}'
+              .format(request.folder + 'uploads/' + form.vars.upload_input_file,
+                      form.vars.convert_to), shell=True)
+       # redirect(URL('default/download', form.vars.upload_input_file+'.jpg'))
+        import time
+        time.sleep(1)
+        filename=form.vars.upload_input_file+'.jpg'
+        path=os.path.join(request.folder,'uploads/',filename)
+        response.headers['ContentType'] ="image/jpeg";
+        response.headers['Content-Disposition']="attachment; filename=" +filename
+        return response.stream(open(path),chunk_size=4096)
+      #  redirect(URL('myfile'))
+    return dict(form=form)
+
+@cache.action()
+def download():
+    return response.download(request, db)
+"""
+def myfile():
+      filename=form.vars.upload_input_file+'jpg'
+      path=os.path.join(request.folder,'uploads/',filename)
+      response.headers['ContentType'] ="image/jpeg";
+      response.headers['Content-Disposition']="attachment; filename=%s" % filename
+      return response.stream(open(filename),chunk_size=4096)
+"""
+
+
+"""
+Added a new arguement *content_type* which defaults to None.
+
+Possible outcomes
+
+1) def download():
+       return response.download(request, db, content_type='c')
+   # Override content type to 'C source code'
+
+2) def download():
+       return response.download(request, db, content_type='jpg', download_filename='example')
+   # Rename download file to 'example' and override content type to 'JPEG Image'
+
+3) def download():
+       return response.download(request, db, download_filename='example')
+   # Rename download file to 'example' and and retain original content type
+
+
+"""
