@@ -13,7 +13,7 @@ def index():
         source_uuid_name = form.vars.upload_input_file
         dest_uuid_name   = form.vars.upload_input_file + '.' + form.vars.convert_to
         try:
-            process = check_output('convert {0} {0}{1}' 
+            process = check_output('convert {0} {0}{1}'
                                    .format(path_src_dest + source_uuid_name, dest_ext),
                                    shell=True, stderr=STDOUT)
         except CalledProcessError:
