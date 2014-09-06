@@ -9,5 +9,5 @@ db.define_table('converter',
                 Field('convert_from', requires = IS_IN_SET(dropdown), default = dropdown[0]),
                 Field('convert_to',   requires = IS_IN_SET(dropdown), default = dropdown[0]),
                 Field('upload_input_file', 'upload', uploadfolder = request.folder+'uploads',
-                      requires = IS_UPLOAD_FILENAME(extension='png'), autodelete=True),
+                       requires = IS_UPLOAD_FILENAME(extension='png'), autodelete=True),
                )
