@@ -25,13 +25,15 @@ response.google_analytics_id = None
 response.menu = [
     (T('Home'), False, URL('default', 'index'), []),
 
-    (SPAN('Training', _class='highlighted'), False, URL('default', 'index'), 
-         [(T('My Sites'), False, URL('default', 'index')),
-          (T('My Sites'), False, URL('default', 'index'))]),
+    (SPAN('Training', _class='highlighted'), False, None,
+         [(T('My Sites'), False, URL('default', 'index'),
+              [(T('My Sites'), False, URL('default', 'index')),]),
+          (T('My Sites'), False, URL('default', 'index')),]),
 
-    (SPAN('Research', _class='highlighted'), False, URL('default', 'index'),
-         [(T('My Sites'), False, URL('default', 'index')),
-          (T('My Sites'), False, URL('default', 'index'))]),
+    (SPAN('Research', _class='highlighted'), False, None,
+         [(T('My Sites'), False, URL('default', 'index'),
+              [(T('My Sites'), False, URL('default', 'index')),]),
+          (T('My Sites'), False, URL('default', 'index')),]),
 
     (SPAN('Consultancy', _class='highlighted'), False, URL('default', 'index'),
          [(T('My Sites'), False, URL('admin', 'default', 'site')),
