@@ -1,0 +1,16 @@
+# .gitignore
+syntax: glob
+*.orig
+progress.log
+wizard.metadata
+*~
+*.pyc
+*.pyo
+*.bak
+*.bak2
+cache/*
+private/*
+uploads/*
+databases/*
+sessions/*
+errors/*
