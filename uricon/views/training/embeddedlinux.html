@@ -1,0 +1,101 @@
+{{extend 'layout.html'}}
+
+
+<br> <h1>Embedded Linux</h1> <br>
+<h3> 2 day (> 8 hr hands-on) </h3> <br>
+
+<table class="table table-bordered table-striped">
+
+<tbody>
+    <tr>
+        <th style="width: 30%"><h4>Topic</h4></th>
+        <th style="width: 55%"><h4>Content</h4></th>
+        <th style="width: 15%"><h4>Duration</h4></th>
+    </tr>
+
+    <tr>
+        <td>Introduction to embedded Linux(EL)</td>
+        <td>What is embedded Linux? Various aplications &amp; scope<br>
+            Why EL? Comparision with proprietary options</td>
+        <td>30 mins</td>
+    </tr>
+
+    <tr>
+        <td>Boot sequence in Linux</td>
+        <td>Traditional GNU/Linux Desktop: BIOS, Bootloader, Kernel and filesystem<br>
+            Difference of EL boot from traditional boot, understanding U-Boot and Kernel</td>
+        <td>50 mins</td>
+    </tr>
+
+    <tr>
+        <td>Setting up development environment</td>
+        <td>Installing armhf cross compiler toolchain &amp; other software tools on Ubuntu <br>
+            Serial and other peripherals for hardware debugging. Formatting sdcard with desired partitions</td>
+        <td>40 mins</td>
+    </tr>
+
+    <tr>
+        <td>Compiling U-boot for your board</td>
+        <td>Downloading &amp; configuring U-boot, cross compiling for target board<br>
+            sdcard layout and writing U-boot bootloader</td>
+        <td>40 mins</td>
+    </tr>
+
+    <tr>
+        <td>Configuring and compiling kernel </td>
+        <td>Downloading and understanding kernel file hierarchy, Kernel config file and customizations, <br>
+            cross compiling kernel for target board. Copying kernel to desired partition of sdcard</td>
+        <td>80 mins</td>
+    </tr>
+
+
+    <tr>
+        <td>Device drivers - compiling &amp; customizing</td>
+        <td>Understanding device drivers operations <br>
+            Writing a sample device driver for Linux kernel</td>
+        <td>90 mins </td>
+    </tr>
+
+    <tr>
+        <td>ARM chroot &amp; Filesystem customizations </td>
+        <td>Downloading and extracting minimal rootfs. Setting up qemu-arm-static for ARM chroot emulation<br>
+            Mounting dev, proc, and sysfs for chroot environment</td>
+        <td> 90 mins </td>
+    </tr>
+
+    <tr>
+        <td>Installing minimal packages</td>
+        <td>From chroot environment, updating repositories &amp; installing language support <br>
+        Tweaking desktop and conf files for speed optimization</td>
+        <td>30 mins </td>
+    </tr>
+
+    <tr>
+        <td>User permissions and startup jobs</td>
+        <td>Setting up users and groups<br>
+        Granting access to hardwares, tweaking startup jobs</td>
+        <td>20 mins </td>
+    </tr>
+
+    <tr>
+        <td>U-boot access using minicom</td>
+        <td>Serial connection to hardware, and using serial emulator on host machine<br>
+            Using U-boot prompt to customize boot options </td>
+        <td>20 mins </td>
+    </tr>
+
+    <tr>
+        <td>Tools for kernel and application testing</td>
+        <td>Using 'ssh' and 'scp' with keys <br>
+            Writing simple bash scripts to automate builds &amp; tests</td>
+        <td> 20 mins</td>
+    </tr>
+
+    <tr>
+        <td>Similarities between embedded boards</td>
+        <td>Comparision between beaglebone, pandaboard, cubieboard and rasberryPi<br>
+            Exploring various embedded Linux operating systems</td>
+        <td>30 mins </td>
+    </tr>
+
+</tbody></table>
