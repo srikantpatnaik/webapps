@@ -77,5 +77,5 @@ response.menu = [
          ]
     ),
 
-    (T('Contact Us'), False, URL('default', 'index'), [])
+    (T('Contact Us'), False, URL('default', 'contact'), [])
 ]

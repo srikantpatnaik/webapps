@@ -13,6 +13,8 @@
 def index():   
     return dict(message=T('Welcome to uricon services'))
 
+def contact():   
+    return dict(message=T('Contact Us'))
 
 def user():
     return dict(form=auth())
