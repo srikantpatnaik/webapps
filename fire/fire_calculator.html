@@ -345,8 +345,8 @@
             </div>
             
             <div class="form-group">
-                <label for="currentCorpus">Corpus (₹ L):</label>
-                <input type="number" id="currentCorpus" placeholder="Current corpus in L" step="0.01">
+                <label for="currentCorpus">Capital (₹ L):</label>
+                <input type="number" id="currentCorpus" placeholder="Current capital in L" step="1">
             </div>
             
             <div class="form-group">
@@ -361,7 +361,7 @@
             
             <div class="form-group">
                 <label for="pensionDrawn">Expns/m (₹ L):</label>
-                <input type="number" id="pensionDrawn" placeholder="Monthly expense in L" step="0.01" value="0">
+                <input type="number" id="pensionDrawn" placeholder="Monthly expense in L" step="0.1" value="0">
             </div>
         </div>
         
@@ -529,12 +529,23 @@
             const allYearlyData = [];
             // Convert values from Lakhs to actual rupees (multiply by 100000)
             const corpusInRupees = currentCorpus * 100000; // Convert corpus from Lakhs to rupees
-            const monthlyExpensesInRupees = monthlyExpenses * 100000; // Convert monthly expenses from Lakhs to rupees (1 Lakh = 100000 rupees)
+            const monthlyExpensesInRupees = monthlyExpenses * 100000; // Convert monthly expenses from Lakhs to rupees (1 Lakh = 10000 rupees)
             
             // Starting capital is the current corpus
             let currentCapital = corpusInRupees;
 
                 for (let age of targetAges) {
+                    // If the target age is the same as current age, just return the initial capital without calculations
+                    if (age === currentAge) {
+                        results.push({
+                            age: age,
+                            capital: corpusInRupees,
+                            yearInterest: 0, // No interest calculated for current age
+                            annualExpenses: monthlyExpensesInRupees * 12 // Annual expenses at current time
+                        });
+                        continue; // Skip the rest of the loop for current age
+                    }
+                    
                     const yearsToTarget = age - currentAge;
                     
                     // Simulate month-by-month from current age to target age
@@ -548,14 +559,7 @@
                     // Array to store yearly data for debugging
                     const yearlyData = [];
                     
-                    // If the target age is the same as current age, we still calculate one year
-                    // to show the interest that would be earned during the current year
-                    let calculationYears = yearsToTarget;
-                    if (age === currentAge) {
-                        calculationYears = 1; // Calculate one year for current age
-                    }
-                    
-                    for (let yr = 0; yr < calculationYears; yr++) {
+                    for (let yr = 0; yr < yearsToTarget; yr++) {
                         // Store starting capital for this year to calculate interest
                         const startOfYearCapital = simulatedCapital;
                         let yearlyInterest = 0; // Track interest earned during this year
@@ -601,20 +605,10 @@
                         annualExpensesAtAge = monthlyExpensesInRupees * 12 * Math.pow(1 + inflationRate, yearsToTarget);
                     }
                     
-                    // If this is the current age, use the interest from the first year calculation
-                    let finalInterestForAge = lastYearInterest;
-                    if (age === currentAge) {
-                        // For current age, we calculated one year of interest, so use that
-                        // But we need to reset the capital to the original value to show the interest for the current year only
-                        // Actually, let's just use the calculated interest and final balance
-                        finalInterestForAge = lastYearInterest;
-                        // The capital is now the balance after one year from current age
-                    }
-                    
                     results.push({
                         age: age,
                         capital: simulatedCapital,
-                        yearInterest: finalInterestForAge, // Interest for the last year of the period
+                        yearInterest: lastYearInterest, // Interest for the last year of the period
                         annualExpenses: annualExpensesAtAge
                     });
                 
@@ -660,9 +654,9 @@
         // Format currency to show in lakhs (L) or thousands (K)
         function formatCurrency(amount) {
             let formattedAmount;
-            if (Math.abs(amount) >= 100000) {
+            if (Math.abs(amount) >= 10000) { // >= 1 Cr (1,00,00,000 = 1 Cr)
                 formattedAmount = (amount / 10000000).toFixed(2) + ' Cr';
-            } else if (Math.abs(amount) >= 100000) {
+            } else if (Math.abs(amount) >= 100000) {  // >= 1 L (1,00,000 = 1 L) but < 1 Cr
                 formattedAmount = (amount / 100000).toFixed(2) + ' L';
             } else if (Math.abs(amount) >= 1000) {
                 formattedAmount = (amount / 1000).toFixed(2) + ' K';
@@ -693,5 +687,9 @@
         // Example: In browser console, type "DEBUG_MODE = true" and press Enter
         // Then interact with the calculator to see debug output
     </script>
+    
+    <div style="position: fixed; bottom: 10px; width: 100%; text-align: center; color: var(--text-secondary); font-size: 0.7rem; padding: 0 20px;">
+        <p>Assumes current year as retirement year. Preserves data in browser.</p>
+    </div>
 </body>
 </html>
