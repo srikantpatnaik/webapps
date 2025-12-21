@@ -535,15 +535,39 @@
             let currentCapital = corpusInRupees;
 
                 for (let age of targetAges) {
-                    // If the target age is the same as current age, just return the initial capital without calculations
+                    // If the target age is the same as current age, just return the initial capital with calculated interest and expenses for the year
                     if (age === currentAge) {
+                        // Calculate interest for the first year
+                        let currentMonthlyExpenses = monthlyExpensesInRupees;
+                        let simulatedCapital = corpusInRupees;
+                        let yearlyInterest = 0;
+
+                        // Calculate month-by-month for the first year with monthly withdrawals
+                        for (let month = 0; month < 12; month++) {
+                            // Apply monthly return to current balance
+                            const monthlyGain = simulatedCapital * monthlyReturnsRate;
+
+                            // Calculate tax on the monthly gain
+                            const taxOnGain = monthlyGain * incomeTaxRate;
+                            const netGain = monthlyGain - taxOnGain;
+
+                            // Add net gain to capital
+                            simulatedCapital += netGain;
+
+                            // Add to yearly interest
+                            yearlyInterest += netGain;
+
+                            // Subtract monthly expenses from capital
+                            simulatedCapital -= currentMonthlyExpenses;
+                        }
+
                         results.push({
                             age: age,
-                            capital: corpusInRupees,
-                            yearInterest: 0, // No interest calculated for current age
+                            capital: corpusInRupees, // Use original capital for current age
+                            yearInterest: yearlyInterest, // Interest for the first year
                             annualExpenses: monthlyExpensesInRupees * 12 // Annual expenses at current time
                         });
-                        continue; // Skip the rest of the loop for current age
+                        continue; // Move to next age
                     }
                     
                     const yearsToTarget = age - currentAge;
@@ -687,9 +711,10 @@
         // Example: In browser console, type "DEBUG_MODE = true" and press Enter
         // Then interact with the calculator to see debug output
     </script>
-    
-    <div style="position: fixed; bottom: 10px; width: 100%; text-align: center; color: var(--text-secondary); font-size: 0.7rem; padding: 0 20px;">
-        <p>Assumes current year as retirement year. Preserves data in browser.</p>
+
+    <div style="margin-top: 20px; text-align: center; color: var(--text-secondary); font-size: 0.7rem; max-width: 1200px; margin-left: auto; margin-right: auto; padding: 0 20px;">
+        <p>Assumes current year as retirement year.</p>
+        <p>Preserves data in browser.</p>
     </div>
 </body>
 </html>
