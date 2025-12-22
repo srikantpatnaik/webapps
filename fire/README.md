@@ -13,6 +13,7 @@ FIRE (Financial Independence, Retire Early) is a movement focused on aggressive 
 - Account for inflation on expenses
 - Consider tax implications on returns
 - Preserve your data in the browser
+- Mobile-friendly interface with improved spacing
 
 ## How to Use
 
@@ -24,16 +25,30 @@ FIRE (Financial Independence, Retire Early) is a movement focused on aggressive 
 6. **Expns/m (₹ L)**: Enter your expected monthly expenses in retirement in lakhs of rupees
 
 The calculator will then show projections for:
-- Your current age (shows initial capital without calculations)
-- Your age + 5 years
-- Your age + 10 years
-- Ages 60, 70, and 90 (if applicable)
+- First row: Current age with only Age and Capital shown (other columns empty)
+- Next two rows: Projections for the following two years
+- Subsequent rows: Ages 50, 60, and 80 (if applicable)
 
 ### Table Columns:
 - **Age**: The target age for the projection
 - **Capital**: Your projected corpus at that age (for current age, this shows your initial capital)
-- **Int**: Interest earned in the final year
-- **Expns/y**: Your projected annual expenses at that age (adjusted for inflation)
+- **Gain**: Annual investment gains in the final year (shown in L format)
+- **Taxes**: Annual taxes paid on gains (shown in L format with grey text)
+- **Expns/y**: Your projected annual expenses at that age (adjusted for inflation, shown in L format with grey text)
+
+## Display Thresholds
+
+The calculator uses special conversion thresholds:
+- Values ≥ 100,000 (100K) are displayed in L (Lakhs) instead of K
+- Values ≥ 10,000,000 (100L) are displayed in Cr (Crores) instead of L
+- Values ≥ 1,000,000,000 (100Cr) are displayed in B (Billions) instead of Cr
+- All values are displayed with 1 decimal place instead of 2
+
+## Mobile Optimization
+
+- Title and form spacing reduced for better mobile view
+- Font sizes and element padding adjusted for compact display
+- Improved responsive design for smaller screens
 
 ## Assumptions
 
@@ -59,4 +74,4 @@ The calculator uses a monthly compounding model:
 3. Monthly expenses are withdrawn from the corpus
 4. Annual inflation is applied to expenses for the following year
 
-The display format shows values in L (Lakhs) until 99L, then changes to Cr (Crores) and so on.
+The display format now uses custom thresholds (100K→1L, 100L→1Cr, 100Cr→1B) and shows values with 1 decimal place.
