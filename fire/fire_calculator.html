@@ -49,24 +49,23 @@
 
         h1 {
             text-align: center;
-            margin-bottom: 20px;
             color: var(--accent-light);
-            font-size: 1.4rem;
+            font-size: 1.2rem;
             font-weight: 600;
             text-shadow: 0 10px rgba(88, 166, 255, 0.3);
             letter-spacing: 0.5px;
-            padding: 10px 0;
+            padding: 5px 0;
             border-bottom: 1px solid var(--border-color);
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
 
         .form-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 18px;
-            margin-bottom: 20px;
+            gap: 12px;
+            margin-bottom: 10px;
             background: var(--bg-secondary);
-            padding: 20px;
+            padding: 15px;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         }
@@ -86,22 +85,22 @@
 
         label {
             display: block;
-            margin-bottom: 9px;
+            margin-bottom: 6px;
             color: var(--text-secondary);
             font-weight: 500;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 0.3px;
         }
 
         input, select, button {
             width: 100%;
-            padding: 15px;
+            padding: 12px;
             background: linear-gradient(145deg, var(--bg-primary), #0c1015);
             color: var(--text-primary);
             border: 1px solid var(--border-color);
             border-radius: 10px;
-            font-size: 1rem;
+            font-size: 0.9rem;
             transition: all 0.3s ease;
             box-shadow: var(--input-shadow);
         }
@@ -148,7 +147,7 @@
         }
 
         th, td {
-            padding: 18px;
+            padding: 12px;
             text-align: center; /* Center align content */
             border-bottom: 1px solid rgba(48, 57, 69, 0.6);
         }
@@ -160,8 +159,19 @@
             position: sticky;
             top: 0;
             text-transform: uppercase;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             letter-spacing: 0.5px;
+        }
+
+        /* Special styling for debit columns (Taxes and Expns/y) */
+        th:nth-child(4), /* Taxes column */
+        th:nth-child(5) { /* Expns/y column */
+            color: var(--danger-color);
+        }
+
+        /* Style for debit values in data cells to be slightly grey */
+        .debit-value {
+            color: var(--text-secondary); /* Using the secondary text color which is grey */
         }
 
         tr:last-child td {
@@ -224,23 +234,23 @@
             background: linear-gradient(135deg, var(--bg-tertiary), #1a1f27);
             border: 1px solid var(--border-color);
             border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
+            padding: 16px;
+            margin-bottom: 16px;
             box-shadow: var(--card-shadow);
         }
 
         .summary-title {
             color: var(--accent-color);
-            margin-bottom: 20px;
-            font-size: 1.3rem;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
             font-weight: 600;
         }
 
         .summary-item {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 14px;
-            padding-bottom: 14px;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
             border-bottom: 1px solid var(--border-color);
         }
 
@@ -257,42 +267,42 @@
 
         @media (max-width: 768px) {
             .container {
-                padding: 12px;
+                padding: 8px;
             }
-            
+
             h1 {
-                font-size: 1.8rem;
-                margin-bottom: 24px;
+                font-size: 1.1rem; /* Use same size as desktop */
+                margin-bottom: 8px; /* Reduce space below title */
             }
-            
+
             .form-grid {
                 grid-template-columns: repeat(3, 1fr); /* Keep 3 columns on all screens */
-                gap: 10px; /* Smaller gap */
-                padding: 15px;
+                gap: 8px; /* Smaller gap */
+                padding: 12px;
             }
-            
+
             label {
-                font-size: 0.7rem; /* Smaller labels on medium screens */
-                margin-bottom: 5px;
+                font-size: 0.75rem; /* Smaller labels on medium screens */
+                margin-bottom: 4px;
             }
-            
+
             input, select, button {
                 padding: 10px; /* Smaller padding */
                 font-size: 0.85rem;
             }
-            
+
             table {
-                font-size: 0.9rem;
+                font-size: 0.85rem;
             }
-            
+
             th, td {
-                padding: 12px 6px; /* Reduced horizontal padding */
+                padding: 10px 5px; /* Reduced horizontal padding */
             }
-            
+
             .actions {
                 flex-direction: column;
             }
-            
+
             .btn-small {
                 width: 100%;
             }
@@ -300,31 +310,31 @@
 
         @media (max-width: 480px) {
             .form-grid {
-                grid-template-columns: repeat(3, 1fr); /* Keep 3 columns on small screens too */
-                gap: 8px; /* Even smaller gap */
+                grid-template-columns: repeat(2, 1fr); /* 2 columns for very small screens */
+                gap: 6px; /* Even smaller gap */
                 padding: 10px;
             }
-            
+
             label {
-                font-size: 0.65rem; /* Even smaller labels on small screens */
-                margin-bottom: 4px;
+                font-size: 0.7rem; /* Even smaller labels on small screens */
+                margin-bottom: 3px;
             }
-            
+
             input, select, button {
                 padding: 8px; /* Smaller padding */
                 font-size: 0.8rem;
             }
-            
+
             table {
-                font-size: 0.85rem;
+                font-size: 0.8rem;
             }
-            
+
             th, td {
-                padding: 10px 4px; /* Further reduced horizontal padding */
+                padding: 8px 3px; /* Further reduced horizontal padding */
             }
-            
+
             .summary-card {
-                padding: 18px;
+                padding: 12px;
             }
         }
     </style>
@@ -372,7 +382,8 @@
                         <tr>
                             <th>Age</th>
                             <th>Capital</th>
-                            <th>Int</th>
+                            <th>Gain</th>
+                            <th>Taxes</th>
                             <th>Expns/y</th>
                         </tr>
                     </thead>
@@ -390,7 +401,7 @@
                         <tr>
                             <th>Year</th>
                             <th>Withdrawals</th>
-                            <th>Interest (Year)</th>
+                            <th>Gain (Year)</th>
                             <th>Balance</th>
                         </tr>
                     </thead>
@@ -441,11 +452,10 @@
         document.getElementById('pensionDrawn').addEventListener('input', calculateFIRE);
         document.getElementById('inflation').addEventListener('input', calculateFIRE);
 
-        // Format currency specifically for the debug table to show in Lakhs
+        // Format currency specifically for the debug table - uses main format function with new thresholds
         function formatCurrencyDebug(amount) {
-            // Convert to Lakhs by dividing by 100,000
-            const amountInLakhs = amount / 100000;
-            return amountInLakhs.toFixed(2) + ' L';
+            // Pass the raw amount to the main formatter which handles the thresholds
+            return formatCurrency(amount);
         }
 
         // Debug function to populate HTML debug table
@@ -493,35 +503,34 @@
             const inflationRate = parseFloat(document.getElementById('inflation').value) / 100 || 0;
 
             // Only calculate if all required fields have appropriate values
-            if (currentAgeInput === '' || isNaN(currentAge) || currentAge < 18 || currentAge > 100 || 
+            if (currentAgeInput === '' || isNaN(currentAge) || currentAge < 18 || currentAge > 100 ||
                 currentCorpusInput === '' || isNaN(currentCorpus) || currentCorpus < 0) {
                 // Hide results section if inputs are invalid
                 document.getElementById('resultsSection').style.display = 'none';
                 return;
             }
 
-            // Generate results for specific ages: current age, +5, +10, then 60, 70, 90
+            // Generate results for specific ages: first row empty with age and capital only,
+            // then next 2 years, then ages 50, 60, 80
             const targetAges = [];
-            // Add current age
-            targetAges.push(currentAge);
-            
-            // Add +5 and +10 years if they don't exceed age 100
-            if (currentAge + 5 <= 100) {
-                targetAges.push(currentAge + 5);
+
+            // First row: current age with only age and capital (other values zeroed out for display)
+            targetAges.push({age: currentAge, showOnlyBase: true});
+
+            // Next two years
+            if (currentAge + 1 <= 100) {
+                targetAges.push({age: currentAge + 1});
             }
-            if (currentAge + 10 <= 100) {
-                targetAges.push(currentAge + 10);
+            if (currentAge + 2 <= 100) {
+                targetAges.push({age: currentAge + 2});
             }
-            
-            // Add milestone ages if not already included and if they're greater than current age
-            [60, 70, 90].forEach(age => {
-                if (!targetAges.includes(age) && age > currentAge && age <= 100) {
-                    targetAges.push(age);
+
+            // Add milestone ages if they're greater than current age
+            [50, 60, 80].forEach(age => {
+                if (age > currentAge && age <= 100) {
+                    targetAges.push({age: age});
                 }
             });
-
-            // Sort ages to ensure proper order
-            targetAges.sort((a, b) => a - b);
 
             // Calculate results for each target age
             const results = [];
@@ -529,113 +538,92 @@
             const allYearlyData = [];
             // Convert values from Lakhs to actual rupees (multiply by 100000)
             const corpusInRupees = currentCorpus * 100000; // Convert corpus from Lakhs to rupees
-            const monthlyExpensesInRupees = monthlyExpenses * 100000; // Convert monthly expenses from Lakhs to rupees (1 Lakh = 10000 rupees)
-            
+            const monthlyExpensesInRupees = monthlyExpenses * 100000; // Convert monthly expenses from Lakhs to rupees
+
             // Starting capital is the current corpus
             let currentCapital = corpusInRupees;
 
-                for (let age of targetAges) {
-                    // If the target age is the same as current age, just return the initial capital with calculated interest and expenses for the year
-                    if (age === currentAge) {
-                        // Calculate interest for the first year
-                        let currentMonthlyExpenses = monthlyExpensesInRupees;
-                        let simulatedCapital = corpusInRupees;
-                        let yearlyInterest = 0;
+            for (let targetObj of targetAges) {
+                const age = targetObj.age;
 
-                        // Calculate month-by-month for the first year with monthly withdrawals
-                        for (let month = 0; month < 12; month++) {
-                            // Apply monthly return to current balance
-                            const monthlyGain = simulatedCapital * monthlyReturnsRate;
-
-                            // Calculate tax on the monthly gain
-                            const taxOnGain = monthlyGain * incomeTaxRate;
-                            const netGain = monthlyGain - taxOnGain;
-
-                            // Add net gain to capital
-                            simulatedCapital += netGain;
-
-                            // Add to yearly interest
-                            yearlyInterest += netGain;
-
-                            // Subtract monthly expenses from capital
-                            simulatedCapital -= currentMonthlyExpenses;
-                        }
-
-                        results.push({
-                            age: age,
-                            capital: corpusInRupees, // Use original capital for current age
-                            yearInterest: yearlyInterest, // Interest for the first year
-                            annualExpenses: monthlyExpensesInRupees * 12 // Annual expenses at current time
-                        });
-                        continue; // Move to next age
-                    }
-                    
-                    const yearsToTarget = age - currentAge;
-                    
-                    // Simulate month-by-month from current age to target age
-                    let simulatedCapital = currentCapital;
-                    let currentMonthlyExpenses = monthlyExpensesInRupees;
-                    
-                    // Track total interest earned over time for display purposes
-                    let totalInterestEarned = 0;
-                    let lastYearInterest = 0; // Track the interest from the last year
-                    
-                    // Array to store yearly data for debugging
-                    const yearlyData = [];
-                    
-                    for (let yr = 0; yr < yearsToTarget; yr++) {
-                        // Store starting capital for this year to calculate interest
-                        const startOfYearCapital = simulatedCapital;
-                        let yearlyInterest = 0; // Track interest earned during this year
-                        
-                        // Calculate month-by-month for this year with monthly withdrawals
-                        for (let month = 0; month < 12; month++) {
-                            // Apply monthly return to current balance
-                            const monthlyGain = simulatedCapital * monthlyReturnsRate;
-                            
-                            // Calculate tax on the monthly gain
-                            const taxOnGain = monthlyGain * incomeTaxRate;
-                            const netGain = monthlyGain - taxOnGain;
-                            
-                            // Add net gain to capital
-                            simulatedCapital += netGain;
-                            
-                            // Add to yearly interest
-                            yearlyInterest += netGain;
-                            
-                            // Subtract monthly expenses from capital
-                            simulatedCapital -= currentMonthlyExpenses;
-                        }
-                        
-                        totalInterestEarned += yearlyInterest;
-                        lastYearInterest = yearlyInterest; // Store the interest from the last processed year
-                        
-                        // Store yearly data for debugging
-                        yearlyData.push({
-                            year: currentAge + yr, // Calendar year for this iteration
-                            withdrawals: currentMonthlyExpenses * 12, // Amount withdrawn for expenses
-                            interest: yearlyInterest, // Interest earned during the year
-                            accruedInterest: totalInterestEarned, // Total interest accumulated to date
-                            balance: simulatedCapital // Balance at the end of the year
-                        });
-                        
-                        // Increase monthly expenses for inflation for the next year
-                        currentMonthlyExpenses *= (1 + inflationRate);
-                    }
-                    
-                    // Calculate annual expenses adjusted for inflation at this age for display purposes
-                    let annualExpensesAtAge = monthlyExpensesInRupees * 12;
-                    if (inflationRate > 0 && yearsToTarget > 0) {
-                        annualExpensesAtAge = monthlyExpensesInRupees * 12 * Math.pow(1 + inflationRate, yearsToTarget);
-                    }
-                    
+                // Handle the first row specially - only show age and capital, others empty
+                if (targetObj.showOnlyBase) {
                     results.push({
                         age: age,
-                        capital: simulatedCapital,
-                        yearInterest: lastYearInterest, // Interest for the last year of the period
-                        annualExpenses: annualExpensesAtAge
+                        capital: corpusInRupees, // Use original capital for current age
+                        yearInterest: 0, // Zero for display in first row
+                        annualExpenses: 0, // Zero for display in first row
+                        showOnlyBase: true
                     });
-                
+                    continue; // Move to next age
+                }
+
+                const yearsToTarget = age - currentAge;
+
+                // Simulate month-by-month from current age to target age
+                let simulatedCapital = currentCapital;
+                let currentMonthlyExpenses = monthlyExpensesInRupees;
+
+                // Track total interest earned over time for display purposes
+                let totalInterestEarned = 0;
+                let lastYearInterest = 0; // Track the interest from the last year
+
+                // Array to store yearly data for debugging
+                const yearlyData = [];
+
+                for (let yr = 0; yr < yearsToTarget; yr++) {
+                    // Store starting capital for this year to calculate interest
+                    const startOfYearCapital = simulatedCapital;
+                    let yearlyInterest = 0; // Track interest earned during this year
+
+                    // Calculate month-by-month for this year with monthly withdrawals
+                    for (let month = 0; month < 12; month++) {
+                        // Apply monthly return to current balance
+                        const monthlyGain = simulatedCapital * monthlyReturnsRate;
+
+                        // Calculate tax on the monthly gain
+                        const taxOnGain = monthlyGain * incomeTaxRate;
+                        const netGain = monthlyGain - taxOnGain;
+
+                        // Add net gain to capital
+                        simulatedCapital += netGain;
+
+                        // Add to yearly interest
+                        yearlyInterest += netGain;
+
+                        // Subtract monthly expenses from capital
+                        simulatedCapital -= currentMonthlyExpenses;
+                    }
+
+                    totalInterestEarned += yearlyInterest;
+                    lastYearInterest = yearlyInterest; // Store the interest from the last processed year
+
+                    // Store yearly data for debugging
+                    yearlyData.push({
+                        year: currentAge + yr, // Calendar year for this iteration
+                        withdrawals: currentMonthlyExpenses * 12, // Amount withdrawn for expenses
+                        interest: yearlyInterest, // Interest earned during the year
+                        accruedInterest: totalInterestEarned, // Total interest accumulated to date
+                        balance: simulatedCapital // Balance at the end of the year
+                    });
+
+                    // Increase monthly expenses for inflation for the next year
+                    currentMonthlyExpenses *= (1 + inflationRate);
+                }
+
+                // Calculate annual expenses adjusted for inflation at this age for display purposes
+                let annualExpensesAtAge = monthlyExpensesInRupees * 12;
+                if (inflationRate > 0 && yearsToTarget > 0) {
+                    annualExpensesAtAge = monthlyExpensesInRupees * 12 * Math.pow(1 + inflationRate, yearsToTarget);
+                }
+
+                results.push({
+                    age: age,
+                    capital: simulatedCapital,
+                    yearInterest: lastYearInterest, // Interest for the last year of the period
+                    annualExpenses: annualExpensesAtAge
+                });
+
                 // Store the yearly data for this target age
                 allYearlyData[age] = yearlyData;
             }
@@ -657,17 +645,32 @@
 
             results.forEach(result => {
                 const row = document.createElement('tr');
-                
+
                 // Apply negative class to capital if it's negative
                 const capitalClass = result.capital < 0 ? ' class="negative-value"' : '';
-                
-                row.innerHTML = `
-                    <td>${result.age}</td>
-                    <td${capitalClass}>${formatCurrency(result.capital)}</td>
-                    <td${capitalClass}>${formatCurrency(result.yearInterest)}</td>
-                    <td>${formatCurrencyInLakhs(result.annualExpenses)}</td>
-                `;
-                
+
+                // Calculate the tax paid on gains for this year
+                const taxPaid = result.yearInterest * (parseFloat(document.getElementById('incomeTax').value) / 100 || 0);
+
+                // For the first row (showOnlyBase), only show age and capital, others empty
+                if (result.showOnlyBase) {
+                    row.innerHTML = `
+                        <td>${result.age}</td>
+                        <td${capitalClass}>${formatCurrency(result.capital)}</td>
+                        <td${capitalClass}></td>
+                        <td${capitalClass}></td>
+                        <td></td>
+                    `;
+                } else {
+                    row.innerHTML = `
+                        <td>${result.age}</td>
+                        <td${capitalClass}>${formatCurrency(result.capital)}</td>
+                        <td${capitalClass}>${formatCurrencyInLakhs(result.yearInterest)}</td>
+                        <td class="debit-value"${capitalClass}>${formatCurrencyInLakhs(taxPaid)}</td>
+                        <td class="debit-value">${formatCurrencyInLakhs(result.annualExpenses)}</td>
+                    `;
+                }
+
                 tbody.appendChild(row);
             });
 
@@ -675,26 +678,52 @@
             document.getElementById('resultsSection').style.display = 'block';
         }
 
-        // Format currency to show in lakhs (L) or thousands (K)
+        // Format currency with thresholds: 100K→1L, 100L→1Cr, 100Cr→1B
         function formatCurrency(amount) {
             let formattedAmount;
-            if (Math.abs(amount) >= 10000) { // >= 1 Cr (1,00,00,000 = 1 Cr)
-                formattedAmount = (amount / 10000000).toFixed(2) + ' Cr';
-            } else if (Math.abs(amount) >= 100000) {  // >= 1 L (1,00,000 = 1 L) but < 1 Cr
-                formattedAmount = (amount / 100000).toFixed(2) + ' L';
-            } else if (Math.abs(amount) >= 1000) {
-                formattedAmount = (amount / 1000).toFixed(2) + ' K';
-            } else {
-                formattedAmount = amount.toFixed(2);
+            const absAmount = Math.abs(amount);
+
+            // Check for billions: if >= 100 Cr (100 * 10^7 = 10^9), show as B
+            if (absAmount >= 1000000000) { // >= 1 billion (10^9 = 100 Cr)
+                if (absAmount >= 100000000000) { // >= 100 billion (100 * 10^9)
+                    formattedAmount = (amount / 100000000000).toFixed(1) + ' B';
+                } else {
+                    formattedAmount = (amount / 1000000000).toFixed(1) + ' B';
+                }
+            }
+            // Check for crores: if >= 1 Cr (10^7) but < 100 Cr, show as Cr
+            // If >= 100 Cr (100 * 10^7 = 10^9), it would have been caught above
+            else if (absAmount >= 10000000) { // >= 1 Cr (10^7) but < 100 Cr
+                formattedAmount = (amount / 10000000).toFixed(1) + ' Cr';
+            }
+            // Check for lakhs: if >= 1 L (10^5) but < 100 L, show as L
+            // If >= 100 L (100 * 10^5 = 10^7 = 1 Cr), show as Cr
+            else if (absAmount >= 100000) { // >= 1 L (10^5)
+                if (absAmount >= 10000000) { // >= 100 L = 1 Cr
+                    formattedAmount = (amount / 10000000).toFixed(1) + ' Cr';
+                } else {
+                    formattedAmount = (amount / 100000).toFixed(1) + ' L';
+                }
+            }
+            // Check for thousands: if >= 1 K (10^3) but < 100 K, show as K
+            // If >= 100 K (100 * 10^3 = 10^5 = 1 L), show as L
+            else if (absAmount >= 1000) { // >= 1 K (10^3)
+                if (absAmount >= 100000) { // >= 100 K = 1 L
+                    formattedAmount = (amount / 100000).toFixed(1) + ' L';
+                } else {
+                    formattedAmount = (amount / 1000).toFixed(1) + ' K';
+                }
+            }
+            else {
+                formattedAmount = amount.toFixed(1);
             }
             return formattedAmount;
         }
 
-        // Format currency specifically for expenses to show in lakhs
+        // Format currency specifically for expenses - uses main format function with new thresholds
         function formatCurrencyInLakhs(amount) {
-            // Convert the amount to lakhs by dividing by 100000
-            const amountInLakhs = amount / 100000;
-            return amountInLakhs.toFixed(2) + ' L';
+            // Pass the raw amount to the main formatter which handles the thresholds
+            return formatCurrency(amount);
         }
 
         // Initialize calculator when page loads
