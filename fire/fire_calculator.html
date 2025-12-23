@@ -511,7 +511,7 @@
             }
 
             // Generate results for specific ages: first row empty with age and capital only,
-            // then next 2 years, then ages 50, 60, 80
+            // then next 2 years, then nearest multiples of 10, and finally age 100
             const targetAges = [];
 
             // First row: current age with only age and capital (other values zeroed out for display)
@@ -525,12 +525,25 @@
                 targetAges.push({age: currentAge + 2});
             }
 
-            // Add milestone ages if they're greater than current age
-            [50, 60, 80].forEach(age => {
-                if (age > currentAge && age <= 100) {
-                    targetAges.push({age: age});
+            // Add nearest multiples of 10 after the next two years (but not 100 yet)
+            // Calculate the next multiple of 10 after currentAge + 2
+            const nextMultipleOf10 = Math.ceil((currentAge + 2) / 10) * 10;
+
+            // Add up to 2 nearest multiples of 10 that are greater than currentAge + 2 and < 100
+            if (nextMultipleOf10 > currentAge + 2 && nextMultipleOf10 < 100) {
+                targetAges.push({age: nextMultipleOf10});
+
+                // Add the next multiple of 10 after that if it's within bounds
+                const nextNextMultipleOf10 = nextMultipleOf10 + 10;
+                if (nextNextMultipleOf10 < 100) {
+                    targetAges.push({age: nextNextMultipleOf10});
                 }
-            });
+            }
+
+            // Always add age 100 if it's greater than currentAge + 2
+            if (currentAge + 2 < 100) {
+                targetAges.push({age: 100});
+            }
 
             // Calculate results for each target age
             const results = [];

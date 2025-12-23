@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Age Logic - Console</title>
+</head>
+<body>
+    <h1>Testing Age Logic in Console</h1>
+    <p>Check the browser console (F12) for test results.</p>
+
+    <script>
+        function testAgeLogic(currentAge) {
+            console.log(`Testing with age: ${currentAge}`);
+            
+            // Logic from the modified calculator
+            const targetAges = [];
+            
+            // First row: current age with only age and capital (other values zeroed out for display)
+            targetAges.push({age: currentAge, showOnlyBase: true});
+
+            // Next two years
+            if (currentAge + 1 <= 100) {
+                targetAges.push({age: currentAge + 1});
+            }
+            if (currentAge + 2 <= 100) {
+                targetAges.push({age: currentAge + 2});
+            }
+
+            // Add nearest multiples of 10 after the next two years (but not 100 yet)
+            // Calculate the next multiple of 10 after currentAge + 2
+            const nextMultipleOf10 = Math.ceil((currentAge + 2) / 10) * 10;
+
+            // Add up to 2 nearest multiples of 10 that are greater than currentAge + 2 and < 100
+            if (nextMultipleOf10 > currentAge + 2 && nextMultipleOf10 < 100) {
+                targetAges.push({age: nextMultipleOf10});
+
+                // Add the next multiple of 10 after that if it's within bounds
+                const nextNextMultipleOf10 = nextMultipleOf10 + 10;
+                if (nextNextMultipleOf10 < 100) {
+                    targetAges.push({age: nextNextMultipleOf10});
+                }
+            }
+
+            // Always add age 100 if it's greater than currentAge + 2
+            if (currentAge + 2 < 100) {
+                targetAges.push({age: 100});
+            }
+            
+            console.log(`Target ages for input ${currentAge}:`, targetAges.map(item => item.age));
+            return targetAges;
+        }
+        
+        // Test with age 64 as requested
+        testAgeLogic(64);
+        
+        // Test with other ages to ensure it works generally
+        testAgeLogic(25);
+        testAgeLogic(39);
+        testAgeLogic(78);
+        testAgeLogic(95);
+        
+        console.log("Testing completed. Check the console for results.");
+    </script>
+</body>
+</html>

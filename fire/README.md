@@ -27,7 +27,7 @@ FIRE (Financial Independence, Retire Early) is a movement focused on aggressive 
 The calculator will then show projections for:
 - First row: Current age with only Age and Capital shown (other columns empty)
 - Next two rows: Projections for the following two years
-- Subsequent rows: Ages 50, 60, and 80 (if applicable)
+- Subsequent rows: Nearest multiples of 10 after the next two years, and finally age 100 (if applicable)
 
 ### Table Columns:
 - **Age**: The target age for the projection
