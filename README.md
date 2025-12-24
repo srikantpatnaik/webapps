@@ -40,9 +40,9 @@ A modern, dark-themed web application that displays real-time weather informatio
 
 This project is designed to work with GitHub Pages. Simply push this repository to GitHub and enable GitHub Pages for the repository to host the dashboard online.
 
-## Directory Structure Note
+## Directory Structure
 
-- The application has been moved from the `aqi` directory to the `weather` directory for better clarity
+- `/weather/` - Contains the Weather Dashboard application
 
 ## License
 
