@@ -3,51 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Apps Collection</title>
+    <title>Web Apps Dashboard</title>
     <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --success: #4cc9f0;
+            --background: #121212;
+            --card-bg: #1e1e1e;
+            --text: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border: #333;
+            --input-bg: #2d2d2d;
+            --input-border: #444;
+            --button-bg: #4361ee;
+            --button-hover: #3a56d4;
+            --data-card-bg: #252525;
+            --border-radius: 12px;
+            --box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
             max-width: 800px;
             margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
         }
-        .container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
         }
+
         h1 {
-            color: #333;
-            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
         }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            width: 100%;
+        }
+
+        .app-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 25px;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .app-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+            background: #252527;
+        }
+
+        .app-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .app-title {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .app-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
         .app-link {
-            display: block;
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #4CAF50;
+            display: inline-block;
+            background: var(--button-bg);
             color: white;
-            text-align: center;
             text-decoration: none;
-            border-radius: 4px;
-            font-size: 18px;
-            transition: background-color 0.3s;
+            padding: 10px 20px;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            transition: var(--transition);
         }
+
         .app-link:hover {
-            background-color: #45a049;
+            background: var(--button-hover);
+            transform: translateY(-2px);
+        }
+
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .apps-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Web Applications</h1>
-        <p>Welcome to my collection of web applications.</p>
-        
-        <a href="fire/fire_calculator.html" class="app-link">Fire Calculator</a>
-        
-        <hr>
-        <p><small>This repository is hosted on GitHub Pages.</small></p>
+        <header>
+            <h1>Web Apps Dashboard</h1>
+            <p class="subtitle">Access all your web applications from one place</p>
+        </header>
+
+        <main>
+            <div class="apps-grid">
+                <div class="app-card">
+                    <div class="app-icon">🌡️</div>
+                    <h2 class="app-title">Air Quality & Weather</h2>
+                    <p class="app-description">Check real-time weather and air quality data for any city</p>
+                    <a href="./aqi/index.html" class="app-link">Launch App</a>
+                </div>
+
+                <div class="app-card">
+                    <div class="app-icon">💰</div>
+                    <h2 class="app-title">FIRE Calculator</h2>
+                    <p class="app-description">Financial Independence, Retire Early calculator</p>
+                    <a href="./fire/fire_calculator.html" class="app-link">Launch App</a>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>Web Apps Collection | Ready for GitHub Pages Hosting</p>
+        </footer>
     </div>
 </body>
 </html>
