@@ -183,11 +183,11 @@
             color: var(--primary);
         }
 
-        /* Weather Cards - Uniform dark theme */
+        /* Weather Cards - Enhanced design - more compact and beautiful */
         .weather-cards-container {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 15px;
+            gap: 12px;
             margin-top: 15px;
         }
 
@@ -195,80 +195,89 @@
             background: var(--data-card-bg);
             border: 1px solid var(--border);
             border-radius: var(--border-radius);
-            padding: 18px;
+            padding: 15px;
             transition: var(--transition);
             position: relative;
             overflow: hidden;
             color: var(--text);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .weather-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
         }
 
         .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
-            padding-bottom: 10px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
             border-bottom: 1px solid var(--border);
         }
 
         .city-name {
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             font-weight: 600;
             margin: 0;
             color: var(--primary);
+            flex-grow: 1;
         }
 
         .delete-btn {
             background: transparent; /* Transparent background */
             border: none; /* No border */
             border-radius: 50%; /* Circular shape */
-            padding: 5px; /* Small padding */
+            padding: 6px; /* Small padding */
             color: var(--text-secondary); /* Muted text color */
             cursor: pointer;
-            font-size: 0.7rem; /* Smaller font */
+            font-size: 0.9rem; /* Slightly larger font */
             transition: var(--transition);
             min-height: auto;
             min-width: auto;
-            width: 22px; /* Very small width */
-            height: 22px; /* Very small height */
+            width: 26px; /* Small width */
+            height: 26px; /* Small height */
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0.6; /* Semi-transparent */
+            opacity: 0.7; /* Semi-transparent */
         }
 
         .delete-btn:hover {
-            background: rgba(255, 255, 255, 0.1); /* Very subtle hover effect */
+            background: rgba(231, 107, 107, 0.2); /* Reddish hover effect */
             opacity: 1; /* Full opacity on hover */
-            transform: scale(1.1); /* Slightly enlarge on hover */
+            transform: scale(1.15); /* Slightly enlarge on hover */
+            color: #e76b6b;
         }
 
         .delete-icon {
-            font-size: 0.8rem;
+            font-size: 1rem;
             line-height: 1;
         }
 
         .card-content {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 8px;
         }
 
         .weather-main {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
+            padding: 5px 0;
         }
 
         .weather-desc {
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 500;
             color: var(--text);
+            text-transform: capitalize;
         }
 
         .temp-main {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             font-weight: 700;
             color: var(--text);
         }
@@ -276,29 +285,29 @@
         .weather-details {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-top: 8px;
+            gap: 8px;
+            margin-top: 5px;
         }
 
         .detail-item {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 10px;
-            background: rgba(67, 97, 238, 0.1);
-            border-radius: 8px;
-            border: 1px solid rgba(67, 97, 238, 0.2);
+            padding: 8px;
+            background: rgba(67, 97, 238, 0.08);
+            border-radius: 6px;
+            border: 1px solid rgba(67, 97, 238, 0.15);
         }
 
         .detail-label {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
             color: var(--text-secondary);
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
 
         .detail-value {
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 600;
             color: var(--text);
         }
@@ -308,37 +317,38 @@
             body {
                 padding: 20px;
             }
-            
+
             h1 {
                 font-size: 2rem;
             }
-            
+
             .subtitle {
                 font-size: 1rem;
                 margin-bottom: 25px;
             }
-            
+
             .input-group {
                 flex-direction: row;
             }
-            
+
             input {
                 min-width: 200px;
             }
-            
+
             .card {
                 padding: 25px;
                 margin-bottom: 20px;
             }
-            
+
             .data-card .value {
                 font-size: 1.6rem;
             }
-            
+
             .weather-cards-container {
-                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+                gap: 15px;
             }
-            
+
             .weather-main {
                 justify-content: space-between;
             }
@@ -348,37 +358,42 @@
             .input-group {
                 margin-bottom: 20px;
             }
-            
+
             h1 {
                 font-size: 2.2rem;
             }
-            
+
             .data-card .value {
                 font-size: 1.8rem;
             }
-            
+
             .weather-data {
                 grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
                 gap: 15px;
             }
-            
+
             .data-card {
                 padding: 20px;
             }
-            
+
             .weather-details {
                 grid-template-columns: repeat(3, 1fr);
-                gap: 15px;
+                gap: 10px;
             }
-            
+
             .detail-item {
+                padding: 10px;
+            }
+
+            .weather-card {
                 padding: 12px;
             }
         }
 
         @media (min-width: 1024px) {
             .weather-cards-container {
-                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 18px;
             }
         }
     </style>
@@ -388,6 +403,7 @@
         <header>
             <h1>Weather Dashboard</h1>
             <p class="subtitle">Check weather details for cities using wttr.in and view stored records</p>
+            <div id="globalLastUpdated" class="last-updated" style="margin-top: 10px;"></div>
         </header>
 
         <main>
@@ -397,7 +413,6 @@
                 <div class="input-group">
                     <input type="text" id="cityInput" placeholder="Enter city name..." autocomplete="off">
                     <button id="submitBtn">Get Weather</button>
-                    <button id="clearBtn">Clear Storage</button>
                 </div>
 
                 <div id="errorContainer"></div>
@@ -443,7 +458,6 @@
         // DOM elements
         const cityInput = document.getElementById('cityInput');
         const submitBtn = document.getElementById('submitBtn');
-        const clearBtn = document.getElementById('clearBtn');
         const temperatureEl = document.getElementById('temperature');
         const feelsLikeEl = document.getElementById('feelsLike');
         const humidityEl = document.getElementById('humidity');
@@ -455,10 +469,49 @@
         const errorContainer = document.getElementById('errorContainer');
         const lastUpdatedEl = document.getElementById('lastUpdated');
         const weatherCardsContainer = document.getElementById('weatherCardsContainer');
+        const globalLastUpdatedEl = document.getElementById('globalLastUpdated');
+
+        // Helper function to format the date and time as hh:mm with "today" or date
+        function formatDateTime(date) {
+            const now = new Date();
+            const isToday = date.toDateString() === now.toDateString();
+
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const formattedTime = `${hours}:${minutes}`;
+
+            if (isToday) {
+                return `Last updated: ${formattedTime} (today)`;
+            } else {
+                const dateStr = date.toLocaleDateString();
+                return `Last updated: ${formattedTime} (${dateStr})`;
+            }
+        }
+
+        // Function to update global last updated time
+        function updateGlobalLastUpdated() {
+            const now = new Date();
+            globalLastUpdatedEl.textContent = formatDateTime(now);
+
+            // Store the last update time in localStorage
+            localStorage.setItem('lastGlobalUpdateTime', now.toISOString());
+        }
+
+        // Function to load and display the global last updated time
+        function loadGlobalLastUpdated() {
+            const lastUpdateStr = localStorage.getItem('lastGlobalUpdateTime');
+            if (lastUpdateStr) {
+                const lastUpdate = new Date(lastUpdateStr);
+                globalLastUpdatedEl.textContent = formatDateTime(lastUpdate);
+            } else {
+                globalLastUpdatedEl.textContent = 'Last updated: --:--';
+            }
+        }
 
         // Load stored weather data from localStorage when the page loads
         document.addEventListener('DOMContentLoaded', () => {
             loadStoredWeatherData();
+            loadGlobalLastUpdated();
 
             // Auto-refresh stored data every 5 minutes (300,000 milliseconds)
             setInterval(autoRefreshStoredData, 300000);
@@ -472,8 +525,6 @@
             }
         });
 
-        // Clear storage button event listener
-        clearBtn.addEventListener('click', clearStoredWeatherData);
 
         // Function to auto-refresh stored data
         async function autoRefreshStoredData() {
@@ -513,6 +564,9 @@
 
             // Refresh the displayed cards
             loadStoredWeatherData();
+
+            // Update global last updated time
+            updateGlobalLastUpdated();
         }
 
         // Handle form submission
@@ -566,6 +620,9 @@
 
                     // Update the displayed cards
                     loadStoredWeatherData();
+
+                    // Update global last updated time
+                    updateGlobalLastUpdated();
                 } else {
                     showError('City not found or data unavailable');
                 }
@@ -668,15 +725,11 @@
 
             // Refresh the cards
             loadStoredWeatherData();
+
+            // Update global last updated time
+            updateGlobalLastUpdated();
         }
 
-        // Clear all stored weather data
-        function clearStoredWeatherData() {
-            if (confirm('Are you sure you want to clear all stored weather data?')) {
-                localStorage.removeItem('weatherData');
-                loadStoredWeatherData();
-            }
-        }
 
         // Show loading state
         function showLoading() {
