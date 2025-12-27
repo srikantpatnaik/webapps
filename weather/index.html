@@ -123,6 +123,19 @@
             transform: translateY(0);
         }
 
+        #submitBtn {
+            background: var(--data-card-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        #submitBtn:hover {
+            background: var(--card-bg);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+        }
+
         /* Weather data display */
         .weather-data {
             display: grid;
@@ -187,7 +200,7 @@
         .weather-cards-container {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 12px;
+            gap: 10px;
             margin-top: 15px;
         }
 
@@ -195,30 +208,29 @@
             background: var(--data-card-bg);
             border: 1px solid var(--border);
             border-radius: var(--border-radius);
-            padding: 15px;
+            padding: 12px;
             transition: var(--transition);
             position: relative;
             overflow: hidden;
             color: var(--text);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+            min-height: 80px;
         }
 
         .weather-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
+            margin-bottom: 6px;
         }
 
         .city-name {
-            font-size: 1.2rem;
+            font-size: 1rem;
             font-weight: 600;
             margin: 0;
             color: var(--primary);
@@ -229,15 +241,15 @@
             background: transparent; /* Transparent background */
             border: none; /* No border */
             border-radius: 50%; /* Circular shape */
-            padding: 6px; /* Small padding */
+            padding: 4px; /* Small padding */
             color: var(--text-secondary); /* Muted text color */
             cursor: pointer;
-            font-size: 0.9rem; /* Slightly larger font */
+            font-size: 0.8rem; /* Slightly larger font */
             transition: var(--transition);
             min-height: auto;
             min-width: auto;
-            width: 26px; /* Small width */
-            height: 26px; /* Small height */
+            width: 22px; /* Smaller width */
+            height: 22px; /* Smaller height */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -252,64 +264,82 @@
         }
 
         .delete-icon {
-            font-size: 1rem;
+            font-size: 0.8rem;
             line-height: 1;
         }
 
         .card-content {
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .weather-main {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 5px 0;
+            flex-direction: column;
+            align-items: flex-start;
         }
 
         .weather-desc {
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             font-weight: 500;
             color: var(--text);
             text-transform: capitalize;
         }
 
         .temp-main {
-            font-size: 1.6rem;
+            font-size: 1.2rem;
             font-weight: 700;
             color: var(--text);
         }
 
         .weather-details {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-top: 5px;
+            display: flex;
+            gap: 12px;
         }
 
         .detail-item {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 8px;
+            padding: 6px 8px;
             background: rgba(67, 97, 238, 0.08);
-            border-radius: 6px;
+            border-radius: 4px;
             border: 1px solid rgba(67, 97, 238, 0.15);
         }
 
         .detail-label {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             text-transform: uppercase;
             color: var(--text-secondary);
-            margin-bottom: 3px;
+            margin-bottom: 2px;
         }
 
         .detail-value {
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             font-weight: 600;
             color: var(--text);
+        }
+
+        .sort-btn {
+            background: var(--data-card-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            padding: 6px 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            min-height: 30px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .sort-btn:hover {
+            background: var(--card-bg);
+            border-color: var(--primary);
         }
 
         /* Responsive adjustments for larger screens */
@@ -345,8 +375,8 @@
             }
 
             .weather-cards-container {
-                grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-                gap: 15px;
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 12px;
             }
 
             .weather-main {
@@ -377,12 +407,11 @@
             }
 
             .weather-details {
-                grid-template-columns: repeat(3, 1fr);
                 gap: 10px;
             }
 
             .detail-item {
-                padding: 10px;
+                padding: 6px 8px;
             }
 
             .weather-card {
@@ -392,8 +421,8 @@
 
         @media (min-width: 1024px) {
             .weather-cards-container {
-                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-                gap: 18px;
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                gap: 15px;
             }
         }
     </style>
@@ -446,7 +475,10 @@
             </div>
 
             <div class="card">
-                <h2>Stored Weather Records</h2>
+                <h2>Weather Records</h2>
+                <div id="sortControlsContainer" style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 15px;">
+                    <!-- Sort buttons will be inserted here by JavaScript -->
+                </div>
                 <div class="weather-cards-container" id="weatherCardsContainer">
                     <!-- Weather cards will appear here -->
                 </div>
@@ -508,13 +540,19 @@
             }
         }
 
+        // Current sort state
+        let currentSort = { field: 'name', order: 'asc' };
+
         // Load stored weather data from localStorage when the page loads
         document.addEventListener('DOMContentLoaded', () => {
             loadStoredWeatherData();
             loadGlobalLastUpdated();
 
-            // Auto-refresh stored data every 5 minutes (300,000 milliseconds)
-            setInterval(autoRefreshStoredData, 300000);
+            // Refresh stored data on page load
+            refreshStoredDataOnLoad();
+
+            // Auto-refresh stored data every 2 minutes (120,000 milliseconds)
+            setInterval(autoRefreshStoredData, 120000);
         });
 
         // Submit button event listener
@@ -528,6 +566,49 @@
 
         // Function to auto-refresh stored data
         async function autoRefreshStoredData() {
+            const storedData = JSON.parse(localStorage.getItem('weatherData')) || [];
+
+            if (storedData.length === 0) return; // Nothing to refresh
+
+            // Update each stored city's data
+            for (let i = 0; i < storedData.length; i++) {
+                try {
+                    const city = storedData[i].city;
+                    const response = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`);
+                    const data = await response.json();
+
+                    if (data && data.current_condition && data.current_condition.length > 0 && data.weather && data.weather.length > 0) {
+                        const current = data.current_condition[0];
+                        const todayForecast = data.weather[0];
+
+                        // Update the stored data with new values
+                        storedData[i].temperature = current.temp_C;
+                        storedData[i].feelsLike = current.FeelsLikeC;
+                        storedData[i].humidity = current.humidity;
+                        storedData[i].weatherDesc = current.weatherDesc[0].value;
+                        storedData[i].maxTemp = todayForecast.maxtempC || null;
+                        storedData[i].minTemp = todayForecast.mintempC || null;
+                    }
+                } catch (error) {
+                    console.error(`Error refreshing data for ${storedData[i].city}:`, error);
+                }
+
+                // Small delay between requests to avoid overwhelming the API
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            // Save updated data back to localStorage
+            localStorage.setItem('weatherData', JSON.stringify(storedData));
+
+            // Refresh the displayed cards
+            loadStoredWeatherData();
+
+            // Update global last updated time
+            updateGlobalLastUpdated();
+        }
+
+        // Function to refresh stored data on page load
+        async function refreshStoredDataOnLoad() {
             const storedData = JSON.parse(localStorage.getItem('weatherData')) || [];
 
             if (storedData.length === 0) return; // Nothing to refresh
@@ -670,16 +751,135 @@
             localStorage.setItem('weatherData', JSON.stringify(storedData));
         }
 
+        // Function to sort weather data
+        function sortWeatherData(data, field, order) {
+            return data.sort((a, b) => {
+                let valueA, valueB;
+
+                switch (field) {
+                    case 'name':
+                        valueA = a.city.toLowerCase();
+                        valueB = b.city.toLowerCase();
+                        break;
+                    case 'maxTemp':
+                        valueA = a.maxTemp === null ? -Infinity : parseFloat(a.maxTemp);
+                        valueB = b.maxTemp === null ? -Infinity : parseFloat(b.maxTemp);
+                        break;
+                    case 'minTemp':
+                        valueA = a.minTemp === null ? -Infinity : parseFloat(a.minTemp);
+                        valueB = b.minTemp === null ? -Infinity : parseFloat(b.minTemp);
+                        break;
+                    default:
+                        valueA = a.city.toLowerCase();
+                        valueB = b.city.toLowerCase();
+                }
+
+                // Handle comparison based on order
+                if (order === 'asc') {
+                    return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+                } else {
+                    return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
+                }
+            });
+        }
+
+        // Function to get sort indicator (arrow)
+        function getSortIndicator(field) {
+            if (currentSort.field === field) {
+                return currentSort.order === 'asc' ? ' ↑' : ' ↓';
+            }
+            return '';
+        }
+
+        // Function to render sort controls
+        function renderSortControls() {
+            const container = document.getElementById('sortControlsContainer');
+            container.innerHTML = `
+                <div class="sort-controls" style="display: flex; gap: 8px;">
+                    <button class="sort-btn" onclick="setSort('name')" title="Sort by city name" style="
+                        background: var(--data-card-bg);
+                        color: var(--text);
+                        border: 1px solid var(--border);
+                        border-radius: var(--border-radius);
+                        padding: 6px 10px;
+                        font-size: 0.85rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: var(--transition);
+                        min-height: 30px;
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                    ">
+                        Name<span>${getSortIndicator('name')}</span>
+                    </button>
+                    <button class="sort-btn" onclick="setSort('minTemp')" title="Sort by minimum temperature" style="
+                        background: var(--data-card-bg);
+                        color: var(--text);
+                        border: 1px solid var(--border);
+                        border-radius: var(--border-radius);
+                        padding: 6px 10px;
+                        font-size: 0.85rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: var(--transition);
+                        min-height: 30px;
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                    ">
+                        Min Temp<span>${getSortIndicator('minTemp')}</span>
+                    </button>
+                    <button class="sort-btn" onclick="setSort('maxTemp')" title="Sort by maximum temperature" style="
+                        background: var(--data-card-bg);
+                        color: var(--text);
+                        border: 1px solid var(--border);
+                        border-radius: var(--border-radius);
+                        padding: 6px 10px;
+                        font-size: 0.85rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: var(--transition);
+                        min-height: 30px;
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                    ">
+                        Max Temp<span>${getSortIndicator('maxTemp')}</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        // Function to set sort and reload data
+        function setSort(field) {
+            // If clicking the same field, toggle order; otherwise set to ascending
+            if (currentSort.field === field) {
+                currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.order = 'asc';
+            }
+            loadStoredWeatherData(); // Reload with new sort
+        }
+
         // Load stored weather data from localStorage and populate the cards
         function loadStoredWeatherData() {
-            const storedData = JSON.parse(localStorage.getItem('weatherData')) || [];
+            let storedData = JSON.parse(localStorage.getItem('weatherData')) || [];
+
+            // Sort the data
+            storedData = sortWeatherData(storedData, currentSort.field, currentSort.order);
+
+            // Render sort controls
+            renderSortControls();
+
             weatherCardsContainer.innerHTML = '';
 
             storedData.forEach((item, index) => {
                 // Create card element
                 const card = document.createElement('div');
                 card.className = 'weather-card';
-                
+
                 card.innerHTML = `
                     <div class="card-header">
                         <h3 class="city-name">${item.city}</h3>
@@ -689,8 +889,8 @@
                     </div>
                     <div class="card-content">
                         <div class="weather-main">
-                            <div class="weather-desc">${item.weatherDesc}</div>
                             <div class="temp-main">${item.feelsLike}°C</div>
+                            <div class="weather-desc">${item.weatherDesc}</div>
                         </div>
                         <div class="weather-details">
                             <div class="detail-item">
@@ -702,7 +902,7 @@
                                 <span class="detail-value">${item.minTemp !== null ? item.minTemp + '°C' : '--°C'}</span>
                             </div>
                             <div class="detail-item">
-                                <span class="detail-label">Humidity</span>
+                                <span class="detail-label">Hum</span>
                                 <span class="detail-value">${item.humidity}%</span>
                             </div>
                         </div>
@@ -752,8 +952,9 @@
             errorContainer.innerHTML = '';
         }
 
-        // Make deleteWeatherRecord globally available for onclick
+        // Make deleteWeatherRecord and setSort globally available for onclick
         window.deleteWeatherRecord = deleteWeatherRecord;
+        window.setSort = setSort;
     </script>
 </body>
 </html>
