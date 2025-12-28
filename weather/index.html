@@ -49,7 +49,7 @@
         }
 
         h1 {
-            font-size: 1.8rem;
+            font-size: 1.4rem;
             margin-bottom: 5px;
             background: linear-gradient(90deg, var(--primary), var(--secondary));
             -webkit-background-clip: text;
@@ -59,7 +59,7 @@
 
         .subtitle {
             color: var(--text-secondary);
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             margin-bottom: 20px;
         }
 
@@ -437,44 +437,30 @@
 
         <main>
             <div class="card">
-                <div class="city-display">Enter a city to get weather details</div>
-
-                <div class="input-group">
-                    <input type="text" id="cityInput" placeholder="Enter city name..." autocomplete="off">
-                    <button id="submitBtn">Get Weather</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="city-display">Enter a city to get weather details</div>
+                    <button id="toggleInputBtn" class="sort-btn" style="min-height: auto; padding: 6px 12px;">▼</button>
                 </div>
 
-                <div id="errorContainer"></div>
-                <div id="loading" class="loading" style="display: none;">Loading weather data...</div>
-                <div id="weatherContainer" style="display: none;">
-                    <h2>Current Weather</h2>
-                    <div class="weather-data">
-                        <div class="data-card">
-                            <h3>Feels Like</h3>
-                            <div class="value" id="feelsLike">--°C</div>
-                        </div>
-                        <div class="data-card">
-                            <h3>Max</h3>
-                            <div class="value" id="maxTemp">--°C</div>
-                        </div>
-                        <div class="data-card">
-                            <h3>Min</h3>
-                            <div class="value" id="minTemp">--°C</div>
-                        </div>
-                        <div class="data-card">
-                            <h3>Humidity</h3>
-                            <div class="value" id="humidity">--%</div>
-                        </div>
-                        <div class="data-card">
-                            <h3>Weather</h3>
-                            <div class="value" id="weatherDesc">--</div>
-                        </div>
+                <div id="inputSection" style="display: none;">
+                    <div class="input-group">
+                        <input type="text" id="cityInput" placeholder="Enter city name..." autocomplete="off">
+                        <button id="submitBtn">Get Weather</button>
                     </div>
-                    <div class="last-updated" id="lastUpdated"></div>
+
+                    <div id="errorContainer"></div>
+                    <div id="loading" class="loading" style="display: none;">Loading weather data...</div>
+                    <div id="weatherContainer" style="display: none;">
+                        <div class="last-updated" id="lastUpdated"></div>
+                    </div>
                 </div>
             </div>
 
             <div class="card">
+                <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px;">
+                    <span>AQI (US):</span>
+                    <span style="margin-left: 5px;">0-50(Good) | 51-100(Moderate) | 101-150(Unhealthy for Sensitive) | 151-200(Unhealthy) | 201-300(Very Unhealthy) | 301+(Hazardous)</span>
+                </div>
                 <h2>Weather Records</h2>
                 <div id="sortControlsContainer" style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 15px;">
                     <!-- Sort buttons will be inserted here by JavaScript -->
@@ -490,12 +476,9 @@
         // DOM elements
         const cityInput = document.getElementById('cityInput');
         const submitBtn = document.getElementById('submitBtn');
-        const temperatureEl = document.getElementById('temperature');
-        const feelsLikeEl = document.getElementById('feelsLike');
-        const humidityEl = document.getElementById('humidity');
-        const weatherDescEl = document.getElementById('weatherDesc');
-        const maxTempEl = document.getElementById('maxTemp');
-        const minTempEl = document.getElementById('minTemp');
+        const toggleInputBtn = document.getElementById('toggleInputBtn');
+        const inputSection = document.getElementById('inputSection');
+        // Removed element references as their HTML elements were removed (no longer showing duplicate data)
         const weatherContainer = document.getElementById('weatherContainer');
         const loadingEl = document.getElementById('loading');
         const errorContainer = document.getElementById('errorContainer');
@@ -551,8 +534,20 @@
             // Refresh stored data on page load
             refreshStoredDataOnLoad();
 
-            // Auto-refresh stored data every 2 minutes (120,000 milliseconds)
-            setInterval(autoRefreshStoredData, 120000);
+            // Auto-refresh stored data every 5 minutes (300,000 milliseconds) - commented out due to API issues
+            // setInterval(autoRefreshStoredData, 300000);
+        });
+
+        // Toggle input section visibility
+        toggleInputBtn.addEventListener('click', () => {
+            if (inputSection.style.display === 'none' || inputSection.style.display === '') {
+                inputSection.style.display = 'block';
+                toggleInputBtn.textContent = '▲';
+                cityInput.focus(); // Focus the input field when expanded
+            } else {
+                inputSection.style.display = 'none';
+                toggleInputBtn.textContent = '▼';
+            }
         });
 
         // Submit button event listener
@@ -564,7 +559,7 @@
         });
 
 
-        // Function to auto-refresh stored data
+        // Function to auto-refresh stored data using Open-Meteo API (only cache geocoding)
         async function autoRefreshStoredData() {
             const storedData = JSON.parse(localStorage.getItem('weatherData')) || [];
 
@@ -574,23 +569,128 @@
             for (let i = 0; i < storedData.length; i++) {
                 try {
                     const city = storedData[i].city;
-                    const response = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`);
-                    const data = await response.json();
 
-                    if (data && data.current_condition && data.current_condition.length > 0 && data.weather && data.weather.length > 0) {
-                        const current = data.current_condition[0];
-                        const todayForecast = data.weather[0];
+                    // First, get coordinates for the city using OpenStreetMap's Nominatim API
+                    // Check if we have cached coordinates for this city (cache geocoding results)
+                    const geocodeCacheKey = `geocode_cache_${city.toLowerCase()}`;
+                    let geocodeData = JSON.parse(localStorage.getItem(geocodeCacheKey)) || null;
 
-                        // Update the stored data with new values
-                        storedData[i].temperature = current.temp_C;
-                        storedData[i].feelsLike = current.FeelsLikeC;
-                        storedData[i].humidity = current.humidity;
-                        storedData[i].weatherDesc = current.weatherDesc[0].value;
-                        storedData[i].maxTemp = todayForecast.maxtempC || null;
-                        storedData[i].minTemp = todayForecast.mintempC || null;
+                    if (!geocodeData) {
+                        // Not cached, fetch coordinates
+                        const geocodeResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+
+                        if (!geocodeResponse.ok) {
+                            throw new Error(`Geocoding error! status: ${geocodeResponse.status}`);
+                        }
+
+                        geocodeData = await geocodeResponse.json();
+
+                        if (!geocodeData.results || geocodeData.results.length === 0) {
+                            throw new Error('City not found');
+                        }
+
+                        // Cache coordinates for 24 hours
+                        const cacheEntry = {
+                            timestamp: new Date().toISOString(),
+                            data: geocodeData
+                        };
+                        localStorage.setItem(geocodeCacheKey, JSON.stringify(cacheEntry));
+                    } else {
+                        // Check if the cached data is still valid (less than 24 hours old)
+                        const cacheTime = new Date(geocodeData.timestamp);
+                        const now = new Date();
+                        if (now - cacheTime > 24 * 60 * 60 * 1000) { // 24 hours
+                            // Cache expired, fetch fresh coordinates
+                            const geocodeResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+
+                            if (!geocodeResponse.ok) {
+                                throw new Error(`Geocoding error! status: ${geocodeResponse.status}`);
+                            }
+
+                            geocodeData = await geocodeResponse.json();
+
+                            if (!geocodeData.results || geocodeData.results.length === 0) {
+                                throw new Error('City not found');
+                            }
+
+                            // Refresh the cache
+                            const cacheEntry = {
+                                timestamp: new Date().toISOString(),
+                                data: geocodeData
+                            };
+                            localStorage.setItem(geocodeCacheKey, JSON.stringify(cacheEntry));
+                        } else {
+                            // Use the cached data
+                            geocodeData = geocodeData.data;
+                        }
+                    }
+
+                    const { latitude, longitude } = geocodeData.results[0];
+
+                    // Now fetch weather and air quality data using the coordinates
+                    const [weatherResponse, airQualityResponse] = await Promise.allSettled([
+                        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto`),
+                        fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,us_aqi&timezone=auto`)
+                    ]);
+
+                    if (weatherResponse.status === 'rejected' || !weatherResponse.value.ok) {
+                        const errorStatus = weatherResponse.value ? weatherResponse.value.status : 'unknown';
+                        throw new Error(`Weather API error! status: ${errorStatus}`);
+                    }
+
+                    if (airQualityResponse.status === 'rejected' || !airQualityResponse.value.ok) {
+                        console.warn(`Air quality API error! status: ${airQualityResponse.value ? airQualityResponse.value.status : 'unknown'}. Proceeding with weather data only.`);
+                    }
+
+                    const weatherData = await weatherResponse.value.json();
+                    let airQualityData = null;
+                    try {
+                        if (airQualityResponse.status === 'fulfilled' && airQualityResponse.value.ok) {
+                            airQualityData = await airQualityResponse.value.json();
+                        }
+                    } catch (error) {
+                        console.warn('Air quality data not available:', error);
+                    }
+
+                    if (weatherData && weatherData.current && weatherData.daily) {
+                        // Extract weather data
+                        const temperature = weatherData.current.temperature_2m;
+                        const feelsLike = weatherData.current.apparent_temperature;
+                        const humidity = weatherData.current.relative_humidity_2m;
+                        const weatherCode = weatherData.current.weather_code;
+                        const maxTemp = weatherData.daily.temperature_2m_max[0] || null;
+                        const minTemp = weatherData.daily.temperature_2m_min[0] || null;
+
+                        // Map weather code to description
+                        const weatherDesc = getWeatherDescription(weatherCode);
+
+                        // Extract air quality data if available
+                        let airQuality = null;
+                        if (airQualityData && airQualityData.current) {
+                            airQuality = {
+                                aqi: airQualityData.current.us_aqi || null,
+                                pm2_5: airQualityData.current.pm2_5 || null,
+                                pm10: airQualityData.current.pm10 || null,
+                                o3: airQualityData.current.ozone || null,
+                                no2: airQualityData.current.nitrogen_dioxide || null,
+                                so2: airQualityData.current.sulphur_dioxide || null,
+                                co: airQualityData.current.carbon_monoxide || null
+                            };
+                        }
+
+                        // Update the stored data with new values (no caching of full weather data)
+                        storedData[i].temperature = temperature;
+                        storedData[i].feelsLike = feelsLike;
+                        storedData[i].humidity = humidity;
+                        storedData[i].weatherDesc = weatherDesc;
+                        storedData[i].maxTemp = maxTemp;
+                        storedData[i].minTemp = minTemp;
+                        storedData[i].airQuality = airQuality;
                     }
                 } catch (error) {
-                    console.error(`Error refreshing data for ${storedData[i].city}:`, error);
+                    console.error(`API unavailable for ${storedData[i].city} (this is expected if API is blocking requests):`, error);
+                    // Continue to next city instead of stopping the entire process
+                    // Don't show error to user for background refresh, just log it
                 }
 
                 // Small delay between requests to avoid overwhelming the API
@@ -607,7 +707,7 @@
             updateGlobalLastUpdated();
         }
 
-        // Function to refresh stored data on page load
+        // Function to refresh stored data on page load using Open-Meteo API (only cache geocoding) - with error handling
         async function refreshStoredDataOnLoad() {
             const storedData = JSON.parse(localStorage.getItem('weatherData')) || [];
 
@@ -617,23 +717,128 @@
             for (let i = 0; i < storedData.length; i++) {
                 try {
                     const city = storedData[i].city;
-                    const response = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`);
-                    const data = await response.json();
 
-                    if (data && data.current_condition && data.current_condition.length > 0 && data.weather && data.weather.length > 0) {
-                        const current = data.current_condition[0];
-                        const todayForecast = data.weather[0];
+                    // First, get coordinates for the city using OpenStreetMap's Nominatim API
+                    // Check if we have cached coordinates for this city (cache geocoding results)
+                    const geocodeCacheKey = `geocode_cache_${city.toLowerCase()}`;
+                    let geocodeData = JSON.parse(localStorage.getItem(geocodeCacheKey)) || null;
 
-                        // Update the stored data with new values
-                        storedData[i].temperature = current.temp_C;
-                        storedData[i].feelsLike = current.FeelsLikeC;
-                        storedData[i].humidity = current.humidity;
-                        storedData[i].weatherDesc = current.weatherDesc[0].value;
-                        storedData[i].maxTemp = todayForecast.maxtempC || null;
-                        storedData[i].minTemp = todayForecast.mintempC || null;
+                    if (!geocodeData) {
+                        // Not cached, fetch coordinates
+                        const geocodeResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+
+                        if (!geocodeResponse.ok) {
+                            throw new Error(`Geocoding error! status: ${geocodeResponse.status}`);
+                        }
+
+                        geocodeData = await geocodeResponse.json();
+
+                        if (!geocodeData.results || geocodeData.results.length === 0) {
+                            throw new Error('City not found');
+                        }
+
+                        // Cache coordinates for 24 hours
+                        const cacheEntry = {
+                            timestamp: new Date().toISOString(),
+                            data: geocodeData
+                        };
+                        localStorage.setItem(geocodeCacheKey, JSON.stringify(cacheEntry));
+                    } else {
+                        // Check if the cached data is still valid (less than 24 hours old)
+                        const cacheTime = new Date(geocodeData.timestamp);
+                        const now = new Date();
+                        if (now - cacheTime > 24 * 60 * 60 * 1000) { // 24 hours
+                            // Cache expired, fetch fresh coordinates
+                            const geocodeResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+
+                            if (!geocodeResponse.ok) {
+                                throw new Error(`Geocoding error! status: ${geocodeResponse.status}`);
+                            }
+
+                            geocodeData = await geocodeResponse.json();
+
+                            if (!geocodeData.results || geocodeData.results.length === 0) {
+                                throw new Error('City not found');
+                            }
+
+                            // Refresh the cache
+                            const cacheEntry = {
+                                timestamp: new Date().toISOString(),
+                                data: geocodeData
+                            };
+                            localStorage.setItem(geocodeCacheKey, JSON.stringify(cacheEntry));
+                        } else {
+                            // Use the cached data
+                            geocodeData = geocodeData.data;
+                        }
+                    }
+
+                    const { latitude, longitude } = geocodeData.results[0];
+
+                    // Now fetch weather and air quality data using the coordinates
+                    const [weatherResponse, airQualityResponse] = await Promise.allSettled([
+                        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto`),
+                        fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,us_aqi&timezone=auto`)
+                    ]);
+
+                    if (weatherResponse.status === 'rejected' || !weatherResponse.value.ok) {
+                        const errorStatus = weatherResponse.value ? weatherResponse.value.status : 'unknown';
+                        throw new Error(`Weather API error! status: ${errorStatus}`);
+                    }
+
+                    if (airQualityResponse.status === 'rejected' || !airQualityResponse.value.ok) {
+                        console.warn(`Air quality API error! status: ${airQualityResponse.value ? airQualityResponse.value.status : 'unknown'}. Proceeding with weather data only.`);
+                    }
+
+                    const weatherData = await weatherResponse.value.json();
+                    let airQualityData = null;
+                    try {
+                        if (airQualityResponse.status === 'fulfilled' && airQualityResponse.value.ok) {
+                            airQualityData = await airQualityResponse.value.json();
+                        }
+                    } catch (error) {
+                        console.warn('Air quality data not available:', error);
+                    }
+
+                    if (weatherData && weatherData.current && weatherData.daily) {
+                        // Extract weather data
+                        const temperature = weatherData.current.temperature_2m;
+                        const feelsLike = weatherData.current.apparent_temperature;
+                        const humidity = weatherData.current.relative_humidity_2m;
+                        const weatherCode = weatherData.current.weather_code;
+                        const maxTemp = weatherData.daily.temperature_2m_max[0] || null;
+                        const minTemp = weatherData.daily.temperature_2m_min[0] || null;
+
+                        // Map weather code to description
+                        const weatherDesc = getWeatherDescription(weatherCode);
+
+                        // Extract air quality data if available
+                        let airQuality = null;
+                        if (airQualityData && airQualityData.current) {
+                            airQuality = {
+                                aqi: airQualityData.current.us_aqi || null,
+                                pm2_5: airQualityData.current.pm2_5 || null,
+                                pm10: airQualityData.current.pm10 || null,
+                                o3: airQualityData.current.ozone || null,
+                                no2: airQualityData.current.nitrogen_dioxide || null,
+                                so2: airQualityData.current.sulphur_dioxide || null,
+                                co: airQualityData.current.carbon_monoxide || null
+                            };
+                        }
+
+                        // Update the stored data with new values (no caching of full weather data)
+                        storedData[i].temperature = temperature;
+                        storedData[i].feelsLike = feelsLike;
+                        storedData[i].humidity = humidity;
+                        storedData[i].weatherDesc = weatherDesc;
+                        storedData[i].maxTemp = maxTemp;
+                        storedData[i].minTemp = minTemp;
+                        storedData[i].airQuality = airQuality;
                     }
                 } catch (error) {
-                    console.error(`Error refreshing data for ${storedData[i].city}:`, error);
+                    console.error(`API unavailable for ${storedData[i].city} (this is expected if API is blocking requests):`, error);
+                    // Continue to next city instead of stopping the entire process
+                    // Don't show error to user for background refresh, just log it
                 }
 
                 // Small delay between requests to avoid overwhelming the API
@@ -662,42 +867,126 @@
             fetchData(city);
         }
 
-        // Fetch data from wttr.in
+        // Fetch data from Open-Meteo API
         async function fetchData(city) {
             showLoading();
             hideError();
 
             try {
-                // Fetch weather data from wttr.in in JSON format
-                const response = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`);
-                const data = await response.json();
+                // First, get coordinates for the city using OpenStreetMap's Nominatim API
+                // Check if we have cached coordinates for this city (cache geocoding results)
+                const geocodeCacheKey = `geocode_cache_${city.toLowerCase()}`;
+                let geocodeData = JSON.parse(localStorage.getItem(geocodeCacheKey)) || null;
 
-                if (data && data.current_condition && data.current_condition.length > 0 && data.weather && data.weather.length > 0) {
-                    const current = data.current_condition[0];
-                    // Get today's weather forecast which contains min and max temperatures
-                    const todayForecast = data.weather[0];
+                if (!geocodeData) {
+                    // Not cached, fetch coordinates
+                    const geocodeResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
 
+                    if (!geocodeResponse.ok) {
+                        throw new Error(`Geocoding error! status: ${geocodeResponse.status}`);
+                    }
+
+                    geocodeData = await geocodeResponse.json();
+
+                    if (!geocodeData.results || geocodeData.results.length === 0) {
+                        throw new Error('City not found');
+                    }
+
+                    // Cache coordinates for 24 hours
+                    const cacheEntry = {
+                        timestamp: new Date().toISOString(),
+                        data: geocodeData
+                    };
+                    localStorage.setItem(geocodeCacheKey, JSON.stringify(cacheEntry));
+                } else {
+                    // Check if the cached data is still valid (less than 24 hours old)
+                    const cacheTime = new Date(geocodeData.timestamp);
+                    const now = new Date();
+                    if (now - cacheTime > 24 * 60 * 60 * 1000) { // 24 hours
+                        // Cache expired, fetch fresh coordinates
+                        const geocodeResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+
+                        if (!geocodeResponse.ok) {
+                            throw new Error(`Geocoding error! status: ${geocodeResponse.status}`);
+                        }
+
+                        geocodeData = await geocodeResponse.json();
+
+                        if (!geocodeData.results || geocodeData.results.length === 0) {
+                            throw new Error('City not found');
+                        }
+
+                        // Refresh the cache
+                        const cacheEntry = {
+                            timestamp: new Date().toISOString(),
+                            data: geocodeData
+                        };
+                        localStorage.setItem(geocodeCacheKey, JSON.stringify(cacheEntry));
+                    } else {
+                        // Use the cached data
+                        geocodeData = geocodeData.data;
+                    }
+                }
+
+                const { latitude, longitude } = geocodeData.results[0];
+
+                // Now fetch weather and air quality data using the coordinates
+                const [weatherResponse, airQualityResponse] = await Promise.all([
+                    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto`),
+                    fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,us_aqi&timezone=auto`)
+                ]);
+
+                if (!weatherResponse.ok) {
+                    throw new Error(`Weather API error! status: ${weatherResponse.status}`);
+                }
+
+                if (!airQualityResponse.ok) {
+                    console.warn(`Air quality API error! status: ${airQualityResponse.status}. Proceeding with weather data only.`);
+                }
+
+                const weatherData = await weatherResponse.json();
+                let airQualityData = null;
+                try {
+                    airQualityData = await airQualityResponse.json();
+                } catch (error) {
+                    console.warn('Air quality data not available:', error);
+                }
+
+                if (weatherData && weatherData.current && weatherData.daily) {
                     // Extract weather data
-                    const temperature = current.temp_C;
-                    const feelsLike = current.FeelsLikeC;
-                    const humidity = current.humidity;
-                    const weatherDesc = current.weatherDesc[0].value;
-                    const maxTemp = todayForecast.maxtempC || null;
-                    const minTemp = todayForecast.mintempC || null;
+                    const temperature = weatherData.current.temperature_2m;
+                    const feelsLike = weatherData.current.apparent_temperature;
+                    const humidity = weatherData.current.relative_humidity_2m;
+                    const weatherCode = weatherData.current.weather_code;
+                    const maxTemp = weatherData.daily.temperature_2m_max[0] || null;
+                    const minTemp = weatherData.daily.temperature_2m_min[0] || null;
 
-                    // Display weather data (show feels like as the main temperature)
-                    feelsLikeEl.textContent = `${feelsLike}°C`;
-                    maxTempEl.textContent = maxTemp !== null ? `${maxTemp}°C` : '--°C';
-                    minTempEl.textContent = minTemp !== null ? `${minTemp}°C` : '--°C';
-                    humidityEl.textContent = `${humidity}%`;
-                    weatherDescEl.textContent = weatherDesc;
+                    // Map weather code to description (simplified mapping)
+                    const weatherDesc = getWeatherDescription(weatherCode);
+
+                    // Extract air quality data if available
+                    let airQuality = null;
+                    if (airQualityData && airQualityData.current) {
+                        airQuality = {
+                            aqi: airQualityData.current.us_aqi || null,
+                            pm2_5: airQualityData.current.pm2_5 || null,
+                            pm10: airQualityData.current.pm10 || null,
+                            o3: airQualityData.current.ozone || null,
+                            no2: airQualityData.current.nitrogen_dioxide || null,
+                            so2: airQualityData.current.sulphur_dioxide || null,
+                            co: airQualityData.current.carbon_monoxide || null
+                        };
+                    }
+
+                    // The individual display elements were removed as duplicate data
+                    // The data is now only shown in the weather cards below
 
                     // Show data container and update timestamp
                     weatherContainer.style.display = 'block';
                     lastUpdatedEl.textContent = `Last updated: ${new Date().toLocaleString()}`;
 
                     // Store this data in localStorage
-                    storeWeatherData(city, temperature, feelsLike, humidity, weatherDesc, maxTemp, minTemp);
+                    storeWeatherData(city, temperature, feelsLike, humidity, weatherDesc, maxTemp, minTemp, airQuality);
 
                     // Update the displayed cards
                     loadStoredWeatherData();
@@ -709,14 +998,57 @@
                 }
             } catch (error) {
                 console.error('Error fetching weather data:', error);
-                showError('Error fetching weather data. Please try again.');
+                if (error.message.includes('CORS')) {
+                    showError('CORS error: Unable to fetch weather data. The API might not allow browser requests.');
+                } else if (error.message.includes('HTTP error')) {
+                    showError(`HTTP error: ${error.message}. Please check if the city name is correct.`);
+                } else if (error.message.includes('Failed to fetch') || error.message.includes('connection')) {
+                    showError('Connection error: Unable to reach weather service. The API might be temporarily unavailable.');
+                } else {
+                    showError(error.message || 'Error fetching weather data. Please try again or check browser console for more details.');
+                }
             } finally {
                 hideLoading();
             }
         }
 
+        // Function to get weather description from weather code
+        function getWeatherDescription(code) {
+            const weatherCodes = {
+                0: 'Clear sky',
+                1: 'Mainly clear',
+                2: 'Partly cloudy',
+                3: 'Overcast',
+                45: 'Fog',
+                48: 'Depositing rime fog',
+                51: 'Light drizzle',
+                53: 'Moderate drizzle',
+                55: 'Dense drizzle',
+                56: 'Light freezing drizzle',
+                57: 'Dense freezing drizzle',
+                61: 'Slight rain',
+                63: 'Moderate rain',
+                65: 'Heavy rain',
+                66: 'Light freezing rain',
+                67: 'Heavy freezing rain',
+                71: 'Slight snow fall',
+                73: 'Moderate snow fall',
+                75: 'Heavy snow fall',
+                77: 'Snow grains',
+                80: 'Slight rain showers',
+                81: 'Moderate rain showers',
+                82: 'Violent rain showers',
+                85: 'Slight snow showers',
+                86: 'Heavy snow showers',
+                95: 'Thunderstorm',
+                96: 'Thunderstorm with slight hail',
+                99: 'Thunderstorm with heavy hail'
+            };
+            return weatherCodes[code] || 'Weather condition';
+        }
+
         // Store weather data in localStorage
-        function storeWeatherData(city, temperature, feelsLike, humidity, weatherDesc, maxTemp, minTemp) {
+        function storeWeatherData(city, temperature, feelsLike, humidity, weatherDesc, maxTemp, minTemp, airQuality = null) {
             let storedData = JSON.parse(localStorage.getItem('weatherData')) || [];
 
             // Check if city already exists, update if it does
@@ -734,6 +1066,7 @@
                 storedData[existingIndex].weatherDesc = weatherDesc;
                 storedData[existingIndex].maxTemp = finalMaxTemp;
                 storedData[existingIndex].minTemp = finalMinTemp;
+                storedData[existingIndex].airQuality = airQuality;
             } else {
                 // Add new record
                 storedData.push({
@@ -743,7 +1076,8 @@
                     humidity,
                     weatherDesc,
                     maxTemp: finalMaxTemp,
-                    minTemp: finalMinTemp
+                    minTemp: finalMinTemp,
+                    airQuality: airQuality
                 });
             }
 
@@ -907,6 +1241,24 @@
                             </div>
                         </div>
                     </div>
+                    ${item.airQuality ? `
+                    <div class="air-quality-section" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);">
+                        <div class="weather-details">
+                            <div class="detail-item">
+                                <span class="detail-label">AQI</span>
+                                <span class="detail-value">${item.airQuality.aqi !== null ? item.airQuality.aqi : '--'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">PM2.5</span>
+                                <span class="detail-value">${item.airQuality.pm2_5 !== null ? item.airQuality.pm2_5 + ' μg/m³' : '--'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">PM10</span>
+                                <span class="detail-value">${item.airQuality.pm10 !== null ? item.airQuality.pm10 + ' μg/m³' : '--'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
                 `;
 
                 weatherCardsContainer.appendChild(card);
