@@ -481,11 +481,27 @@
             </div>
 
 
-            <div class="card">
-                <div style="margin-bottom: 10px;">
-                    <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 5px;">Air Quality Reference:</div>
+            <!-- Get Weather Section -->
+            <div class="card" style="margin-top: 15px; padding: 12px;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" id="cityInput" placeholder="City..." autocomplete="off" style="flex: 1; padding: 6px 8px; font-size: 0.75rem; min-height: auto;">
+                    <button id="submitBtn" style="padding: 6px 12px; font-size: 0.75rem; min-height: auto;">Get Weather</button>
+                </div>
 
-                    <!-- Plain Text Ranges in Tabular Form -->
+                <div id="errorContainer" style="margin-top: 8px;"></div>
+                <div id="loading" class="loading" style="display: none; font-size: 0.75rem;">Loading...</div>
+                <div id="weatherContainer" style="display: none; margin-top: 10px;">
+                    <div class="last-updated" id="lastUpdated" style="font-size: 0.7rem;"></div>
+                </div>
+            </div>
+
+            <!-- Air Quality Reference Section (at the bottom, initially hidden) -->
+            <div class="card">
+                <button id="toggleAQRef" class="sort-btn" style="width: 100%; text-align: left; margin-bottom: 10px; justify-content: space-between;" onclick="toggleAQRefSection()" title="Toggle Air Quality Reference">
+                    <span>Air Quality Reference</span>
+                    <span id="aqRefToggleIcon">▼</span>
+                </button>
+                <div id="aqRefContent" style="display: none;">
                     <div style="margin-top: 10px;">
                         <style>
                             .aqi-table {
@@ -554,19 +570,6 @@
                             </tbody>
                         </table>
                     </div>
-            </div>
-
-            <!-- Get Weather Section - moved to bottom -->
-            <div class="card" style="margin-top: 15px; padding: 12px;">
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="text" id="cityInput" placeholder="City..." autocomplete="off" style="flex: 1; padding: 6px 8px; font-size: 0.75rem; min-height: auto;">
-                    <button id="submitBtn" style="padding: 6px 12px; font-size: 0.75rem; min-height: auto;">Get Weather</button>
-                </div>
-
-                <div id="errorContainer" style="margin-top: 8px;"></div>
-                <div id="loading" class="loading" style="display: none; font-size: 0.75rem;">Loading...</div>
-                <div id="weatherContainer" style="display: none; margin-top: 10px;">
-                    <div class="last-updated" id="lastUpdated" style="font-size: 0.7rem;"></div>
                 </div>
             </div>
         </main>
@@ -633,8 +636,8 @@
             // Refresh stored data on page load
             refreshStoredDataOnLoad();
 
-            // Auto-refresh stored data every 5 minutes (300,000 milliseconds) - commented out due to API issues
-            // setInterval(autoRefreshStoredData, 300000);
+            // Auto-refresh stored data every 5 minutes (300,000 milliseconds)
+            setInterval(autoRefreshStoredData, 300000);
         });
 
 
@@ -1206,6 +1209,10 @@
                         valueA = a.airQuality && a.airQuality.pm2_5 !== null ? parseFloat(a.airQuality.pm2_5) : -Infinity;
                         valueB = b.airQuality && b.airQuality.pm2_5 !== null ? parseFloat(b.airQuality.pm2_5) : -Infinity;
                         break;
+                    case 'humidity':
+                        valueA = a.humidity !== null ? parseFloat(a.humidity) : -Infinity;
+                        valueB = b.humidity !== null ? parseFloat(b.humidity) : -Infinity;
+                        break;
                     default:
                         valueA = a.city.toLowerCase();
                         valueB = b.city.toLowerCase();
@@ -1317,6 +1324,23 @@
                         gap: 4px;
                     ">
                         PM2.5<span>${getSortIndicator('pm25')}</span>
+                    </button>
+                    <button class="sort-btn" onclick="setSort('humidity')" title="Sort by humidity" style="
+                        background: var(--data-card-bg);
+                        color: var(--text);
+                        border: 1px solid var(--border);
+                        border-radius: var(--border-radius);
+                        padding: 6px 10px;
+                        font-size: 0.85rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: var(--transition);
+                        min-height: 30px;
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                    ">
+                        Humidity<span>${getSortIndicator('humidity')}</span>
                     </button>
                 </div>
             `;
@@ -1485,9 +1509,24 @@
             return '#7E0023'; // Hazardous (425+)
         }
 
-        // Make deleteWeatherRecord and setSort globally available for onclick
+        // Function to toggle air quality reference section
+        function toggleAQRefSection() {
+            const content = document.getElementById('aqRefContent');
+            const icon = document.getElementById('aqRefToggleIcon');
+
+            if (content.style.display === 'none' || content.style.display === '') {
+                content.style.display = 'block';
+                icon.textContent = '▲';
+            } else {
+                content.style.display = 'none';
+                icon.textContent = '▼';
+            }
+        }
+
+        // Make deleteWeatherRecord and setSort and toggleAQRefSection globally available for onclick
         window.deleteWeatherRecord = deleteWeatherRecord;
         window.setSort = setSort;
+        window.toggleAQRefSection = toggleAQRefSection;
     </script>
 </body>
 </html>
