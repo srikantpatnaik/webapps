@@ -1217,7 +1217,7 @@
                 card.innerHTML = `
                     <div class="card-header">
                         <h3 class="city-name">${item.city}</h3>
-                        <button class="delete-btn" onclick="deleteWeatherRecord(${index})" title="Delete record">
+                        <button class="delete-btn" onclick="deleteWeatherRecord('${item.city}')" title="Delete record">
                             <span class="delete-icon">🗑️</span>
                         </button>
                     </div>
@@ -1266,11 +1266,11 @@
         }
 
         // Delete a weather record
-        function deleteWeatherRecord(index) {
+        function deleteWeatherRecord(cityName) {
             let storedData = JSON.parse(localStorage.getItem('weatherData')) || [];
 
-            // Remove the item at the specified index
-            storedData.splice(index, 1);
+            // Remove the item with the specified city name
+            storedData = storedData.filter(item => item.city.toLowerCase() !== cityName.toLowerCase());
 
             // Update localStorage
             localStorage.setItem('weatherData', JSON.stringify(storedData));
