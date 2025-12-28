@@ -384,6 +384,42 @@
             }
         }
 
+        }
+
+        /* Styles for color reference bars */
+        .color-bar-container {
+            display: flex;
+            height: 24px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .color-segment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            position: relative;
+            z-index: 1;
+            flex: 1;
+        }
+
+        @media (max-width: 767px) {
+            .color-bar-container {
+                flex-direction: column;
+                height: auto;
+                min-height: 144px; /* 6 segments * 24px */
+            }
+
+            .color-segment {
+                flex: 1;
+                min-width: 100%;
+                min-height: 24px;
+            }
+        }
+
         @media (min-width: 768px) {
             .input-group {
                 margin-bottom: 20px;
@@ -431,42 +467,106 @@
     <div class="container">
         <header>
             <h1>Weather Dashboard</h1>
-            <p class="subtitle">Check weather details for cities using wttr.in and view stored records</p>
             <div id="globalLastUpdated" class="last-updated" style="margin-top: 10px;"></div>
         </header>
 
         <main>
             <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="city-display">Enter a city to get weather details</div>
-                    <button id="toggleInputBtn" class="sort-btn" style="min-height: auto; padding: 6px 12px;">▼</button>
-                </div>
-
-                <div id="inputSection" style="display: none;">
-                    <div class="input-group">
-                        <input type="text" id="cityInput" placeholder="Enter city name..." autocomplete="off">
-                        <button id="submitBtn">Get Weather</button>
-                    </div>
-
-                    <div id="errorContainer"></div>
-                    <div id="loading" class="loading" style="display: none;">Loading weather data...</div>
-                    <div id="weatherContainer" style="display: none;">
-                        <div class="last-updated" id="lastUpdated"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px;">
-                    <span>AQI (US):</span>
-                    <span style="margin-left: 5px;">0-50(Good) | 51-100(Moderate) | 101-150(Unhealthy for Sensitive) | 151-200(Unhealthy) | 201-300(Very Unhealthy) | 301+(Hazardous)</span>
-                </div>
-                <h2>Weather Records</h2>
                 <div id="sortControlsContainer" style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 15px;">
                     <!-- Sort buttons will be inserted here by JavaScript -->
                 </div>
                 <div class="weather-cards-container" id="weatherCardsContainer">
                     <!-- Weather cards will appear here -->
+                </div>
+            </div>
+
+
+            <div class="card">
+                <div style="margin-bottom: 10px;">
+                    <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 5px;">Air Quality Reference:</div>
+
+                    <!-- Plain Text Ranges in Tabular Form -->
+                    <div style="margin-top: 10px;">
+                        <style>
+                            .aqi-table {
+                                width: 100%;
+                                border-collapse: collapse;
+                                font-size: 0.65rem;
+                            }
+
+                            .aqi-table th, .aqi-table td {
+                                padding: 4px 6px;
+                                text-align: left;
+                                border: 1px solid var(--border);
+                            }
+
+                            .aqi-table th {
+                                background-color: var(--data-card-bg);
+                                color: var(--text-secondary);
+                                font-weight: 600;
+                            }
+
+                            .aqi-table td {
+                                background-color: var(--input-bg);
+                                color: var(--text);
+                            }
+                        </style>
+                        <table class="aqi-table">
+                            <thead>
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Good</th>
+                                    <th>Moderate</th>
+                                    <th>Unhealthy for Sensitive</th>
+                                    <th>Unhealthy</th>
+                                    <th>Very Unhealthy</th>
+                                    <th>Hazardous</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>AQI</strong></td>
+                                    <td>0-50</td>
+                                    <td>51-100</td>
+                                    <td>101-150</td>
+                                    <td>151-200</td>
+                                    <td>201-300</td>
+                                    <td>301+</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>PM2.5 (μg/m³)</strong></td>
+                                    <td>0-12</td>
+                                    <td>12.1-35.4</td>
+                                    <td>35.5-55.4</td>
+                                    <td>55.5-150.4</td>
+                                    <td>150.5-250.4</td>
+                                    <td>250.5+</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>PM10 (μg/m³)</strong></td>
+                                    <td>0-54</td>
+                                    <td>55-154</td>
+                                    <td>155-254</td>
+                                    <td>255-354</td>
+                                    <td>355-424</td>
+                                    <td>425+</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+            </div>
+
+            <!-- Get Weather Section - moved to bottom -->
+            <div class="card" style="margin-top: 15px; padding: 12px;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" id="cityInput" placeholder="City..." autocomplete="off" style="flex: 1; padding: 6px 8px; font-size: 0.75rem; min-height: auto;">
+                    <button id="submitBtn" style="padding: 6px 12px; font-size: 0.75rem; min-height: auto;">Get Weather</button>
+                </div>
+
+                <div id="errorContainer" style="margin-top: 8px;"></div>
+                <div id="loading" class="loading" style="display: none; font-size: 0.75rem;">Loading...</div>
+                <div id="weatherContainer" style="display: none; margin-top: 10px;">
+                    <div class="last-updated" id="lastUpdated" style="font-size: 0.7rem;"></div>
                 </div>
             </div>
         </main>
@@ -476,8 +576,7 @@
         // DOM elements
         const cityInput = document.getElementById('cityInput');
         const submitBtn = document.getElementById('submitBtn');
-        const toggleInputBtn = document.getElementById('toggleInputBtn');
-        const inputSection = document.getElementById('inputSection');
+        // Removed toggleInputBtn and inputSection as they are no longer used
         // Removed element references as their HTML elements were removed (no longer showing duplicate data)
         const weatherContainer = document.getElementById('weatherContainer');
         const loadingEl = document.getElementById('loading');
@@ -538,17 +637,6 @@
             // setInterval(autoRefreshStoredData, 300000);
         });
 
-        // Toggle input section visibility
-        toggleInputBtn.addEventListener('click', () => {
-            if (inputSection.style.display === 'none' || inputSection.style.display === '') {
-                inputSection.style.display = 'block';
-                toggleInputBtn.textContent = '▲';
-                cityInput.focus(); // Focus the input field when expanded
-            } else {
-                inputSection.style.display = 'none';
-                toggleInputBtn.textContent = '▼';
-            }
-        });
 
         // Submit button event listener
         submitBtn.addEventListener('click', handleFormSubmit);
@@ -556,6 +644,11 @@
             if (e.key === 'Enter') {
                 handleFormSubmit();
             }
+        });
+
+        // Focus the input field on page load
+        window.addEventListener('load', () => {
+            cityInput.focus();
         });
 
 
@@ -1103,6 +1196,16 @@
                         valueA = a.minTemp === null ? -Infinity : parseFloat(a.minTemp);
                         valueB = b.minTemp === null ? -Infinity : parseFloat(b.minTemp);
                         break;
+                    case 'aqi':
+                        // Extract AQI from airQuality if available
+                        valueA = a.airQuality && a.airQuality.aqi !== null ? parseFloat(a.airQuality.aqi) : -Infinity;
+                        valueB = b.airQuality && b.airQuality.aqi !== null ? parseFloat(b.airQuality.aqi) : -Infinity;
+                        break;
+                    case 'pm25':
+                        // Extract PM2.5 from airQuality if available
+                        valueA = a.airQuality && a.airQuality.pm2_5 !== null ? parseFloat(a.airQuality.pm2_5) : -Infinity;
+                        valueB = b.airQuality && b.airQuality.pm2_5 !== null ? parseFloat(b.airQuality.pm2_5) : -Infinity;
+                        break;
                     default:
                         valueA = a.city.toLowerCase();
                         valueB = b.city.toLowerCase();
@@ -1129,7 +1232,7 @@
         function renderSortControls() {
             const container = document.getElementById('sortControlsContainer');
             container.innerHTML = `
-                <div class="sort-controls" style="display: flex; gap: 8px;">
+                <div class="sort-controls" style="display: flex; gap: 8px; flex-wrap: wrap;">
                     <button class="sort-btn" onclick="setSort('name')" title="Sort by city name" style="
                         background: var(--data-card-bg);
                         color: var(--text);
@@ -1181,6 +1284,40 @@
                     ">
                         Max Temp<span>${getSortIndicator('maxTemp')}</span>
                     </button>
+                    <button class="sort-btn" onclick="setSort('aqi')" title="Sort by AQI" style="
+                        background: var(--data-card-bg);
+                        color: var(--text);
+                        border: 1px solid var(--border);
+                        border-radius: var(--border-radius);
+                        padding: 6px 10px;
+                        font-size: 0.85rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: var(--transition);
+                        min-height: 30px;
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                    ">
+                        AQI<span>${getSortIndicator('aqi')}</span>
+                    </button>
+                    <button class="sort-btn" onclick="setSort('pm25')" title="Sort by PM2.5" style="
+                        background: var(--data-card-bg);
+                        color: var(--text);
+                        border: 1px solid var(--border);
+                        border-radius: var(--border-radius);
+                        padding: 6px 10px;
+                        font-size: 0.85rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: var(--transition);
+                        min-height: 30px;
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                    ">
+                        PM2.5<span>${getSortIndicator('pm25')}</span>
+                    </button>
                 </div>
             `;
         }
@@ -1210,6 +1347,17 @@
             weatherCardsContainer.innerHTML = '';
 
             storedData.forEach((item, index) => {
+                // Compute colors for air quality values
+                let aqiColor = 'var(--text)';
+                let pm25Color = 'var(--text)';
+                let pm10Color = 'var(--text)';
+
+                if (item.airQuality) {
+                    aqiColor = getAQIColor(item.airQuality.aqi);
+                    pm25Color = getPM25Color(item.airQuality.pm2_5);
+                    pm10Color = getPM10Color(item.airQuality.pm10);
+                }
+
                 // Create card element
                 const card = document.createElement('div');
                 card.className = 'weather-card';
@@ -1246,15 +1394,15 @@
                         <div class="weather-details">
                             <div class="detail-item">
                                 <span class="detail-label">AQI</span>
-                                <span class="detail-value">${item.airQuality.aqi !== null ? item.airQuality.aqi : '--'}</span>
+                                <span class="detail-value" style="color: ${aqiColor} !important;">${item.airQuality.aqi !== null ? item.airQuality.aqi : '--'}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">PM2.5</span>
-                                <span class="detail-value">${item.airQuality.pm2_5 !== null ? item.airQuality.pm2_5 + ' μg/m³' : '--'}</span>
+                                <span class="detail-value" style="color: ${pm25Color} !important;">${item.airQuality.pm2_5 !== null ? item.airQuality.pm2_5 + ' μg/m³' : '--'}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">PM10</span>
-                                <span class="detail-value">${item.airQuality.pm10 !== null ? item.airQuality.pm10 + ' μg/m³' : '--'}</span>
+                                <span class="detail-value" style="color: ${pm10Color} !important;">${item.airQuality.pm10 !== null ? item.airQuality.pm10 + ' μg/m³' : '--'}</span>
                             </div>
                         </div>
                     </div>
@@ -1302,6 +1450,39 @@
         // Hide error message
         function hideError() {
             errorContainer.innerHTML = '';
+        }
+
+        // Function to determine AQI color based on value
+        function getAQIColor(value) {
+            if (value === null || value === undefined || value === '--') return 'var(--text)';
+            if (value >= 0 && value <= 50) return '#00E400';      // Good
+            if (value > 50 && value <= 100) return '#FFFF00';     // Moderate
+            if (value > 100 && value <= 150) return '#FF7E00';   // Unhealthy for Sensitive
+            if (value > 150 && value <= 200) return '#FF0000';   // Unhealthy
+            if (value > 200 && value <= 300) return '#99004C';   // Very Unhealthy
+            return '#7E0023'; // Hazardous (301+)
+        }
+
+        // Function to determine PM2.5 color based on value
+        function getPM25Color(value) {
+            if (value === null || value === undefined || value === '--') return 'var(--text)';
+            if (value >= 0 && value <= 12) return '#00E400';        // Good
+            if (value > 12 && value <= 35.4) return '#FFFF00';      // Moderate
+            if (value > 35.4 && value <= 55.4) return '#FF7E00';   // Unhealthy for Sensitive
+            if (value > 55.4 && value <= 150.4) return '#FF0000';  // Unhealthy
+            if (value > 150.4 && value <= 250.4) return '#99004C'; // Very Unhealthy
+            return '#7E0023'; // Hazardous (250.5+)
+        }
+
+        // Function to determine PM10 color based on value
+        function getPM10Color(value) {
+            if (value === null || value === undefined || value === '--') return 'var(--text)';
+            if (value >= 0 && value <= 54) return '#00E400';       // Good
+            if (value > 54 && value <= 154) return '#FFFF00';      // Moderate
+            if (value > 154 && value <= 254) return '#FF7E00';    // Unhealthy for Sensitive
+            if (value > 254 && value <= 354) return '#FF0000';    // Unhealthy
+            if (value > 354 && value <= 424) return '#99004C';    // Very Unhealthy
+            return '#7E0023'; // Hazardous (425+)
         }
 
         // Make deleteWeatherRecord and setSort globally available for onclick
