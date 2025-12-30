@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Logger</title>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --success: #4cc9f0;
+            --background: #121212;
+            --card-bg: #1e1e1e;
+            --text: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border: #333;
+            --input-bg: #2d2d2d;
+            --input-border: #444;
+            --button-bg: #4361ee;
+            --button-hover: #3a56d4;
+            --data-card-bg: #252525;
+            --border-radius: 12px;
+            --box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            margin-bottom: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input, select {
+            flex: 1;
+            padding: 12px;
+            background: var(--input-bg);
+            border: 2px solid var(--input-border);
+            border-radius: var(--border-radius);
+            color: var(--text);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.3);
+        }
+
+        /* Improved button styles */
+        button {
+            background: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            min-height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button:hover {
+            background: var(--button-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .add-expense-btn {
+            background: var(--data-card-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .add-expense-btn:hover {
+            background: var(--card-bg);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+        }
+
+        /* Expense table styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background-color: var(--data-card-bg);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        /* Month section styles */
+        .month-section {
+            margin-bottom: 20px;
+        }
+
+        .month-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .month-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .month-total {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--success);
+        }
+
+        .currency {
+            font-size: 0.9rem;
+        }
+
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            .input-group {
+                flex-direction: column;
+            }
+
+            th, td {
+                padding: 8px 5px;
+                font-size: 0.85rem;
+            }
+
+            .month-title {
+                font-size: 1.1rem;
+            }
+
+            .month-total {
+                font-size: 1rem;
+            }
+
+            /* Make table responsive */
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+                min-width: 400px; /* Ensure table has minimum width for mobile */
+            }
+
+            /* Adjust delete button for mobile */
+            .delete-btn {
+                width: 20px;
+                height: 20px;
+                padding: 3px;
+            }
+
+            /* Adjust table header and cell layout on mobile */
+            .mobile-row {
+                display: flex;
+                flex-direction: column;
+                border-bottom: 1px solid var(--border);
+                padding: 10px 0;
+            }
+
+            .mobile-cell {
+                display: flex;
+                justify-content: space-between;
+                padding: 3px 0;
+            }
+
+            .mobile-label {
+                font-weight: bold;
+                margin-right: 10px;
+            }
+        }
+
+        .toggle-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+
+        .expense-table {
+            display: table;
+            width: 100%;
+        }
+
+        .archived-month.hidden .expense-table {
+            display: none;
+        }
+
+        .archived-month.hidden .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .current-month .expense-table {
+            display: table;
+        }
+
+        .delete-btn {
+            background: transparent; /* Transparent background */
+            border: none; /* No border */
+            border-radius: 50%; /* Circular shape */
+            padding: 4px; /* Small padding */
+            color: var(--text-secondary); /* Muted text color */
+            cursor: pointer;
+            font-size: 0.8rem; /* Slightly larger font */
+            transition: var(--transition);
+            min-height: auto;
+            min-width: auto;
+            width: 22px; /* Smaller width */
+            height: 22px; /* Smaller height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7; /* Semi-transparent */
+        }
+
+        .delete-btn:hover {
+            background: rgba(231, 107, 107, 0.2); /* Reddish hover effect */
+            opacity: 1; /* Full opacity on hover */
+            transform: scale(1.15); /* Slightly enlarge on hover */
+            color: #e76b6b;
+        }
+
+        .delete-icon {
+            font-size: 0.8rem;
+            line-height: 1;
+        }
+
+        .no-expenses {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        /* Responsive adjustments for larger screens */
+        @media (min-width: 600px) {
+            body {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+                margin-bottom: 25px;
+            }
+
+            .input-group {
+                flex-direction: row;
+            }
+
+            input, select {
+                min-width: 200px;
+            }
+
+            .card {
+                padding: 25px;
+                margin-bottom: 20px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .input-group {
+                margin-bottom: 20px;
+            }
+
+            h1 {
+                font-size: 2.2rem;
+            }
+
+            .data-card .value {
+                font-size: 1.8rem;
+            }
+
+            .data-card {
+                padding: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .weather-cards-container {
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Expense Logger</h1>
+            <div class="subtitle">Track your expenses with ease</div>
+        </header>
+
+        <main>
+            <!-- Add Expense Form -->
+            <div class="card">
+                <div class="input-group">
+                    <input type="date" id="dateInput" placeholder="Date (dd-mm)">
+                    <input type="number" id="amountInput" placeholder="Amount" min="0" step="1">
+                    <input type="text" id="itemInput" placeholder="Item/Description">
+                    <button id="addExpenseBtn" class="add-expense-btn">Add Expense</button>
+                </div>
+            </div>
+
+            <!-- Current Month Expenses -->
+            <div class="card">
+                <div id="currentMonthSection" class="month-section current-month">
+                    <div class="month-header" onclick="toggleMonthSection('current')">
+                        <div class="month-title">Current Month</div>
+                        <div class="month-total">Total: <span id="currentMonthTotal">₹0</span></div>
+                        <div class="toggle-icon">▲</div>
+                    </div>
+                    <div class="expense-table">
+                        <table id="currentMonthTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Item</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="currentMonthTbody">
+                                <!-- Expenses will be added here dynamically -->
+                            </tbody>
+                        </table>
+                        <div id="noCurrentExpenses" class="no-expenses">No expenses recorded yet for this month</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Archived Months -->
+            <div class="card">
+                <h2>Archived Months</h2>
+                <div id="archivedMonthsContainer">
+                    <!-- Archived months will be added here dynamically -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // DOM elements
+        const dateInput = document.getElementById('dateInput');
+        const amountInput = document.getElementById('amountInput');
+        const itemInput = document.getElementById('itemInput');
+        const addExpenseBtn = document.getElementById('addExpenseBtn');
+        const currentMonthTbody = document.getElementById('currentMonthTbody');
+        const currentMonthTotal = document.getElementById('currentMonthTotal');
+        const noCurrentExpenses = document.getElementById('noCurrentExpenses');
+        const archivedMonthsContainer = document.getElementById('archivedMonthsContainer');
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set today's date as default
+            const today = new Date();
+            const formattedDate = today.toISOString().split('T')[0];
+            dateInput.value = formattedDate;
+
+            // Load existing expenses from localStorage
+            loadExpenses();
+
+            // Add event listeners
+            addExpenseBtn.addEventListener('click', addExpense);
+        });
+
+        // Function to add a new expense
+        function addExpense() {
+            const date = dateInput.value;
+            const rawAmount = parseFloat(amountInput.value);
+            const item = itemInput.value.trim();
+
+            // Validate inputs
+            if (!date || !rawAmount || isNaN(rawAmount) || rawAmount <= 0 || !item) {
+                alert('Please enter a valid amount and fill in all fields');
+                return;
+            }
+
+            // Create expense object with rounded amount
+            const expense = {
+                id: Date.now(), // Unique ID for this expense
+                date: date,
+                amount: Math.round(rawAmount), // Round to ensure it's an integer
+                item: item
+            };
+
+            // Add expense to stored data
+            addExpenseToStorage(expense);
+
+            // Update UI
+            updateUI();
+
+            // Clear input fields
+            amountInput.value = '';
+            itemInput.value = '';
+            // Don't clear the date field
+        }
+
+        // Function to add expense to localStorage
+        function addExpenseToStorage(expense) {
+            let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+            expenses.push(expense);
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+        }
+
+        // Function to delete an expense
+        function deleteExpense(id) {
+            let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+            expenses = expenses.filter(expense => expense.id !== id);
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            updateUI();
+        }
+
+        // Function to load expenses from localStorage
+        function loadExpenses() {
+            updateUI();
+        }
+
+        // Function to update UI with current and archived expenses
+        function updateUI() {
+            const expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+            const currentMonth = getCurrentMonthYear();
+
+            // Separate current month and archived expenses
+            const currentMonthExpenses = expenses.filter(expense => {
+                const expenseDate = new Date(expense.date);
+                return `${expenseDate.getFullYear()}-${String(expenseDate.getMonth() + 1).padStart(2, '0')}` === currentMonth;
+            });
+
+            const archivedExpenses = expenses.filter(expense => {
+                const expenseDate = new Date(expense.date);
+                return `${expenseDate.getFullYear()}-${String(expenseDate.getMonth() + 1).padStart(2, '0')}` !== currentMonth;
+            });
+
+            // Display current month expenses
+            displayCurrentMonthExpenses(currentMonthExpenses);
+
+            // Display archived expenses by month
+            displayArchivedMonths(archivedExpenses);
+        }
+
+        // Function to display current month expenses
+        function displayCurrentMonthExpenses(expenses) {
+            // Clear current table
+            currentMonthTbody.innerHTML = '';
+
+            if (expenses.length === 0) {
+                noCurrentExpenses.style.display = 'block';
+                currentMonthTotal.textContent = formatCurrency(0);
+                return;
+            }
+
+            noCurrentExpenses.style.display = 'none';
+
+            // Sort expenses by date (newest first)
+            expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            let total = 0;
+
+            expenses.forEach(expense => {
+                const row = document.createElement('tr');
+
+                // Calculate and format date as dd-mm
+                const date = new Date(expense.date);
+                const formattedDate = formatDate(expense.date);
+
+                row.innerHTML = `
+                    <td>${formattedDate}</td>
+                    <td>${formatCurrency(expense.amount)}</td>
+                    <td>${expense.item}</td>
+                    <td>
+                        <button class="delete-btn" onclick="deleteExpense(${expense.id})" title="Delete expense">
+                            <span class="delete-icon">🗑️</span>
+                        </button>
+                    </td>
+                `;
+
+                currentMonthTbody.appendChild(row);
+                total += expense.amount;
+            });
+
+            currentMonthTotal.textContent = formatCurrency(total);
+        }
+
+        // Function to display archived months
+        function displayArchivedMonths(expenses) {
+            // Group expenses by month
+            const groupedByMonth = {};
+
+            expenses.forEach(expense => {
+                const date = new Date(expense.date);
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                const monthName = date.toLocaleString('default', { month: 'long' }) + ' ' + date.getFullYear();
+
+                if (!groupedByMonth[monthKey]) {
+                    groupedByMonth[monthKey] = {
+                        monthName: monthName,
+                        expenses: [],
+                        total: 0
+                    };
+                }
+
+                groupedByMonth[monthKey].expenses.push(expense);
+                groupedByMonth[monthKey].total += expense.amount;
+            });
+
+            // Sort months by date (newest first)
+            const sortedMonths = Object.keys(groupedByMonth).sort((a, b) => {
+                return new Date(b) - new Date(a);
+            });
+
+            // Clear container
+            archivedMonthsContainer.innerHTML = '';
+
+            if (sortedMonths.length === 0) {
+                archivedMonthsContainer.innerHTML = '<div class="no-expenses">No archived months yet</div>';
+                return;
+            }
+
+            // Add each month as a section
+            sortedMonths.forEach(monthKey => {
+                const monthData = groupedByMonth[monthKey];
+                const monthSection = document.createElement('div');
+                monthSection.className = 'month-section archived-month';
+                monthSection.setAttribute('data-month', monthKey);
+
+                // Sort expenses by date (newest first)
+                monthData.expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                let tableRows = '';
+                monthData.expenses.forEach(expense => {
+                    const formattedDate = formatDate(expense.date);
+                    tableRows += `
+                        <tr>
+                            <td>${formattedDate}</td>
+                            <td>${formatCurrency(expense.amount)}</td>
+                            <td>${expense.item}</td>
+                            <td>
+                                <button class="delete-btn" onclick="deleteExpense(${expense.id})" title="Delete expense">
+                                    <span class="delete-icon">🗑️</span>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                monthSection.innerHTML = `
+                    <div class="month-header" onclick="toggleMonthSection('${monthKey}')">
+                        <div class="month-title">${monthData.monthName}</div>
+                        <div class="month-total">Total: ${formatCurrency(monthData.total)}</div>
+                        <div class="toggle-icon">▼</div>
+                    </div>
+                    <div class="expense-table">
+                        <table class="archived-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Item</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                archivedMonthsContainer.appendChild(monthSection);
+            });
+        }
+
+        // Function to get current month and year in format YYYY-MM
+        function getCurrentMonthYear() {
+            const now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        // Function to format date as dd-mm
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            return `${day}-${month}`;
+        }
+
+        // Function to format currency with commas and rupee symbol, no decimals, convert to K for thousands
+        function formatCurrency(amount) {
+            // Round the amount to integer
+            const roundedAmount = Math.round(amount);
+
+            // Check if the amount is in thousands
+            if (roundedAmount >= 1000) {
+                // Format to have one decimal place for thousands (e.g., 1.5K, 12.3K)
+                const thousands = (roundedAmount / 1000).toFixed(1);
+                // Remove trailing .0 if it's a whole number
+                const formatted = thousands.endsWith('.0') ? (roundedAmount / 1000).toFixed(0) : thousands;
+                return `₹${formatted}K`;
+            } else {
+                // For amounts less than 1000, format with commas if needed
+                return `₹${roundedAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+            }
+        }
+
+        // Function to toggle month section visibility
+        function toggleMonthSection(sectionId) {
+            const section = document.getElementById(sectionId + 'MonthSection') || document.querySelector(`[data-month="${sectionId}"]`);
+            if (section) {
+                const table = section.querySelector('.expense-table');
+                const icon = section.querySelector('.toggle-icon');
+
+                if (table.style.display === 'none' || table.style.display === '') {
+                    table.style.display = 'table';
+                    icon.textContent = '▲';
+                } else {
+                    table.style.display = 'none';
+                    icon.textContent = '▼';
+                }
+            }
+        }
+
+        // Format date input to show dd-mm format when needed
+        dateInput.addEventListener('change', function() {
+            // The browser already handles this in the correct format
+        });
+
+        // Make deleteExpense and toggleMonthSection globally available for onclick
+        window.deleteExpense = deleteExpense;
+        window.toggleMonthSection = toggleMonthSection;
+    </script>
+</body>
+</html>
