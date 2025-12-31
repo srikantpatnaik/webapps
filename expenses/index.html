@@ -208,12 +208,49 @@
                 font-size: 1rem;
             }
 
-            /* Make table responsive */
-            table {
-                display: block;
+            /* Make table responsive - fit within screen width */
+            .expense-table {
                 overflow-x: auto;
-                white-space: nowrap;
-                min-width: 400px; /* Ensure table has minimum width for mobile */
+                width: 100%;
+                -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+            }
+
+            .expense-table table {
+                min-width: 100%; /* Make table at least full width of container */
+                width: 100%;
+                display: table;
+                table-layout: fixed; /* Ensure table columns fit within container */
+            }
+
+            /* Adjust column widths on mobile */
+            .expense-table th,
+            .expense-table td {
+                word-wrap: break-word;
+                text-align: left;
+            }
+
+            /* Make date column smaller */
+            .expense-table th:first-child,
+            .expense-table td:first-child {
+                width: 25%;
+            }
+
+            /* Make amount column smaller */
+            .expense-table th:nth-child(2),
+            .expense-table td:nth-child(2) {
+                width: 25%;
+            }
+
+            /* Make item column take remaining space */
+            .expense-table th:nth-child(3),
+            .expense-table td:nth-child(3) {
+                width: 35%;
+            }
+
+            /* Make action column smaller */
+            .expense-table th:nth-child(4),
+            .expense-table td:nth-child(4) {
+                width: 15%;
             }
 
             /* Adjust delete button for mobile */
@@ -221,25 +258,6 @@
                 width: 20px;
                 height: 20px;
                 padding: 3px;
-            }
-
-            /* Adjust table header and cell layout on mobile */
-            .mobile-row {
-                display: flex;
-                flex-direction: column;
-                border-bottom: 1px solid var(--border);
-                padding: 10px 0;
-            }
-
-            .mobile-cell {
-                display: flex;
-                justify-content: space-between;
-                padding: 3px 0;
-            }
-
-            .mobile-label {
-                font-weight: bold;
-                margin-right: 10px;
             }
         }
 

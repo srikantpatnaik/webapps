@@ -73,6 +73,7 @@ This project is designed to work with GitHub Pages. Simply push this repository 
 ## More App Ideas
 
 - Simple hour based todo app for a week, track score and show stats week wise
+- Simple pintrest type of webapp when I can upload or paste an image and it will store for me in browser, I can add tags and filter it according to tags
 
 ## License
 
