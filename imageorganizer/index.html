@@ -8,6 +8,12 @@
 </head>
 <body>
     <div class="container">
+        <!-- Fullscreen modal for image preview -->
+        <div class="modal" id="imageModal">
+            <span class="close" id="closeModal">&times;</span>
+            <img class="modal-content" id="modalImage">
+            <div class="modal-tags" id="modalTags"></div>
+        </div>
         <header>
             <h1>Image Organizer</h1>
         </header>
@@ -21,17 +27,11 @@
 
             <section class="filter-section">
                 <div class="search-container">
-                    <input type="text" id="searchInput" placeholder="Filter by tag...">
+                    <input type="text" id="searchInput" placeholder="Paste image or Filter by tag">
                 </div>
             </section>
         </main>
 
-        <!-- Fullscreen modal for image preview -->
-        <div class="modal" id="imageModal">
-            <span class="close" id="closeModal">&times;</span>
-            <img class="modal-content" id="modalImage">
-            <div class="modal-tags" id="modalTags"></div>
-        </div>
     </div>
 
     <script src="script.js"></script>

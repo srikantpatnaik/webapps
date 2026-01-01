@@ -229,20 +229,18 @@ body.paste-enabled {
     transform: scale(1.05);
 }
 
-/* Image overlay for delete button */
+
+/* Image overlay for edit/delete buttons */
 .image-overlay {
     position: absolute;
     top: 10px;
     right: 10px;
-    z-index: 10;
-    opacity: 0;
+    z-index: 100; /* Higher z-index to ensure it appears above the image link */
+    opacity: 1;
     transition: opacity 0.3s ease;
     display: flex;
     gap: 5px;
-}
-
-.gallery-item:hover .image-overlay {
-    opacity: 1;
+    pointer-events: auto; /* Ensure the buttons can receive click events */
 }
 
 .edit-tags-btn {
