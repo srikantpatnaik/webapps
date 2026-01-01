@@ -61,18 +61,6 @@ A simple, dark-themed web application for organizing images with tags. Users can
 - **Full-Resolution View**: Click on any image to view it in full size
 - **Local Storage**: All images and tags are saved in your browser
 
-### ESP32 Pinout Reference
-A reference tool for ESP32 pinout diagrams with URL and tags management. Shows the pinout diagram and allows saving related resources with tags for easy organization.
-
-#### Features
-
-- **Pinout Diagram**: Displays the ESP32 WROOM DevKit pinout diagram
-- **URL Management**: Save important URLs related to ESP32 projects
-- **Tagging System**: Organize resources with multiple tags
-- **Local Storage**: All saved resources are stored in your browser
-- **Responsive Design**: Works well on all device sizes
-- **Dark Theme**: Consistent with the rest of the web apps collection
-
 ## How to Use
 
 1. Access the main index.html file to see the dashboard with all available apps
@@ -92,7 +80,6 @@ A reference tool for ESP32 pinout diagrams with URL and tags management. Shows t
 - `/expenses/` - Contains the Expense Logger application
 - `/fire/` - Contains the FIRE Calculator application
 - `/imageorganizer/` - Contains the Image Organizer application
-- `/esp32/` - Contains the ESP32 Pinout Reference application
 
 ## GitHub Pages
 
