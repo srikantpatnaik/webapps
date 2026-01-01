@@ -47,6 +47,32 @@ Financial Independence, Retire Early calculator to help plan your financial futu
 - **Timeline Projection**: Shows how long until you reach financial independence
 - **Visual Charts**: Interactive charts showing your financial journey
 
+### Image Organizer
+A simple, dark-themed web application for organizing images with tags. Users can upload images from their device or paste them directly from the clipboard, add tags for organization, and view all images in a Pinterest-like grid layout.
+
+#### Features
+
+- **Dark Theme**: Optimized for comfortable viewing in low-light environments
+- **Mobile Responsive**: Works well on all device sizes
+- **Image Upload**: Drag & drop, file selection, or paste from clipboard
+- **Tagging System**: Add multiple tags to organize your images
+- **Search Functionality**: Search through your images by tags
+- **Grid Layout**: Pinterest-style grid that dynamically adjusts to different aspect ratios
+- **Full-Resolution View**: Click on any image to view it in full size
+- **Local Storage**: All images and tags are saved in your browser
+
+### ESP32 Pinout Reference
+A reference tool for ESP32 pinout diagrams with URL and tags management. Shows the pinout diagram and allows saving related resources with tags for easy organization.
+
+#### Features
+
+- **Pinout Diagram**: Displays the ESP32 WROOM DevKit pinout diagram
+- **URL Management**: Save important URLs related to ESP32 projects
+- **Tagging System**: Organize resources with multiple tags
+- **Local Storage**: All saved resources are stored in your browser
+- **Responsive Design**: Works well on all device sizes
+- **Dark Theme**: Consistent with the rest of the web apps collection
+
 ## How to Use
 
 1. Access the main index.html file to see the dashboard with all available apps
@@ -65,6 +91,8 @@ Financial Independence, Retire Early calculator to help plan your financial futu
 - `/weather/` - Contains the Weather Dashboard application
 - `/expenses/` - Contains the Expense Logger application
 - `/fire/` - Contains the FIRE Calculator application
+- `/imageorganizer/` - Contains the Image Organizer application
+- `/esp32/` - Contains the ESP32 Pinout Reference application
 
 ## GitHub Pages
 

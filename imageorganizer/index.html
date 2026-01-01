@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Organizer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Image Organizer</h1>
+        </header>
+
+        <main>
+            <section class="gallery-section">
+                <div class="gallery" id="imageGallery">
+                    <!-- Images will be loaded here dynamically -->
+                </div>
+            </section>
+
+            <section class="filter-section">
+                <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="Filter by tag...">
+                </div>
+            </section>
+        </main>
+
+        <!-- Fullscreen modal for image preview -->
+        <div class="modal" id="imageModal">
+            <span class="close" id="closeModal">&times;</span>
+            <img class="modal-content" id="modalImage">
+            <div class="modal-tags" id="modalTags"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
