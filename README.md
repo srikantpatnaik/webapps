@@ -61,6 +61,37 @@ A simple, dark-themed web application for organizing images with tags. Users can
 - **Full-Resolution View**: Click on any image to view it in full size
 - **Local Storage**: All images and tags are saved in your browser
 
+### Image Resizer
+A simple web application that allows you to paste an image and resize it to various dimensions while preserving the aspect ratio.
+
+#### Features
+
+- **Paste Functionality**: Paste images directly from clipboard (Ctrl+V)
+- **Drag and Drop**: Drag and drop image files onto the upload area
+- **Upload Support**: Click to upload image files from your device
+- **Multiple Resize Factors**: Options for 0.3x, 0.6x, 0.8x, 1.0x, 1.3x, 1.5x scaling
+- **Aspect Ratio Preservation**: Maintains the original aspect ratio during resizing
+- **Resolution Display**: Shows exact resolution of both original and resized images
+- **Side-by-Side Comparison**: Original and resized images displayed together
+- **Download Option**: Download the resized image as a file
+- **Copy to Clipboard**: Copy the resized image to clipboard
+- **Client-Side Processing**: Images are processed locally with no server uploads
+
+### Day Planner
+A time-bound task management application designed to help users stay disciplined with their time allocation. The app allows users to plan tasks with specific start times and durations, track progress, and receive alerts before tasks are due.
+
+#### Features
+
+- **Task Management**: Add tasks with start times and duration in minutes
+- **Time Tracking**: Monitor remaining time for active tasks
+- **Status Tracking**: Tasks can be marked as pending, active, completed, or late
+- **Alert System**: Audio warning 1 minute before a task is due to finish
+- **Statistics**: Daily and weekly completion statistics
+- **Archiving**: Previous week's tasks are automatically archived
+- **Persistent Storage**: All tasks are saved in browser's local storage
+- **Dark Theme**: Optimized for evening use and reduced eye strain
+- **Mobile Responsive**: Works on both desktop and mobile devices
+
 ## How to Use
 
 1. Access the main index.html file to see the dashboard with all available apps
@@ -80,6 +111,8 @@ A simple, dark-themed web application for organizing images with tags. Users can
 - `/expenses/` - Contains the Expense Logger application
 - `/fire/` - Contains the FIRE Calculator application
 - `/imageorganizer/` - Contains the Image Organizer application
+- `/imageresizer/` - Contains the Image Resizer application
+- `/planner/` - Contains the Day Planner application
 
 ## GitHub Pages
 
@@ -87,8 +120,10 @@ This project is designed to work with GitHub Pages. Simply push this repository 
 
 ## More App Ideas
 
-- Simple hour based todo app for a week, track score and show stats week wise
-- Simple pintrest type of webapp when I can upload or paste an image and it will store for me in browser, I can add tags and filter it according to tags
+- Advanced photo editor with filters and effects
+- Budget tracker with category-based spending insights
+- Habit tracker with streaks and progress visualization
+- Note-taking app with markdown support
 
 ## License
 
