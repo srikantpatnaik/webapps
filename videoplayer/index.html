@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Fullscreen modal for video player -->
+        <div class="video-modal" id="videoModal">
+            <span class="close" id="closeModal">&times;</span>
+            <div class="video-container">
+                <video class="video-player" id="videoPlayer">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="video-controls">
+                <div class="progress-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="control-buttons">
+                    <button id="playPauseBtn" title="Play/Pause (Space)">▶</button>
+                    <button id="volumeBtn" title="Mute/Unmute (M)">🔊</button>
+                    <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="1">
+                    <span class="time-display" id="timeDisplay">00:00 / 00:00</span>
+                    <button id="speedDisplay" title="Change Speed (+/-)">1x</button>
+                    <button id="loopBtn" title="Toggle Loop (L)">🔁</button>
+                    <button id="globalLoopBtn" title="Toggle Global Loop (A)">↺</button>
+                    <button id="fullscreenBtn" title="Toggle Fullscreen (F)">⛶</button>
+                </div>
+            </div>
+            <div class="keyboard-shortcuts">
+                <div>
+                    <kbd>Space</kbd> Play/Pause
+                </div>
+                <div>
+                    <kbd>→</kbd> Seek Forward 10s
+                </div>
+                <div>
+                    <kbd>←</kbd> Seek Backward 10s
+                </div>
+                <div>
+                    <kbd>↑</kbd> Volume Up 10%
+                </div>
+                <div>
+                    <kbd>↓</kbd> Volume Down 10%
+                </div>
+                <div>
+                    <kbd>+</kbd> Increase Speed
+                </div>
+                <div>
+                    <kbd>-</kbd> Decrease Speed
+                </div>
+                <div>
+                    <kbd>L</kbd> Loop Toggle
+                </div>
+                <div>
+                    <kbd>z</kbd> Zoom In/Toggle
+                </div>
+                <div>
+                    <kbd>Z</kbd> Zoom Out
+                </div>
+                <div>
+                    <kbd>0</kbd> Reset Zoom
+                </div>
+                <div>
+                    <kbd>N</kbd> Next Video
+                </div>
+                <div>
+                    <kbd>B</kbd> Previous Video
+                </div>
+                <div>
+                    <kbd>A</kbd> Global Loop
+                </div>
+                <div>
+                    <kbd>O</kbd> Toggle Shortcuts
+                </div>
+                <div>
+                    <kbd>M</kbd> Mute/Unmute
+                </div>
+                <div>
+                    <kbd>F</kbd> Toggle Fullscreen
+                </div>
+                <div>
+                    <kbd>Esc</kbd> Close Video
+                </div>
+            </div>
+        </div>
+
+        <header>
+            <h1>Video Player</h1>
+        </header>
+
+        <main>
+            <section class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div>🎬</div>
+                    <h3>Select or Drop Video</h3>
+                    <p>Click to upload or drag & drop video files here</p>
+                    <input type="file" id="fileInput" accept="video/*" style="display: none;">
+                    <p id="videoInfo" class="resolution-info">No video loaded</p>
+                </div>
+
+                <div class="url-input-section">
+                    <div class="input-group">
+                        <label for="videoUrl">Or enter video URL:</label>
+                        <input type="text" id="videoUrl" placeholder="https://example.com/video.mp4">
+                        <button id="loadUrlBtn">Load Video</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="player-section">
+                <div class="video-gallery" id="videoGallery">
+                    <!-- Videos will be loaded here dynamically -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

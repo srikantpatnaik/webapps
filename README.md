@@ -92,6 +92,19 @@ A time-bound task management application designed to help users stay disciplined
 - **Dark Theme**: Optimized for evening use and reduced eye strain
 - **Mobile Responsive**: Works on both desktop and mobile devices
 
+### Video Player
+An HTML5 video player that allows you to upload, store, and play videos directly in your browser with keyboard shortcuts.
+
+#### Features
+
+- **Video Upload**: Drag & drop, file selection to add videos to your collection
+- **Local Storage**: Videos stored in browser's localStorage
+- **Keyboard Shortcuts**: Space (play/pause), Arrow Keys (seek), M (mute), F (fullscreen), Esc (close)
+- **Playback Controls**: Play/pause, volume control, progress bar with seeking
+- **Thumbnail Gallery**: Automatic thumbnail generation for uploaded videos
+- **Responsive Design**: Works on both desktop and mobile devices
+- **Client-Side Processing**: All processing happens locally with no server uploads
+
 ## How to Use
 
 1. Access the main index.html file to see the dashboard with all available apps
@@ -113,6 +126,7 @@ A time-bound task management application designed to help users stay disciplined
 - `/imageorganizer/` - Contains the Image Organizer application
 - `/imageresizer/` - Contains the Image Resizer application
 - `/planner/` - Contains the Day Planner application
+- `/videoplayer/` - Contains the Video Player application
 
 ## GitHub Pages
 
