@@ -8,6 +8,7 @@ class VideoPlayerApp {
         this.globalLoop = false; // Global loop setting
         this.defaultLoop = true; // Single loop mode enabled by default
         this.isLoadingVideos = true; // Flag to track loading state
+        this.playlistUrls = []; // Track loaded playlist URLs
         this.initElements();
         this.bindEvents();
         this.initializeVideoPlayer();
@@ -58,6 +59,9 @@ class VideoPlayerApp {
                 this.videos = [];
             }
         }
+
+        // Load playlist URLs as well
+        this.loadPlaylistUrls();
     }
 
     initializeVideoPlayer() {
@@ -278,6 +282,27 @@ class VideoPlayerApp {
                 alert('Please enter a video URL');
             }
         });
+
+        // Load M3U playlist
+        const loadM3UBtn = document.getElementById('loadM3UBtn');
+        const m3uPlaylistUrl = document.getElementById('m3uPlaylistUrl');
+        if (loadM3UBtn && m3uPlaylistUrl) {
+            loadM3UBtn.addEventListener('click', () => {
+                const url = m3uPlaylistUrl.value.trim();
+                if (url) {
+                    this.loadM3UPlaylist(url);
+                } else {
+                    alert('Please enter an M3U playlist URL');
+                }
+            });
+
+            // Allow pressing Enter in the M3U input
+            m3uPlaylistUrl.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    loadM3UBtn.click();
+                }
+            });
+        }
 
         // Allow pressing Enter in the URL input
         this.videoUrlInput.addEventListener('keypress', (e) => {
@@ -596,11 +621,15 @@ class VideoPlayerApp {
         // Empty current videos array
         this.videos = [];
 
+        // Clear playlist URLs as well
+        this.playlistUrls = [];
+
         // Refresh gallery display
         this.renderGallery();
 
         // Update size display
         this.updateTotalSizeDisplay();
+        this.renderPlaylistHistory();
 
         // Update info text
         if (this.videoInfo) {
@@ -609,12 +638,93 @@ class VideoPlayerApp {
     }
 
     saveToStorage() {
+        // Save playlist URLs separately
+        this.savePlaylistUrls();
+
         // Try to save using the available storage option
         this.saveToIndexedDB()
             .catch(() => {
                 // Fallback to localStorage if IndexedDB fails
                 this.saveToLocalStorageAsFallback();
             });
+    }
+
+    // Save playlist URLs separately
+    savePlaylistUrls() {
+        try {
+            localStorage.setItem('playlistUrls', JSON.stringify(this.playlistUrls));
+        } catch (e) {
+            console.error('Error saving playlist URLs:', e);
+        }
+    }
+
+    // Load playlist URLs
+    loadPlaylistUrls() {
+        try {
+            const urls = localStorage.getItem('playlistUrls');
+            if (urls) {
+                this.playlistUrls = JSON.parse(urls);
+            } else {
+                this.playlistUrls = [];
+            }
+        } catch (e) {
+            console.error('Error loading playlist URLs:', e);
+            this.playlistUrls = [];
+        }
+        this.renderPlaylistHistory();
+    }
+
+    // Render playlist history
+    renderPlaylistHistory() {
+        const playlistHistory = document.getElementById('playlistHistory');
+        if (!playlistHistory) return;
+
+        // Clear the current content
+        playlistHistory.innerHTML = '';
+
+        // Show a heading if there are playlists
+        if (this.playlistUrls.length > 0) {
+            const heading = document.createElement('h4');
+            heading.textContent = 'Loaded Playlists:';
+            heading.style.margin = '0 0 10px 0';
+            heading.style.color = 'var(--accent)';
+            playlistHistory.appendChild(heading);
+        }
+
+        // Add each playlist URL with a remove button
+        this.playlistUrls.forEach((url, index) => {
+            const playlistItem = document.createElement('div');
+            playlistItem.className = 'playlist-url-item';
+
+            const urlDisplay = document.createElement('div');
+            urlDisplay.className = 'playlist-url';
+            urlDisplay.textContent = url;
+            urlDisplay.title = url; // Show full URL on hover
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-playlist-btn';
+            removeBtn.innerHTML = '&times;';
+            removeBtn.title = `Remove playlist: ${url}`;
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.removePlaylist(index);
+            });
+
+            playlistItem.appendChild(urlDisplay);
+            playlistItem.appendChild(removeBtn);
+            playlistHistory.appendChild(playlistItem);
+        });
+
+        // Show message if no playlists loaded
+        if (this.playlistUrls.length === 0) {
+            const noPlaylistsMsg = document.createElement('div');
+            noPlaylistsMsg.textContent = 'No playlists loaded';
+            noPlaylistsMsg.style.color = 'var(--text-secondary)';
+            noPlaylistsMsg.style.textAlign = 'center';
+            noPlaylistsMsg.style.fontStyle = 'italic';
+            noPlaylistsMsg.style.padding = '10px 0';
+            playlistHistory.appendChild(noPlaylistsMsg);
+        }
     }
 
     updateTotalSizeDisplay() {
@@ -783,21 +893,49 @@ class VideoPlayerApp {
             videoItem.className = 'video-item';
             videoItem.dataset.id = video.id;
 
+            // Create remove button for local media (not for streams)
+            if (!video.isStream) {
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.title = `Remove ${video.name}`;
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent triggering the video click event
+                    this.removeVideo(video.id);
+                });
+                videoItem.appendChild(removeBtn);
+            }
+
             const thumbnail = document.createElement('img');
-            thumbnail.src = video.thumbnail;
+            // For M3U streams, use the logo; for videos, use the thumbnail
+            if (video.isStream && video.thumbnail) {
+                thumbnail.src = video.thumbnail; // This is the logo for streams
+            } else {
+                thumbnail.src = video.thumbnail;
+            }
             thumbnail.alt = `Thumbnail for ${video.name}`;
             thumbnail.className = 'video-thumbnail';
             thumbnail.loading = 'lazy';
 
             // Add error handling for thumbnail loading
             thumbnail.onerror = () => {
-                // Fallback to a default thumbnail or hide the thumbnail
-                thumbnail.style.backgroundColor = '#333';
-                thumbnail.style.display = 'flex';
-                thumbnail.style.alignItems = 'center';
-                thumbnail.style.justifyContent = 'center';
-                thumbnail.textContent = '📹';
-                thumbnail.style.fontSize = '2rem';
+                // For streams, try to use a generic TV icon; for videos, show default video icon
+                if (video.isStream) {
+                    thumbnail.style.backgroundColor = '#333';
+                    thumbnail.style.display = 'flex';
+                    thumbnail.style.alignItems = 'center';
+                    thumbnail.style.justifyContent = 'center';
+                    thumbnail.textContent = '📺';
+                    thumbnail.style.fontSize = '2rem';
+                } else {
+                    // Fallback to a default thumbnail or hide the thumbnail
+                    thumbnail.style.backgroundColor = '#333';
+                    thumbnail.style.display = 'flex';
+                    thumbnail.style.alignItems = 'center';
+                    thumbnail.style.justifyContent = 'center';
+                    thumbnail.textContent = '📹';
+                    thumbnail.style.fontSize = '2rem';
+                }
             };
 
             const videoInfo = document.createElement('div');
@@ -809,9 +947,16 @@ class VideoPlayerApp {
 
             const meta = document.createElement('div');
             meta.className = 'video-meta';
-            const duration = this.formatTime(video.duration);
-            const size = this.formatFileSize(video.size);
-            meta.textContent = `${duration} • ${size}`;
+
+            // For streams, show group info instead of duration/size
+            if (video.isStream) {
+                const groupInfo = video.groupId || 'Live Stream';
+                meta.textContent = `📺 ${groupInfo}`;
+            } else {
+                const duration = this.formatTime(video.duration);
+                const size = this.formatFileSize(video.size);
+                meta.textContent = `${duration} • ${size}`;
+            }
 
             videoInfo.appendChild(title);
             videoInfo.appendChild(meta);
@@ -835,12 +980,25 @@ class VideoPlayerApp {
         }
 
         // Set source and handle loading
-        this.videoPlayer.src = video.src;
+        // For streams, we might need to handle CORS differently
+        if (video.isStream) {
+            // For live streams, try the direct URL first
+            this.videoPlayer.src = video.src;
+            this.videoInfo.textContent = `Playing: ${video.name}`;
+        } else {
+            this.videoPlayer.src = video.src;
+            this.videoInfo.textContent = `Playing: ${video.name} (${this.formatTime(video.duration)})`;
+        }
+
         this.videoPlayer.load(); // Explicitly load the source
 
         // Wait for metadata to load to update info display and set proper size
         this.videoPlayer.onloadedmetadata = () => {
-            this.videoInfo.textContent = `Playing: ${video.name} (${this.formatTime(video.duration)})`;
+            // For streams, we don't have duration typically
+            if (!video.isStream) {
+                this.videoInfo.textContent = `Playing: ${video.name} (${this.formatTime(video.duration)})`;
+            }
+
             this.updateTimeDisplay();
 
             // Ensure video displays at maximum size while preserving aspect ratio
@@ -858,13 +1016,38 @@ class VideoPlayerApp {
             console.error('Error loading video:', e);
             console.error('Video src type:', typeof video.src);
             console.error('Video src length:', video.src ? video.src.length : 'undefined');
-            alert('Failed to load the video. The file may be corrupted or incompatible.');
+
+            // If it's a stream and failed, try with CORS proxy
+            if (video.isStream) {
+                const corsProxyUrl = `https://cors-anywhere.herokuapp.com/${video.src}`;
+                console.log('Trying with CORS proxy:', corsProxyUrl);
+                this.videoPlayer.src = corsProxyUrl;
+                this.videoPlayer.load();
+            } else {
+                alert('Failed to load the video. The file may be corrupted or incompatible.');
+            }
         };
 
         this.videoPlayer.oncanplay = () => {
             // Video is ready to play
             console.log('Video is ready to play');
         };
+
+        // Handle waiting state for live streams
+        this.videoPlayer.onwaiting = () => {
+            console.log('Video player is waiting for data...');
+            this.videoInfo.textContent = `Buffering: ${video.name}`;
+        };
+
+        this.videoPlayer.onstalled = () => {
+            console.log('Video player stalled - network issue?');
+            this.videoInfo.textContent = `Connection issue with: ${video.name}`;
+        };
+
+        // Update controls to show live stream indicators if needed
+        if (video.isStream) {
+            this.timeDisplay.textContent = 'LIVE'; // Change time display for live streams
+        }
 
         this.videoModal.style.display = 'block';
 
@@ -878,7 +1061,27 @@ class VideoPlayerApp {
                     })
                     .catch(error => {
                         console.error('Error attempting to play video:', error);
-                        alert('Could not play the video. It may still be loading.');
+
+                        // For streams, if direct play fails, try with proxy
+                        if (video.isStream) {
+                            console.log('Retrying stream with proxy...');
+                            const corsProxyUrl = `https://cors-anywhere.herokuapp.com/${video.src}`;
+                            this.videoPlayer.src = corsProxyUrl;
+                            this.videoPlayer.load();
+
+                            setTimeout(() => {
+                                this.videoPlayer.play()
+                                    .then(() => {
+                                        this.playPauseBtn.textContent = '⏸';
+                                    })
+                                    .catch(retryErr => {
+                                        console.error('Retry failed for stream:', retryErr);
+                                        alert('Could not play the stream. It may be unavailable or blocked by CORS policies.');
+                                    });
+                            }, 100);
+                        } else {
+                            alert('Could not play the video. It may still be loading.');
+                        }
                     });
             } else {
                 // If not ready, set up an event listener
@@ -1610,6 +1813,217 @@ class VideoPlayerApp {
 
             this.updateZoomIndicator(newZoom);
         }, { passive: false });
+    }
+
+    // Method to load and parse M3U playlist
+    async loadM3UPlaylist(url) {
+        if (!url) {
+            alert('Please provide a valid M3U playlist URL');
+            return;
+        }
+
+        try {
+            // Check if this playlist URL is already loaded
+            if (this.playlistUrls.includes(url)) {
+                alert('This playlist is already loaded');
+                return;
+            }
+
+            // Fetch the M3U playlist content
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const m3uContent = await response.text();
+
+            // Parse the M3U playlist
+            const playlistItems = this.parseM3U(m3uContent);
+
+            if (playlistItems.length === 0) {
+                alert('No valid channels found in the M3U playlist');
+                return;
+            }
+
+            // Add parsed channels to the videos array
+            for (const item of playlistItems) {
+                // Create a unique ID for the playlist item
+                const id = `m3u_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+                const videoData = {
+                    id: id,
+                    src: item.url,
+                    name: item.channelName,
+                    size: 0, // Stream URLs don't have a defined size
+                    duration: undefined, // Live streams don't have a duration
+                    thumbnail: item.logo || '',
+                    timestamp: new Date().toISOString(),
+                    type: 'm3u', // Mark as M3U playlist item
+                    groupId: item.groupId,
+                    tvgId: item.tvgId,
+                    isStream: true, // Mark as live stream
+                    playlistUrl: url // Track which playlist this stream came from
+                };
+
+                // Add to videos array if not already present
+                const isDuplicate = this.videos.some(video => video.src === videoData.src);
+                if (!isDuplicate) {
+                    this.videos.push(videoData);
+                }
+            }
+
+            // Add to playlist URLs list
+            this.playlistUrls.push(url);
+
+            // Save to storage and update UI
+            this.saveToStorage();
+            this.updateTotalSizeDisplay();
+            this.renderGallery();
+
+            // Show success message
+            this.videoInfo.textContent = `Loaded ${playlistItems.length} channels from playlist: ${playlistItems.length} items`;
+
+        } catch (error) {
+            console.error('Error loading M3U playlist:', error);
+            alert(`Error loading M3U playlist: ${error.message}`);
+        }
+    }
+
+    // Method to parse M3U content
+    parseM3U(content) {
+        const lines = content.split('\n').filter(line => line.trim() !== '');
+        const playlistItems = [];
+
+        if (lines[0] !== '#EXTM3U') {
+            console.warn('File may not be a valid M3U playlist');
+        }
+
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].startsWith('#EXTINF:')) {
+                const extinfLine = lines[i];
+                const streamUrl = lines[i + 1]?.trim(); // Get the next line as the stream URL
+
+                if (streamUrl) {
+                    // Extract attributes from EXTINF line
+                    const item = this.extractChannelInfo(extinfLine, streamUrl);
+
+                    // Add the parsed item to the list
+                    if (item) {
+                        playlistItems.push(item);
+                    }
+                }
+            }
+        }
+
+        return playlistItems;
+    }
+
+    // Method to extract channel info from EXTINF line
+    extractChannelInfo(extinfLine, streamUrl) {
+        // Extract attributes from EXTINF line
+        // Format example: #EXTINF:-1 tvg-id="4TVNews.in@SD" tvg-logo="..." group-title="News",4TV News (576p)
+
+        const attributes = {};
+
+        // Extract the attributes part
+        const attributesPart = extinfLine.substring('#EXTINF:'.length).split(',')[0].trim();
+
+        // Extract the channel name
+        const channelNameMatch = extinfLine.match(/,(.+)$/);
+        const channelName = channelNameMatch ? channelNameMatch[1].trim() : 'Unknown Channel';
+
+        // Extract individual attributes using regex
+        const attributeRegex = /(\w+)=["']([^"']*)["']/g;
+        let match;
+        while ((match = attributeRegex.exec(extinfLine)) !== null) {
+            const [, attrName, attrValue] = match;
+            attributes[attrName.toLowerCase()] = attrValue;
+        }
+
+        // Return the channel object
+        return {
+            url: streamUrl,
+            channelName: channelName,
+            tvgId: attributes['tvg-id'] || attributes['tvg_id'] || undefined,
+            logo: attributes['tvg-logo'] || attributes['tvg_logo'] || attributes['logo'] || undefined,
+            groupId: attributes['group-title'] || attributes['group_title'] || attributes['group'] || 'Other',
+            userAgent: attributes['user-agent'] || attributes['user_agent'] || undefined,
+            httpReferrer: attributes['http-referrer'] || attributes['http_referrer'] || undefined,
+            isVlcOpt: extinfLine.toLowerCase().includes('extvlcopt')
+        };
+    }
+
+    // Method to remove a specific video by ID
+    removeVideo(videoId) {
+        if (!confirm('Are you sure you want to remove this video?')) {
+            return;
+        }
+
+        // Filter out the specific video
+        this.videos = this.videos.filter(video => video.id !== videoId);
+
+        // Save to storage and update UI
+        this.saveToStorage();
+        this.updateTotalSizeDisplay();
+        this.renderGallery();
+
+        // Update info text if no videos remain
+        if (this.videos.length === 0) {
+            if (this.videoInfo) {
+                this.videoInfo.textContent = 'No video loaded';
+            }
+        }
+    }
+
+    // Method to remove a specific playlist and its videos
+    removePlaylist(index) {
+        if (index < 0 || index >= this.playlistUrls.length) {
+            return;
+        }
+
+        const playlistUrl = this.playlistUrls[index];
+
+        if (!confirm(`Are you sure you want to remove the playlist: ${playlistUrl}? This will remove all associated videos.`)) {
+            return;
+        }
+
+        // Remove all videos associated with this playlist URL
+        this.videos = this.videos.filter(video => video.playlistUrl !== playlistUrl);
+
+        // Remove the playlist URL from the list
+        this.playlistUrls.splice(index, 1);
+
+        // Save to storage and update UI
+        this.saveToStorage();
+        this.updateTotalSizeDisplay();
+        this.renderGallery();
+        this.renderPlaylistHistory();
+
+        // Update info text if no videos remain
+        if (this.videos.length === 0) {
+            if (this.videoInfo) {
+                this.videoInfo.textContent = 'No video loaded';
+            }
+        }
+    }
+
+    // Method to clear only M3U playlist items (to allow removal of all streams)
+    clearM3UStreams() {
+        // Filter out only the M3U playlist items
+        this.videos = this.videos.filter(video => !video.isStream);
+
+        // Clear all playlist URLs as well
+        this.playlistUrls = [];
+
+        // Save to storage and update UI
+        this.saveToStorage();
+        this.updateTotalSizeDisplay();
+        this.renderGallery();
+        this.renderPlaylistHistory();
+
+        // Update info text
+        if (this.videoInfo) {
+            this.videoInfo.textContent = 'No video loaded';
+        }
     }
 }
 

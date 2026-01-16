@@ -161,6 +161,100 @@ header h1 {
     background: var(--button-hover);
 }
 
+/* M3U Playlist Section */
+.m3u-playlist-section {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: var(--bg-tertiary);
+    border-radius: 8px;
+    border-left: 4px solid var(--accent);
+}
+
+.m3u-playlist-section .input-group {
+    gap: 10px;
+}
+
+.m3u-playlist-section input {
+    width: 100%;
+    padding: 12px;
+    background: var(--input-bg);
+    border: 2px solid var(--input-border);
+    border-radius: var(--border-radius);
+    color: var(--text);
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.m3u-playlist-section input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.3);
+}
+
+.m3u-playlist-section button {
+    background: var(--button-bg);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 12px 20px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    min-height: 46px;
+    width: 100%;
+    max-width: 200px;
+}
+
+.m3u-playlist-section button:hover {
+    background: var(--button-hover);
+}
+
+/* Playlist History */
+.playlist-history {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+.playlist-url-item {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    margin: 5px 0;
+    background-color: var(--bg-secondary);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    border-left: 3px solid var(--accent);
+}
+
+.playlist-url-item .playlist-url {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 10px;
+}
+
+.remove-playlist-btn {
+    background-color: rgba(255, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove-playlist-btn:hover {
+    background-color: rgba(255, 0, 0, 0.9);
+}
+
 /* Video Gallery */
 .player-section {
     margin-top: 20px;
@@ -185,9 +279,37 @@ header h1 {
     position: relative;
 }
 
+.video-item {
+    position: relative; /* Required for absolute positioning of remove button */
+}
+
 .video-item:hover {
     transform: translateY(-5px);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.remove-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: rgba(255, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1; /* Always visible */
+    transition: background-color 0.3s ease;
+}
+
+.remove-btn:hover {
+    background-color: rgba(255, 0, 0, 0.9);
 }
 
 .video-thumbnail {
