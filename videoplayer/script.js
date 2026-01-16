@@ -7,21 +7,37 @@ class VideoPlayerApp {
         this.currentVideoIndex = -1; // Track current video index
         this.globalLoop = false; // Global loop setting
         this.defaultLoop = true; // Single loop mode enabled by default
+        this.isLoadingVideos = true; // Flag to track loading state
         this.initElements();
         this.bindEvents();
         this.initializeVideoPlayer();
         this.initializeVideoPlayerControls();
         this.initializeLoopState();
+        // Render the gallery immediately to show the loading state
+        this.renderGallery();
+
         // Load videos asynchronously after initialization
         this.loadStoredVideos()
             .then(() => {
-                // After loading videos, render the gallery
+                this.isLoadingVideos = false;
+                // After loading videos, re-render the gallery
                 this.renderGallery();
+
+                // Force a small layout update to ensure visibility
+                setTimeout(() => {
+                    this.videoGallery.offsetHeight; // Trigger reflow
+                }, 100);
             })
             .catch(err => {
                 console.error('Error loading videos:', err);
-                // Still render gallery even if loading fails
+                this.isLoadingVideos = false;
+                // Re-render gallery even if loading fails
                 this.renderGallery();
+
+                // Force a small layout update to ensure visibility
+                setTimeout(() => {
+                    this.videoGallery.offsetHeight; // Trigger reflow
+                }, 100);
             });
     }
 
@@ -36,6 +52,7 @@ class VideoPlayerApp {
             try {
                 this.videos = JSON.parse(localStorage.getItem('storedVideos')) || [];
                 console.log('Videos loaded from localStorage');
+                this.updateTotalSizeDisplay();
             } catch (localStorageError) {
                 console.error('Error loading from localStorage:', localStorageError);
                 this.videos = [];
@@ -74,6 +91,7 @@ class VideoPlayerApp {
 
         // Setup cursor hiding functionality
         this.setupCursorHiding();
+
     }
 
     setupCursorHiding() {
@@ -113,6 +131,13 @@ class VideoPlayerApp {
         this.videoPlayer.addEventListener('play', () => {
             if (this.videoModal.style.display === 'block') {
                 // Hide cursor immediately
+                this.hideCursor();
+            }
+        });
+
+        // Also hide cursor immediately when video starts without delay
+        this.videoPlayer.addEventListener('playing', () => {
+            if (this.videoModal.style.display === 'block') {
                 this.hideCursor();
             }
         });
@@ -302,6 +327,8 @@ class VideoPlayerApp {
             // Show cursor when modal is closed
             this.videoModal.style.cursor = 'default';
             this.isCursorHidden = false;
+            // Reset zoom when closing modal
+            this.resetZoom();
         });
 
         this.videoModal.addEventListener('click', (e) => {
@@ -311,6 +338,8 @@ class VideoPlayerApp {
                 // Show cursor when modal is closed
                 this.videoModal.style.cursor = 'default';
                 this.isCursorHidden = false;
+                // Reset zoom when closing modal
+                this.resetZoom();
             }
         });
 
@@ -455,6 +484,7 @@ class VideoPlayerApp {
 
                             this.videos.push(videoData);
                             this.saveToStorage();
+                            this.updateTotalSizeDisplay();
 
                             // Instead of reloading the page, just refresh the gallery
                             this.renderGallery();
@@ -482,6 +512,7 @@ class VideoPlayerApp {
 
                             this.videos.push(videoData);
                             this.saveToStorage();
+                            this.updateTotalSizeDisplay();
                             this.renderGallery();
 
                             // Notify user that video was added despite thumbnail error
@@ -568,6 +599,9 @@ class VideoPlayerApp {
         // Refresh gallery display
         this.renderGallery();
 
+        // Update size display
+        this.updateTotalSizeDisplay();
+
         // Update info text
         if (this.videoInfo) {
             this.videoInfo.textContent = 'No video loaded';
@@ -581,6 +615,27 @@ class VideoPlayerApp {
                 // Fallback to localStorage if IndexedDB fails
                 this.saveToLocalStorageAsFallback();
             });
+    }
+
+    updateTotalSizeDisplay() {
+        let totalSize = 0;
+
+        if (this.videos && Array.isArray(this.videos)) {
+            totalSize = this.videos.reduce((sum, video) => sum + (video.size || 0), 0);
+        }
+
+        const sizeDisplay = document.getElementById('totalSizeDisplay');
+        if (sizeDisplay) {
+            if (totalSize >= 1024 * 1024 * 1024) { // 1 GB in bytes
+                // Convert to GB if greater than or equal to 1 GB
+                const sizeInGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
+                sizeDisplay.textContent = `Total Size: ${sizeInGB} GB`;
+            } else {
+                // Otherwise display in MB
+                const sizeInMB = (totalSize / (1024 * 1024)).toFixed(2);
+                sizeDisplay.textContent = `Total Size: ${sizeInMB} MB`;
+            }
+        }
     }
 
     saveToIndexedDB() {
@@ -659,6 +714,7 @@ class VideoPlayerApp {
                 getAllRequest.onsuccess = () => {
                     this.videos = getAllRequest.result;
                     console.log('Videos loaded from IndexedDB');
+                    this.updateTotalSizeDisplay();
                     resolve(this.videos);
                 };
 
@@ -706,9 +762,18 @@ class VideoPlayerApp {
     }
 
     renderGallery() {
+        // Clear the gallery first
         this.videoGallery.innerHTML = '';
 
-        if (this.videos.length === 0) {
+        // Show loading state if we're still loading videos and have no videos yet
+        // This ensures the gallery is never completely blank during initial load
+        if (this.isLoadingVideos && this.videos.length === 0) {
+            this.videoGallery.innerHTML = '<p class="loading-videos">Loading videos...</p>';
+            return;
+        }
+
+        // Check if we have videos to display
+        if (!this.videos || this.videos.length === 0) {
             this.videoGallery.innerHTML = '<p class="no-videos">No videos to display. Upload some videos to get started.</p>';
             return;
         }
@@ -773,10 +838,19 @@ class VideoPlayerApp {
         this.videoPlayer.src = video.src;
         this.videoPlayer.load(); // Explicitly load the source
 
-        // Wait for metadata to load to update info display
+        // Wait for metadata to load to update info display and set proper size
         this.videoPlayer.onloadedmetadata = () => {
             this.videoInfo.textContent = `Playing: ${video.name} (${this.formatTime(video.duration)})`;
             this.updateTimeDisplay();
+
+            // Ensure video displays at maximum size while preserving aspect ratio
+            setTimeout(() => {
+                if (this.videoPlayer && this.videoPlayer.videoWidth && this.videoPlayer.videoHeight) {
+                    // The object-fit: contain in CSS should handle aspect ratio
+                    // Just make sure everything is visible
+                    this.resetZoom();
+                }
+            }, 100);
         };
 
         // Handle error loading video
@@ -1182,8 +1256,8 @@ class VideoPlayerApp {
             }
         }
 
-        // Use a more gradual increment for smoother zooming
-        const zoomFactor = 1.1; // 10% increment (was 25%)
+        // Use a more gradual increment for smoother zooming - changed from 1.1 to 1.05 (5% instead of 10%)
+        const zoomFactor = 1.05; // 5% increment for even smoother zoom
         const newZoom = currentZoom * zoomFactor;
 
         // Limit zoom range
@@ -1214,8 +1288,8 @@ class VideoPlayerApp {
             }
         }
 
-        // Use a more gradual decrement for smoother zooming
-        const zoomFactor = 0.9; // Reduce by 10% (was 20%)
+        // Use a more gradual decrement for smoother zooming - changed from 0.9 to 0.95 (reduce by 5% instead of 10%)
+        const zoomFactor = 0.95; // Reduce by 5% for even smoother zoom
         const newZoom = currentZoom * zoomFactor;
 
         // Clamp to minimum zoom of 0.5
@@ -1232,9 +1306,11 @@ class VideoPlayerApp {
     resetZoom() {
         const container = this.videoPlayer.parentElement;
 
-        // Reset zoom and panning
-        container.style.transform = 'scale(1) translate(0px, 0px)';
-        container.style.transformOrigin = 'center center';
+        // Reset zoom, panning, and scaling to original state
+        if (container) {
+            container.style.transform = 'none';
+            container.style.transformOrigin = 'center center';
+        }
 
         // Reset panning values
         this.panX = 0;
@@ -1471,8 +1547,8 @@ class VideoPlayerApp {
             e.preventDefault();
 
             const currentTime = Date.now();
-            // Throttle zoom events to make them smoother (limit to ~60fps)
-            if (currentTime - lastWheelEventTime < 16) {
+            // Throttle zoom events to make them smoother (limit to ~60fps) - increased from 16ms to 30ms for slower zoom
+            if (currentTime - lastWheelEventTime < 30) { // Increased to 30ms for slower response
                 return;
             }
             lastWheelEventTime = currentTime;
@@ -1493,8 +1569,8 @@ class VideoPlayerApp {
             }
 
             // Use a more gradual zoom scale for smoother experience
-            // Calculate zoom factor based on deltaY for more precise control
-            const zoomIntensity = 0.02; // Further reduced from 0.05 for even smoother zoom
+            // Calculate zoom factor based on deltaY for more precise control - reduced from 0.02 to 0.01 for even smoother zoom
+            const zoomIntensity = 0.01; // Further reduced from 0.02 for even smoother zoom
             let zoomFactor;
 
             if (e.deltaY < 0) {
