@@ -92,36 +92,25 @@
         <header>
             <h1>Video Player</h1>
             <div class="total-size-display" id="totalSizeDisplay">Total Size: 0 MB</div>
+            <div id="videoInfo" class="video-info-display">No video loaded</div>
         </header>
 
         <main>
             <section class="upload-section">
-                <div class="upload-area" id="uploadArea">
-                    <div>🎬</div>
-                    <h3>Select or Drop Video</h3>
-                    <p>Click to upload or drag & drop video files here</p>
-                    <input type="file" id="fileInput" accept="video/*" style="display: none;">
-                    <p id="videoInfo" class="resolution-info">No video loaded</p>
-                </div>
-
-                <div class="url-input-section">
+                <div class="single-input-section">
                     <div class="input-group">
-                        <label for="videoUrl">Or enter video URL:</label>
-                        <input type="text" id="videoUrl" placeholder="https://example.com/video.mp4">
-                        <button id="loadUrlBtn">Load Video</button>
+                        <label for="mediaInput">Enter media path or URL:</label>
+                        <input type="text" id="mediaInput" placeholder="file:///path/to/video.mp4 OR https://example.com/video.mp4 OR https://example.com/playlist.m3u">
+                        <button id="loadMediaBtn">Load Media</button>
+                    </div>
+                    <div class="input-group">
+                        <label for="fileInput">Or select local video file:</label>
+                        <input type="file" id="fileInput" accept="video/*">
                     </div>
                 </div>
 
-                <div class="m3u-playlist-section">
-                    <div class="input-group">
-                        <label for="m3uPlaylistUrl">Or load M3U Playlist:</label>
-                        <input type="text" id="m3uPlaylistUrl" placeholder="https://example.com/playlist.m3u">
-                        <button id="loadM3UBtn">Load M3U Playlist</button>
-                    </div>
-
-                    <div class="playlist-history" id="playlistHistory">
-                        <!-- Loaded playlist URLs will appear here -->
-                    </div>
+                <div class="playlist-history" id="playlistHistory">
+                    <!-- Loaded playlist URLs will appear here -->
                 </div>
             </section>
 

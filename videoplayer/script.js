@@ -238,10 +238,9 @@ class VideoPlayerApp {
     }
 
     initElements() {
-        this.uploadArea = document.getElementById('uploadArea');
+        this.mediaInput = document.getElementById('mediaInput');
+        this.loadMediaBtn = document.getElementById('loadMediaBtn');
         this.fileInput = document.getElementById('fileInput');
-        this.videoUrlInput = document.getElementById('videoUrl');
-        this.loadUrlBtn = document.getElementById('loadUrlBtn');
         this.videoInfo = document.getElementById('videoInfo');
         this.videoGallery = document.getElementById('videoGallery');
         this.videoModal = document.getElementById('videoModal');
@@ -259,90 +258,28 @@ class VideoPlayerApp {
     }
 
     bindEvents() {
-        // File upload events
-        this.uploadArea.addEventListener('click', (e) => {
-            // Only trigger file input if not clicking on another element inside uploadArea
-            if (e.target === this.uploadArea || e.target === this.uploadArea.firstElementChild || e.target === this.uploadArea.querySelector('h3') || e.target === this.uploadArea.querySelector('p')) {
-                this.fileInput.click();
+        // Load media from single input field
+        this.loadMediaBtn.addEventListener('click', () => {
+            const input = this.mediaInput.value.trim();
+            if (input) {
+                this.handleMediaInput(input);
+            } else {
+                alert('Please enter a media path or URL');
             }
         });
 
+        // Allow pressing Enter in the media input
+        this.mediaInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.loadMediaBtn.click();
+            }
+        });
+
+        // Handle file input changes
         this.fileInput.addEventListener('change', (e) => {
             if (e.target.files && e.target.files.length > 0) {
                 this.handleFiles(e.target.files);
             }
-        });
-
-        // Load video from URL
-        this.loadUrlBtn.addEventListener('click', () => {
-            const url = this.videoUrlInput.value.trim();
-            if (url) {
-                this.loadVideoFromUrl(url);
-            } else {
-                alert('Please enter a video URL');
-            }
-        });
-
-        // Load M3U playlist
-        const loadM3UBtn = document.getElementById('loadM3UBtn');
-        const m3uPlaylistUrl = document.getElementById('m3uPlaylistUrl');
-        if (loadM3UBtn && m3uPlaylistUrl) {
-            loadM3UBtn.addEventListener('click', () => {
-                const url = m3uPlaylistUrl.value.trim();
-                if (url) {
-                    this.loadM3UPlaylist(url);
-                } else {
-                    alert('Please enter an M3U playlist URL');
-                }
-            });
-
-            // Allow pressing Enter in the M3U input
-            m3uPlaylistUrl.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    loadM3UBtn.click();
-                }
-            });
-        }
-
-        // Allow pressing Enter in the URL input
-        this.videoUrlInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.loadUrlBtn.click();
-            }
-        });
-
-        // Drag and drop events
-        this.uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.uploadArea.style.borderColor = 'var(--accent)';
-            this.uploadArea.style.backgroundColor = 'rgba(187, 134, 252, 0.1)';
-        });
-
-        this.uploadArea.addEventListener('dragenter', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.uploadArea.style.borderColor = 'var(--accent)';
-            this.uploadArea.style.backgroundColor = 'rgba(187, 134, 252, 0.1)';
-        });
-
-        this.uploadArea.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // Only reset if we're actually leaving the element, not just moving inside it
-            if (!this.uploadArea.contains(e.relatedTarget)) {
-                this.uploadArea.style.borderColor = 'var(--border)';
-                this.uploadArea.style.backgroundColor = 'transparent';
-            }
-        });
-
-        this.uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.uploadArea.style.borderColor = 'var(--border)';
-            this.uploadArea.style.backgroundColor = 'transparent';
-
-            this.handleFiles(e.dataTransfer.files);
         });
 
         // Modal events
@@ -354,6 +291,8 @@ class VideoPlayerApp {
             this.isCursorHidden = false;
             // Reset zoom when closing modal
             this.resetZoom();
+            // Clean up any blob URLs
+            this.cleanupVideoResources();
         });
 
         this.videoModal.addEventListener('click', (e) => {
@@ -365,6 +304,8 @@ class VideoPlayerApp {
                 this.isCursorHidden = false;
                 // Reset zoom when closing modal
                 this.resetZoom();
+                // Clean up any blob URLs
+                this.cleanupVideoResources();
             }
         });
 
@@ -456,142 +397,217 @@ class VideoPlayerApp {
         }
     }
 
-    processVideoFile(file) {
+    // Handle media input by detecting the type of input
+    handleMediaInput(input) {
+        // Detect input type
+        if (input.startsWith('file:///')) {
+            // Local file path (simulate file opening)
+            this.handleLocalFile(input);
+        } else if (input.startsWith('http://') || input.startsWith('https://')) {
+            // Check if it's an M3U playlist
+            if (input.toLowerCase().endsWith('.m3u')) {
+                this.loadM3UPlaylist(input);
+            } else {
+                // Check if URL ends with popular audio/video formats
+                const videoFormats = ['.mp3', '.wav', '.mp4', '.mkv', '.webm', '.mov', '.avi', '.wmv', '.flv', '.m4v'];
+                const isVideoFormat = videoFormats.some(format => input.toLowerCase().endsWith(format));
+
+                if (isVideoFormat) {
+                    // Handle as regular video URL and show save button
+                    this.loadVideoFromUrl(input, true); // Pass true to indicate save should be available
+                } else {
+                    // For other URLs, try to infer if it's a streaming endpoint
+                    this.loadVideoFromUrl(input, false); // Default behavior, no save for streaming
+                }
+            }
+        } else {
+            // If it's neither a file:// nor http:// URL, treat as invalid input
+            alert('Invalid input. Please enter a valid file path starting with file:/// or a URL starting with http:// or https://');
+        }
+    }
+
+    // Handle local file by attempting to process it if possible
+    handleLocalFile(filePath) {
+        // Extract the actual file path from file:// URL
+        const actualPath = filePath.replace(/^file:\/\/\//, '');
+        const fileName = actualPath.split('/').pop().split('\\').pop(); // Get filename from path
+
+        // Note: Modern browsers cannot directly read local file:// URLs due to security restrictions
+        // We'll notify the user and suggest an alternative approach
+        alert(`Browser security prevents direct access to local files: ${actualPath}\n\nPlease use the standard file selection dialog to open: ${fileName}`);
+
+        // Create a file input to allow user to select the file
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'video/*';
+        input.multiple = false;
+
+        // When the user selects the file, process it
+        input.onchange = (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                this.processVideoFile(file, true); // Pass true to indicate it's from a local file
+            }
+        };
+
+        // Show the file input dialog
+        input.click();
+    }
+
+    processVideoFile(file, isLocalFile = false) {
         // Show loading message
         if (this.videoInfo) {
             this.videoInfo.textContent = `Processing: ${file.name}...`;
         }
 
-        const reader = new FileReader();
+        // Check for duplicate video by comparing file properties
+        const isDuplicate = this.videos.some(video =>
+            video.originalFileName === file.name &&
+            video.size === file.size &&
+            video.timestamp &&
+            new Date().getTime() - new Date(video.timestamp).getTime() < 60000 // Within 1 minute
+        );
 
-        reader.onload = (e) => {
-            // Check for duplicate video by comparing the base64 data
-            const videoDataStr = e.target.result;
-            const isDuplicate = this.videos.some(video => video.src === videoDataStr);
+        if (isDuplicate) {
+            alert('This video already exists in your collection.');
+            this.updateVideoInfoText();
+            return;
+        }
 
-            if (isDuplicate) {
-                alert('This video already exists in your collection.');
-                this.updateVideoInfoText();
-                return;
-            }
+        // Create a temporary video element to get duration and thumbnail
+        const tempVideo = document.createElement('video');
 
-            // Create a temporary video element to get duration and thumbnail
-            const tempVideo = document.createElement('video');
-            tempVideo.preload = 'metadata';
-            tempVideo.src = videoDataStr;
+        // Create a blob URL for the file to enable streaming
+        const videoBlobUrl = URL.createObjectURL(file);
+        tempVideo.preload = 'metadata';
+        tempVideo.src = videoBlobUrl;
 
-            tempVideo.onloadedmetadata = () => {
-                try {
-                    // Generate thumbnail at 1 second
-                    const canvas = document.createElement('canvas');
-                    // Set dimensions safely, defaulting to 100x100 if video dimensions are invalid
-                    canvas.width = tempVideo.videoWidth > 0 ? tempVideo.videoWidth : 100;
-                    canvas.height = tempVideo.videoHeight > 0 ? tempVideo.videoHeight : 100;
-                    const ctx = canvas.getContext('2d');
+        tempVideo.onloadedmetadata = () => {
+            try {
+                // Generate thumbnail at 1 second
+                const canvas = document.createElement('canvas');
+                // Set dimensions safely, defaulting to 100x100 if video dimensions are invalid
+                canvas.width = tempVideo.videoWidth > 0 ? tempVideo.videoWidth : 100;
+                canvas.height = tempVideo.videoHeight > 0 ? tempVideo.videoHeight : 100;
+                const ctx = canvas.getContext('2d');
 
-                    // Capture frame at 1 second if duration is sufficient, otherwise at 0
-                    const seekTime = tempVideo.duration > 1 ? 1 : 0;
+                // Capture frame at 1 second if duration is sufficient, otherwise at 0
+                const seekTime = tempVideo.duration > 1 ? 1 : 0;
 
-                    const captureFrame = () => {
-                        try {
-                            ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
-                            const thumbnail = canvas.toDataURL('image/jpeg');
+                const captureFrame = () => {
+                    try {
+                        ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+                        const thumbnail = canvas.toDataURL('image/jpeg');
 
-                            const videoData = {
-                                id: Date.now() + Math.random().toString(36).substr(2, 9),
-                                src: videoDataStr,
-                                name: file.name,
-                                size: file.size,
-                                duration: tempVideo.duration,
-                                thumbnail: thumbnail,
-                                timestamp: new Date().toISOString()
-                            };
-
-                            this.videos.push(videoData);
-                            this.saveToStorage();
-                            this.updateTotalSizeDisplay();
-
-                            // Instead of reloading the page, just refresh the gallery
-                            this.renderGallery();
-
-                            // Show success message
-                            this.videoInfo.textContent = `Added: ${file.name} to your collection`;
-
-                            // Reset the text after a few seconds
-                            setTimeout(() => {
-                                this.updateVideoInfoText();
-                            }, 3000);
-                        } catch (drawError) {
-                            console.error('Error drawing thumbnail:', drawError);
-
-                            // Create an error video data with a fallback thumbnail
-                            const videoData = {
-                                id: Date.now() + Math.random().toString(36).substr(2, 9),
-                                src: videoDataStr,
-                                name: file.name,
-                                size: file.size,
-                                duration: tempVideo.duration,
-                                thumbnail: '', // Will use fallback in gallery
-                                timestamp: new Date().toISOString()
-                            };
-
-                            this.videos.push(videoData);
-                            this.saveToStorage();
-                            this.updateTotalSizeDisplay();
-                            this.renderGallery();
-
-                            // Notify user that video was added despite thumbnail error
-                            this.videoInfo.textContent = `Added: ${file.name} (thumbnail error occurred)`;
-                            setTimeout(() => {
-                                this.updateVideoInfoText();
-                            }, 3000);
-                        }
-                    };
-
-                    // If video duration is too short, just use the first frame
-                    if (seekTime === 0) {
-                        captureFrame();
-                    } else {
-                        // Capture frame at 1 second
-                        tempVideo.currentTime = seekTime;
-
-                        const onSeeked = () => {
-                            captureFrame();
-                            tempVideo.removeEventListener('seeked', onSeeked);
+                        // Store the file object reference and other properties
+                        // We'll handle the actual file streaming later when the video is played
+                        const videoData = {
+                            id: Date.now() + Math.random().toString(36).substr(2, 9),
+                            file: file, // Store the original file object
+                            originalFileName: file.name, // Store the original file name for comparison
+                            name: file.name,
+                            size: file.size,
+                            duration: tempVideo.duration,
+                            thumbnail: thumbnail,
+                            timestamp: new Date().toISOString(),
+                            allowSave: true, // Local files can be saved to storage
+                            type: 'local_file' // Mark as local file
                         };
 
-                        tempVideo.addEventListener('seeked', onSeeked, { once: true });
+                        this.videos.push(videoData);
+                        this.saveToStorage();
+                        this.updateTotalSizeDisplay();
+
+                        // Instead of reloading the page, just refresh the gallery
+                        this.renderGallery();
+
+                        // Show success message
+                        this.videoInfo.textContent = `Added: ${file.name} to your collection`;
+
+                        // Reset the text after a few seconds
+                        setTimeout(() => {
+                            this.updateVideoInfoText();
+                        }, 3000);
+
+                        // Clean up the blob URL after we're done with metadata
+                        URL.revokeObjectURL(videoBlobUrl);
+                    } catch (drawError) {
+                        console.error('Error drawing thumbnail:', drawError);
+
+                        // Create an error video data with a fallback thumbnail
+                        const videoData = {
+                            id: Date.now() + Math.random().toString(36).substr(2, 9),
+                            file: file,
+                            originalFileName: file.name,
+                            name: file.name,
+                            size: file.size,
+                            duration: tempVideo.duration,
+                            thumbnail: '', // Will use fallback in gallery
+                            timestamp: new Date().toISOString(),
+                            allowSave: true, // Local files can be saved
+                            type: 'local_file'
+                        };
+
+                        this.videos.push(videoData);
+                        this.saveToStorage();
+                        this.updateTotalSizeDisplay();
+                        this.renderGallery();
+
+                        // Notify user that video was added despite thumbnail error
+                        this.videoInfo.textContent = `Added: ${file.name} (thumbnail error occurred)`;
+                        setTimeout(() => {
+                            this.updateVideoInfoText();
+                        }, 3000);
+
+                        // Clean up the blob URL after we're done with metadata
+                        URL.revokeObjectURL(videoBlobUrl);
                     }
-                } catch (error) {
-                    console.error('Error processing video metadata:', error);
-                    alert('Error processing video file metadata.');
-                    this.updateVideoInfoText();
-                }
-            };
+                };
 
-            tempVideo.onerror = (event) => {
-                console.error('Error loading video metadata:', event);
-                alert('Error processing video file. The file may be corrupted or incompatible.');
+                // If video duration is too short, just use the first frame
+                if (seekTime === 0) {
+                    captureFrame();
+                } else {
+                    // Capture frame at 1 second
+                    tempVideo.currentTime = seekTime;
+
+                    const onSeeked = () => {
+                        captureFrame();
+                        tempVideo.removeEventListener('seeked', onSeeked);
+                    };
+
+                    tempVideo.addEventListener('seeked', onSeeked, { once: true });
+                }
+            } catch (error) {
+                console.error('Error processing video metadata:', error);
+                alert('Error processing video file metadata.');
                 this.updateVideoInfoText();
-            };
 
-            // Set a timeout to handle cases where metadata never loads
-            setTimeout(() => {
-                if (tempVideo.readyState === 0) {
-                    console.error('Timeout waiting for video metadata');
-                    alert('Video file took too long to load. May be corrupted or incompatible.');
-                    this.updateVideoInfoText();
-                }
-            }, 10000); // 10 second timeout
+                // Clean up the blob URL after error
+                URL.revokeObjectURL(videoBlobUrl);
+            }
         };
 
-        reader.onerror = (event) => {
-            console.error('Error reading video file:', event);
-            alert('Error reading video file. Please try a different file.');
+        tempVideo.onerror = (event) => {
+            console.error('Error loading video metadata:', event);
+            alert('Error processing video file. The file may be corrupted or incompatible.');
             this.updateVideoInfoText();
+
+            // Clean up the blob URL after error
+            URL.revokeObjectURL(videoBlobUrl);
         };
 
-        reader.readAsDataURL(file);
+        // Set a timeout to handle cases where metadata never loads
+        setTimeout(() => {
+            if (tempVideo.readyState === 0) {
+                console.error('Timeout waiting for video metadata');
+                alert('Video file took too long to load. May be corrupted or incompatible.');
+                this.updateVideoInfoText();
+
+                // Clean up the blob URL after timeout
+                URL.revokeObjectURL(videoBlobUrl);
+            }
+        }, 10000); // 10 second timeout
     }
 
     updateVideoInfoText() {
@@ -731,7 +747,14 @@ class VideoPlayerApp {
         let totalSize = 0;
 
         if (this.videos && Array.isArray(this.videos)) {
-            totalSize = this.videos.reduce((sum, video) => sum + (video.size || 0), 0);
+            // Only count videos that are actually stored (not streamed/local files)
+            // Only stored_video types take up space in IndexedDB/localStorage
+            totalSize = this.videos.reduce((sum, video) => {
+                if (video.type === 'stored_video') {
+                    return sum + (video.size || 0);
+                }
+                return sum; // For non-stored videos, don't add to total
+            }, 0);
         }
 
         const sizeDisplay = document.getElementById('totalSizeDisplay');
@@ -773,7 +796,20 @@ class VideoPlayerApp {
                 clearRequest.onsuccess = () => {
                     if (this.videos && this.videos.length > 0) {
                         for (const video of this.videos) {
-                            store.add(video);
+                            // Create a copy without File/Blob objects, which can't be stored in IndexedDB
+                            let videoCopy;
+                            if (video.file) {
+                                // For local files, create a copy without the file object
+                                // If it's a local file being streamed, we'll need to exclude it from storage
+                                // since file objects can't be serialized to IndexedDB
+                                videoCopy = { ...video };
+                                delete videoCopy.file; // Remove the file object which can't be stored
+                            } else {
+                                // For other videos (stored/base64, URLs), just copy normally
+                                videoCopy = { ...video };
+                            }
+
+                            store.add(videoCopy);
                         }
                     } else {
                         // If no videos to save, just complete the transaction
@@ -822,7 +858,22 @@ class VideoPlayerApp {
                 const getAllRequest = store.getAll();
 
                 getAllRequest.onsuccess = () => {
-                    this.videos = getAllRequest.result;
+                    // Restore video data - note that file objects won't be preserved
+                    this.videos = getAllRequest.result.map(video => {
+                        // If it's a video that was previously stored as base64, mark it appropriately
+                        if (video.src && typeof video.src === 'string' && video.src.startsWith('data:')) {
+                            // This is a stored video in base64 format
+                            return { ...video, type: 'stored_video' };
+                        } else if (video.type === 'local_file') {
+                            // Files can't be stored in IndexedDB, so mark them as needing re-upload
+                            // This will happen when a user closes the browser and comes back
+                            // In a real scenario, we'd need to re-upload them, but for now we'll keep the metadata
+                            return { ...video, needsReUpload: true };
+                        } else {
+                            return video;
+                        }
+                    });
+
                     console.log('Videos loaded from IndexedDB');
                     this.updateTotalSizeDisplay();
                     resolve(this.videos);
@@ -888,13 +939,60 @@ class VideoPlayerApp {
             return;
         }
 
-        this.videos.forEach(video => {
+        // Filter out videos that need re-upload before rendering
+        const videosToDisplay = this.videos.filter(video => !(video.type === 'local_file' && video.needsReUpload));
+
+        videosToDisplay.forEach(video => {
             const videoItem = document.createElement('div');
             videoItem.className = 'video-item';
             videoItem.dataset.id = video.id;
 
-            // Create remove button for local media (not for streams)
+            // Create save and remove buttons for local media (not for streams)
             if (!video.isStream) {
+                // Add save button for videos that allow saving
+                if (video.allowSave) {
+                    const saveBtn = document.createElement('button');
+                    saveBtn.className = 'save-btn';
+                    saveBtn.innerHTML = '💾';
+                    saveBtn.title = `Save ${video.name}`;
+                    saveBtn.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevent triggering the video click event
+                        this.saveVideo(video);
+                    });
+                    videoItem.appendChild(saveBtn);
+                }
+
+                // Add save to storage button for URL videos
+                if (video.type === 'url' && video.allowSave) {
+                    const saveToStorageBtn = document.createElement('button');
+                    saveToStorageBtn.className = 'save-to-storage-btn';
+                    saveToStorageBtn.innerHTML = '📥';
+                    saveToStorageBtn.title = `Save ${video.name} to storage`;
+                    saveToStorageBtn.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevent triggering the video click event
+                        this.saveVideoToStorage(video);
+                    });
+                    videoItem.appendChild(saveToStorageBtn);
+                }
+
+                // Also add save to storage button for local files that aren't stored yet
+                if (video.type === 'local_file') {
+                    const saveToStorageBtn = document.createElement('button');
+                    saveToStorageBtn.className = 'save-to-storage-btn';
+                    saveToStorageBtn.innerHTML = '📥';
+                    if (video.needsReUpload) {
+                        saveToStorageBtn.title = `Re-upload ${video.name} to restore (was lost on reload)`;
+                    } else {
+                        saveToStorageBtn.title = `Save ${video.name} to storage (streamed)`;
+                    }
+                    saveToStorageBtn.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevent triggering the video click event
+                        this.saveVideoToStorage(video);
+                    });
+                    videoItem.appendChild(saveToStorageBtn);
+                }
+
+                // Add remove button
                 const removeBtn = document.createElement('button');
                 removeBtn.className = 'remove-btn';
                 removeBtn.innerHTML = '&times;';
@@ -956,6 +1054,17 @@ class VideoPlayerApp {
                 const duration = this.formatTime(video.duration);
                 const size = this.formatFileSize(video.size);
                 meta.textContent = `${duration} • ${size}`;
+
+                // Indicate if the video is currently stored or streamed
+                if (video.type === 'local_file') {
+                    if (video.needsReUpload) {
+                        meta.textContent += ` • ⚠️ (needs re-upload)`;
+                    } else {
+                        meta.textContent += ` • 📁 (streamed)`;
+                    }
+                } else if (video.type === 'stored_video') {
+                    meta.textContent += ` • 💾 (stored)`;
+                }
             }
 
             videoInfo.appendChild(title);
@@ -973,21 +1082,41 @@ class VideoPlayerApp {
     }
 
     playVideo(video) {
+        // Log for debugging
+        console.log('Attempting to play video:', video);
+
         // Find the index of this video in the videos array
         const videoIndex = this.videos.findIndex(v => v.id === video.id);
         if (videoIndex !== -1) {
             this.currentVideoIndex = videoIndex;
         }
 
-        // Set source and handle loading
-        // For streams, we might need to handle CORS differently
-        if (video.isStream) {
+        // Handle different video types
+        if (video.type === 'local_file' && video.file) {
+            // For local files, create a blob URL from the stored file object
+            const videoBlobUrl = URL.createObjectURL(video.file);
+            this.videoPlayer.src = videoBlobUrl;
+            this.videoInfo.textContent = `Playing: ${video.name} ${video.duration ? '(' + this.formatTime(video.duration) + ')' : ''}`;
+
+            // Store the URL to revoke later when video stops
+            this.currentVideoBlobUrl = videoBlobUrl;
+        } else if (video.type === 'local_file' && video.needsReUpload) {
+            // This is a local file that was previously added but the file object was lost
+            // (since file objects can't be stored in IndexedDB)
+            alert(`This video "${video.name}" needs to be re-uploaded as the file reference was lost. Please re-select the file to continue.`);
+            return; // Abort play attempt
+        } else if (video.isStream) {
             // For live streams, try the direct URL first
             this.videoPlayer.src = video.src;
             this.videoInfo.textContent = `Playing: ${video.name}`;
         } else {
+            // For regular videos, make sure the src is valid
+            if (!video.src) {
+                alert('Video source is not defined');
+                return;
+            }
             this.videoPlayer.src = video.src;
-            this.videoInfo.textContent = `Playing: ${video.name} (${this.formatTime(video.duration)})`;
+            this.videoInfo.textContent = `Playing: ${video.name} ${video.duration ? '(' + this.formatTime(video.duration) + ')' : ''}`;
         }
 
         this.videoPlayer.load(); // Explicitly load the source
@@ -996,7 +1125,7 @@ class VideoPlayerApp {
         this.videoPlayer.onloadedmetadata = () => {
             // For streams, we don't have duration typically
             if (!video.isStream) {
-                this.videoInfo.textContent = `Playing: ${video.name} (${this.formatTime(video.duration)})`;
+                this.videoInfo.textContent = `Playing: ${video.name} (${this.formatTime(video.duration || this.videoPlayer.duration)})`;
             }
 
             this.updateTimeDisplay();
@@ -1044,9 +1173,31 @@ class VideoPlayerApp {
             this.videoInfo.textContent = `Connection issue with: ${video.name}`;
         };
 
+        // Clean up blob URL when video ends
+        this.videoPlayer.onended = () => {
+            if (this.currentVideoBlobUrl) {
+                URL.revokeObjectURL(this.currentVideoBlobUrl);
+                this.currentVideoBlobUrl = null;
+            }
+        };
+
+        // Clean up blob URL when video is paused for a long time or changed
+        this.videoPlayer.onpause = () => {
+            if (this.currentVideoBlobUrl) {
+                // Only revoke if the video has ended or if we're switching to another video
+                if (this.videoPlayer.currentTime >= this.videoPlayer.duration || this.videoPlayer.ended) {
+                    URL.revokeObjectURL(this.currentVideoBlobUrl);
+                    this.currentVideoBlobUrl = null;
+                }
+            }
+        };
+
         // Update controls to show live stream indicators if needed
         if (video.isStream) {
             this.timeDisplay.textContent = 'LIVE'; // Change time display for live streams
+        } else {
+            // Reset time display for regular videos
+            this.timeDisplay.textContent = `${this.formatTime(0)} / ${this.formatTime(video.duration || 0)}`;
         }
 
         this.videoModal.style.display = 'block';
@@ -1058,6 +1209,7 @@ class VideoPlayerApp {
                 this.videoPlayer.play()
                     .then(() => {
                         this.playPauseBtn.textContent = '⏸';
+                        console.log('Video played successfully');
                     })
                     .catch(error => {
                         console.error('Error attempting to play video:', error);
@@ -1215,6 +1367,7 @@ class VideoPlayerApp {
             case 'Escape':
                 this.videoModal.style.display = 'none';
                 this.videoPlayer.pause();
+                this.cleanupVideoResources();
                 break;
             default:
                 // Other keys do nothing for video player
@@ -1240,7 +1393,7 @@ class VideoPlayerApp {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    loadVideoFromUrl(url) {
+    loadVideoFromUrl(url, allowSave = false) {
         try {
             new URL(url);
         } catch (e) {
@@ -1253,6 +1406,34 @@ class VideoPlayerApp {
             alert('URL does not appear to be a video. This player supports common video formats (MP4, WebM, OGG, etc.), raw endpoints, or AI service URLs.');
             return;
         }
+
+        // Create a video object for the gallery with save option
+        const fileName = url.substring(url.lastIndexOf('/') + 1);
+        const videoData = {
+            id: `url_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            src: url,
+            name: fileName,
+            size: 0, // Size unknown for URL
+            duration: undefined, // Duration unknown initially
+            thumbnail: '', // Thumbnail will be created if possible
+            timestamp: new Date().toISOString(),
+            type: 'url',
+            allowSave: allowSave, // Add flag for save functionality
+            isStream: !allowSave // Treat non-save URLs as streams
+        };
+
+        // Check if this URL is already in the collection
+        const isDuplicate = this.videos.some(video => video.src === url && video.type === 'url');
+        if (isDuplicate) {
+            alert('This video URL is already in your collection.');
+            return;
+        }
+
+        // Add to videos array
+        this.videos.push(videoData);
+        this.saveToStorage();
+        this.updateTotalSizeDisplay();
+        this.renderGallery();
 
         // Set up error handler that suggests CORS proxy
         let attemptedWithProxy = false;
@@ -1272,11 +1453,15 @@ class VideoPlayerApp {
             }
         };
 
-        this.videoPlayer.oncanplay = () => {
+        this.videoPlayer.onloadedmetadata = () => {
             // Successfully loaded, continue with playback
-            // Since we don't have file info from URL, use the URL basename as filename
-            const fileName = url.substring(url.lastIndexOf('/') + 1);
-            this.videoInfo.textContent = `Playing: ${fileName}`;
+            videoData.duration = this.videoPlayer.duration;
+
+            // Generate thumbnail if possible
+            this.generateThumbnailFromUrl(videoData);
+
+            // Update the video info with duration
+            this.videoInfo.textContent = `Playing: ${fileName} (${this.formatTime(this.videoPlayer.duration)})`;
 
             this.videoModal.style.display = 'block';
 
@@ -1290,6 +1475,47 @@ class VideoPlayerApp {
         // Set the video source directly
         this.videoPlayer.src = url;
         this.videoPlayer.load();
+    }
+
+    // Generate thumbnail from a video URL
+    generateThumbnailFromUrl(videoData) {
+        const tempVideo = document.createElement('video');
+        tempVideo.preload = 'metadata';
+        tempVideo.src = videoData.src;
+
+        tempVideo.onloadedmetadata = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 200; // Fixed width for thumbnails
+            canvas.height = 150; // Fixed height for thumbnails
+            const ctx = canvas.getContext('2d');
+
+            // Capture frame at the middle of the video
+            const seekTime = tempVideo.duration > 0 ? tempVideo.duration / 2 : 1;
+            tempVideo.currentTime = seekTime;
+
+            const captureFrame = () => {
+                try {
+                    ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+                    const thumbnail = canvas.toDataURL('image/jpeg');
+
+                    // Update the video data with the thumbnail
+                    videoData.thumbnail = thumbnail;
+
+                    // Update the gallery to show the new thumbnail
+                    this.saveToStorage();
+                    this.renderGallery();
+                } catch (drawError) {
+                    console.error('Error drawing thumbnail:', drawError);
+                }
+            };
+
+            const onSeeked = () => {
+                captureFrame();
+                tempVideo.removeEventListener('seeked', onSeeked);
+            };
+
+            tempVideo.addEventListener('seeked', onSeeked, { once: true });
+        };
     }
 
     toggleLoop() {
@@ -1414,6 +1640,7 @@ class VideoPlayerApp {
             case 'Escape':
                 this.videoModal.style.display = 'none';
                 this.videoPlayer.pause();
+                this.cleanupVideoResources();
                 break;
             default:
                 // Other keys do nothing for video player
@@ -1520,6 +1747,14 @@ class VideoPlayerApp {
         this.panY = 0;
 
         this.updateZoomIndicator(1);
+    }
+
+    // Clean up video resources like blob URLs to prevent memory leaks
+    cleanupVideoResources() {
+        if (this.currentVideoBlobUrl) {
+            URL.revokeObjectURL(this.currentVideoBlobUrl);
+            this.currentVideoBlobUrl = null;
+        }
     }
 
     // Enable panning functionality
@@ -1630,18 +1865,27 @@ class VideoPlayerApp {
             currentIndex = this.currentVideoIndex;
         }
 
-        let nextIndex = (currentIndex + 1) % this.videos.length;
+        // Find the next valid video that can be played (not needing re-upload)
+        let nextIndex = currentIndex;
+        let attempts = 0;
 
-        // If global loop is enabled and we've reached the end, loop back to start
-        if (this.globalLoop && nextIndex === 0 && currentIndex === this.videos.length - 1) {
-            // We're looping back to the first video
-        }
+        do {
+            nextIndex = (nextIndex + 1) % this.videos.length;
+            attempts++;
 
-        // Update internal tracking
-        this.currentVideoIndex = nextIndex;
+            // Check if this video can be played (not a local file that needs re-upload)
+            const video = this.videos[nextIndex];
+            if (!(video.type === 'local_file' && video.needsReUpload)) {
+                // Update internal tracking
+                this.currentVideoIndex = nextIndex;
+                // Play the next video
+                this.playVideo(video);
+                return; // Exit successfully
+            }
+        } while (attempts < this.videos.length); // Stop after checking all videos once
 
-        // Play the next video
-        this.playVideo(this.videos[nextIndex]);
+        // If we get here, all videos need re-upload
+        alert('All videos need to be re-uploaded. Please re-select your files.');
     }
 
     playPrevVideo() {
@@ -1663,13 +1907,27 @@ class VideoPlayerApp {
             currentIndex = this.currentVideoIndex;
         }
 
-        let prevIndex = (currentIndex - 1 + this.videos.length) % this.videos.length;
+        // Find the previous valid video that can be played (not needing re-upload)
+        let prevIndex = currentIndex;
+        let attempts = 0;
 
-        // Update internal tracking
-        this.currentVideoIndex = prevIndex;
+        do {
+            prevIndex = (prevIndex - 1 + this.videos.length) % this.videos.length;
+            attempts++;
 
-        // Play the previous video
-        this.playVideo(this.videos[prevIndex]);
+            // Check if this video can be played (not a local file that needs re-upload)
+            const video = this.videos[prevIndex];
+            if (!(video.type === 'local_file' && video.needsReUpload)) {
+                // Update internal tracking
+                this.currentVideoIndex = prevIndex;
+                // Play the previous video
+                this.playVideo(video);
+                return; // Exit successfully
+            }
+        } while (attempts < this.videos.length); // Stop after checking all videos once
+
+        // If we get here, all videos need re-upload
+        alert('All videos need to be re-uploaded. Please re-select your files.');
     }
 
     toggleGlobalLoop() {
@@ -1971,6 +2229,157 @@ class VideoPlayerApp {
             if (this.videoInfo) {
                 this.videoInfo.textContent = 'No video loaded';
             }
+        }
+    }
+
+    // Method to save a video to browser storage (download and store)
+    saveVideoToStorage(video) {
+        if (video.type === 'local_file' && video.file) {
+            // For local files that are streamed, convert to base64 and save
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const base64Data = e.target.result;
+
+                // Create a new video object with the base64 data replacing the file object
+                const newVideoData = {
+                    id: video.id, // Keep the same ID
+                    src: base64Data, // Replace file with base64 data
+                    name: video.name,
+                    size: video.size,
+                    duration: video.duration,
+                    thumbnail: video.thumbnail,
+                    timestamp: new Date().toISOString(),
+                    allowSave: true, // Stored videos can be saved
+                    type: 'stored_video' // Mark as stored video
+                };
+
+                // Replace the existing video entry
+                const index = this.videos.findIndex(v => v.id === video.id);
+                if (index !== -1) {
+                    this.videos[index] = newVideoData;
+                }
+
+                this.saveToStorage();
+                this.updateTotalSizeDisplay();
+                this.renderGallery();
+
+                alert(`${video.name} has been saved to storage`);
+            };
+            reader.onerror = (error) => {
+                console.error('Error converting file to base64:', error);
+                alert('Error converting file to storage format: ' + error.message);
+            };
+            reader.readAsDataURL(video.file);
+        } else if (video.type === 'local_file' && video.needsReUpload) {
+            // For local files that need re-upload, prompt user to re-upload
+            alert(`Cannot save "${video.name}" to storage because it needs to be re-uploaded. Please re-select the file first.`);
+        } else if (video.src && video.src.startsWith('http')) {
+            // For URL videos, fetch and store
+            fetch(video.src)
+                .then(response => response.blob())
+                .then(blob => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const base64Data = e.target.result;
+
+                        // Create a new video object with the base64 data
+                        const newVideoData = {
+                            id: Date.now() + Math.random().toString(36).substr(2, 9),
+                            src: base64Data,
+                            name: video.name,
+                            size: blob.size,
+                            duration: video.duration,
+                            thumbnail: video.thumbnail,
+                            timestamp: new Date().toISOString(),
+                            allowSave: true // Stored videos can be saved
+                        };
+
+                        // Add to videos array
+                        this.videos.push(newVideoData);
+                        this.saveToStorage();
+                        this.updateTotalSizeDisplay();
+                        this.renderGallery();
+
+                        alert(`${video.name} has been saved to storage`);
+                    };
+                    reader.readAsDataURL(blob);
+                })
+                .catch(error => {
+                    console.error('Error downloading video:', error);
+                    alert('Error downloading video for storage: ' + error.message);
+                });
+        } else if (video.src && video.src.startsWith('file://')) {
+            // For file:// URLs, we need to prompt user to upload the actual file
+            alert(`For local files, please use the upload interface to add the file directly to storage`);
+        } else if (!video.src) {
+            // Video has no source
+            alert(`Cannot save "${video.name}" to storage - no source available`);
+        } else {
+            // For videos already in storage, just let user know
+            alert(`${video.name} is already in storage`);
+        }
+    }
+
+    // Method to save a video to the user's device
+    saveVideo(video) {
+        try {
+            // Check if video has a valid source
+            if (!video.src) {
+                if (video.type === 'local_file' && video.needsReUpload) {
+                    alert(`Cannot save "${video.name}" because it needs to be re-uploaded. Please re-select the file first.`);
+                    return;
+                } else if (video.type === 'local_file' && video.file) {
+                    // For local files with file object, create blob URL
+                    const videoBlobUrl = URL.createObjectURL(video.file);
+                    const a = document.createElement('a');
+                    a.href = videoBlobUrl;
+                    a.download = video.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+
+                    // Clean up the blob URL
+                    URL.revokeObjectURL(videoBlobUrl);
+                    return;
+                } else {
+                    alert(`Cannot save "${video.name}" - no source available`);
+                    return;
+                }
+            }
+
+            // For local files or videos loaded from URL
+            let sourceUrl = video.src;
+
+            // For videos stored as base64, create a Blob URL
+            if (video.src.startsWith('data:')) {
+                // Extract MIME type and data
+                const parts = video.src.split(';base64,');
+                const mimeType = parts[0].split(':')[1];
+                const byteCharacters = atob(parts[1]);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: mimeType });
+                sourceUrl = URL.createObjectURL(blob);
+            }
+
+            // Create a temporary link element to trigger download
+            const a = document.createElement('a');
+            a.href = sourceUrl;
+            a.download = video.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            // Clean up if we created a blob URL
+            if (sourceUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(sourceUrl);
+            }
+        } catch (error) {
+            console.error('Error saving video:', error);
+            alert('Error saving video: ' + error.message);
         }
     }
 

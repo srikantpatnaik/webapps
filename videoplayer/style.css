@@ -78,28 +78,94 @@ header h1 {
     text-align: center;
 }
 
-.upload-area {
-    border: 2px dashed var(--border);
-    border-radius: 10px;
-    padding: 30px;
-    cursor: pointer;
+/* Single Input Section */
+.single-input-section {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: center;
+}
+
+.input-group label {
+    align-self: flex-start;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.input-group input {
+    flex: 1;
+    padding: 12px;
+    width: 100%;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 1rem;
     transition: all 0.3s ease;
 }
 
-.upload-area:hover {
+.input-group input:focus {
+    outline: none;
     border-color: var(--accent);
-    background-color: rgba(187, 134, 252, 0.1);
+    box-shadow: 0 0 0 3px rgba(187, 134, 252, 0.3);
 }
 
-.upload-area p {
-    margin: 10px 0;
-    color: var(--text-secondary);
+.input-group button {
+    background: var(--button-bg);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 46px;
+    width: 100%;
+    max-width: 200px;
 }
 
-#videoInfo {
+.input-group button:hover {
+    background: var(--button-hover);
+}
+
+.input-group input[type="file"] {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.input-group input[type="file"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(187, 134, 252, 0.3);
+}
+
+.video-info-display {
     margin-top: 10px;
     color: var(--text-secondary);
     font-size: 0.9rem;
+    text-align: center;
+    padding: 8px;
+    background-color: var(--bg-tertiary);
+    border-radius: 8px;
+    display: inline-block;
+    margin: 10px auto 0;
 }
 
 /* URL Input Section */
@@ -128,30 +194,30 @@ header h1 {
     flex: 1;
     padding: 12px;
     width: 100%;
-    background: var(--input-bg);
-    border: 2px solid var(--input-border);
-    border-radius: var(--border-radius);
-    color: var(--text);
+    background: var(--bg-secondary);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
     font-size: 1rem;
-    transition: var(--transition);
+    transition: all 0.3s ease;
 }
 
 .input-group input:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.3);
+    box-shadow: 0 0 0 3px rgba(187, 134, 252, 0.3);
 }
 
 .input-group button {
     background: var(--button-bg);
     color: white;
     border: none;
-    border-radius: var(--border-radius);
+    border-radius: 8px;
     padding: 12px 20px;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: var(--transition);
+    transition: all 0.3s ease;
     min-height: 46px;
     width: 100%;
     max-width: 200px;
@@ -589,4 +655,76 @@ kbd {
         opacity: 1; /* Always visible on mobile */
         max-width: calc(100% - 40px);
     }
+}
+
+.save-btn {
+    position: absolute;
+    top: 5px;
+    right: 35px; /* Position to the right of the storage button */
+    background-color: rgba(187, 134, 252, 0.7); /* Accent color */
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1; /* Always visible when present */
+    transition: background-color 0.3s ease;
+}
+
+.save-btn:hover {
+    background-color: rgba(187, 134, 252, 0.9); /* Darker accent color on hover */
+}
+
+.save-to-storage-btn {
+    position: absolute;
+    top: 5px;
+    right: 65px; /* Position to the right of the remove button */
+    background-color: rgba(0, 218, 221, 0.7); /* Teal-like color */
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1; /* Always visible when present */
+    transition: background-color 0.3s ease;
+}
+
+.save-to-storage-btn:hover {
+    background-color: rgba(0, 218, 221, 0.9); /* Darker teal on hover */
+}
+
+.remove-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: rgba(255, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1; /* Always visible */
+    transition: background-color 0.3s ease;
+}
+
+.remove-btn:hover {
+    background-color: rgba(255, 0, 0, 0.9);
 }
