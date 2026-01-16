@@ -81,6 +81,9 @@ class VideoPlayerApp {
         // Initialize cursor hide functionality
         this.cursorHideTimeout = null;
         this.isCursorHidden = false;
+
+        // Load saved zoom level
+        this.loadZoomLevel();
     }
 
     initializeVideoPlayerControls() {
@@ -255,6 +258,54 @@ class VideoPlayerApp {
         this.speedDisplay = document.getElementById('speedDisplay');
         this.loopBtn = document.getElementById('loopBtn');
         this.globalLoopBtn = document.getElementById('globalLoopBtn');
+        
+        // Initialize history state management
+        this.isModalOpen = false;
+        this.setupHistoryStateManagement();
+    }
+
+    setupHistoryStateManagement() {
+        // Listen for popstate events (back/forward button)
+        window.addEventListener('popstate', (event) => {
+            if (event.state && event.state.modalOpen) {
+                // If the state indicates modal should be open, open it
+                this.openVideoModal();
+            } else if (this.isModalOpen) {
+                // If modal is open but state doesn't indicate it should be, close it
+                this.closeVideoModal(false); // Don't push state when closing via popstate
+            }
+        });
+    }
+
+    openVideoModal() {
+        if (this.isModalOpen) return;
+        
+        this.videoModal.style.display = 'block';
+        this.isModalOpen = true;
+        
+        // Push a state to the history stack when opening the modal
+        history.pushState({ modalOpen: true }, '', window.location.pathname);
+    }
+
+    closeVideoModal(pushState = true) {
+        if (!this.isModalOpen) return;
+        
+        this.videoModal.style.display = 'none';
+        this.videoPlayer.pause();
+        this.isModalOpen = false;
+        
+        // Show cursor when modal is closed
+        this.videoModal.style.cursor = 'default';
+        this.isCursorHidden = false;
+        // Reset zoom when closing modal
+        this.resetZoom();
+        // Clean up any blob URLs
+        this.cleanupVideoResources();
+        
+        // If pushState is true, push a new state without modalOpen
+        if (pushState) {
+            history.pushState({ modalOpen: false }, '', window.location.pathname);
+        }
     }
 
     bindEvents() {
@@ -284,28 +335,12 @@ class VideoPlayerApp {
 
         // Modal events
         this.closeModal.addEventListener('click', () => {
-            this.videoModal.style.display = 'none';
-            this.videoPlayer.pause();
-            // Show cursor when modal is closed
-            this.videoModal.style.cursor = 'default';
-            this.isCursorHidden = false;
-            // Reset zoom when closing modal
-            this.resetZoom();
-            // Clean up any blob URLs
-            this.cleanupVideoResources();
+            this.closeVideoModal();
         });
 
         this.videoModal.addEventListener('click', (e) => {
             if (e.target === this.videoModal) {
-                this.videoModal.style.display = 'none';
-                this.videoPlayer.pause();
-                // Show cursor when modal is closed
-                this.videoModal.style.cursor = 'default';
-                this.isCursorHidden = false;
-                // Reset zoom when closing modal
-                this.resetZoom();
-                // Clean up any blob URLs
-                this.cleanupVideoResources();
+                this.closeVideoModal();
             }
         });
 
@@ -387,12 +422,22 @@ class VideoPlayerApp {
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            if (file.type && file.type.startsWith('video/')) {
-                this.processVideoFile(file);
+            
+            // Check if it's an M3U playlist file
+            if (file.name && file.name.toLowerCase().endsWith('.m3u')) {
+                this.processM3UFile(file);
+            }
+            // Check if it's a video or audio file
+            else if (file.type && (file.type.startsWith('video/') || file.type.startsWith('audio/'))) {
+                if (file.type.startsWith('video/')) {
+                    this.processVideoFile(file);
+                } else {
+                    this.processAudioFile(file);
+                }
             } else {
-                // Alert user that non-video files were dropped/selected
+                // Alert user that unsupported files were dropped/selected
                 const fileName = file.name || 'Unknown file';
-                alert(`Skipping non-video file: ${fileName}. Only video files are supported.`);
+                alert(`Skipping unsupported file: ${fileName}. Only video, audio, and M3U playlist files are supported.`);
             }
         }
     }
@@ -610,6 +655,228 @@ class VideoPlayerApp {
         }, 10000); // 10 second timeout
     }
 
+    processAudioFile(file, isLocalFile = false) {
+        // Show loading message
+        if (this.videoInfo) {
+            this.videoInfo.textContent = `Processing: ${file.name}...`;
+        }
+
+        // Check for duplicate audio by comparing file properties
+        const isDuplicate = this.videos.some(video =>
+            video.originalFileName === file.name &&
+            video.size === file.size &&
+            video.timestamp &&
+            new Date().getTime() - new Date(video.timestamp).getTime() < 60000 // Within 1 minute
+        );
+
+        if (isDuplicate) {
+            alert('This audio file already exists in your collection.');
+            this.updateVideoInfoText();
+            return;
+        }
+
+        // Create a temporary audio element to get duration
+        const tempAudio = document.createElement('audio');
+
+        // Create a blob URL for the file to enable streaming
+        const audioBlobUrl = URL.createObjectURL(file);
+        tempAudio.preload = 'metadata';
+        tempAudio.src = audioBlobUrl;
+
+        tempAudio.onloadedmetadata = () => {
+            try {
+                // For audio files, we don't have a video thumbnail
+                // Use a default audio icon or generate a waveform visualization
+                const audioData = {
+                    id: Date.now() + Math.random().toString(36).substr(2, 9),
+                    file: file, // Store the original file object
+                    originalFileName: file.name, // Store the original file name for comparison
+                    name: file.name,
+                    size: file.size,
+                    duration: tempAudio.duration,
+                    thumbnail: '', // No thumbnail for audio files
+                    timestamp: new Date().toISOString(),
+                    allowSave: true, // Local files can be saved to storage
+                    type: 'local_file', // Mark as local file
+                    isAudio: true // Mark as audio file for UI differentiation
+                };
+
+                this.videos.push(audioData);
+                this.saveToStorage();
+                this.updateTotalSizeDisplay();
+
+                // Instead of reloading the page, just refresh the gallery
+                this.renderGallery();
+
+                // Show success message
+                this.videoInfo.textContent = `Added: ${file.name} to your collection`;
+
+                // Reset the text after a few seconds
+                setTimeout(() => {
+                    this.updateVideoInfoText();
+                }, 3000);
+
+                // Clean up the blob URL after we're done with metadata
+                URL.revokeObjectURL(audioBlobUrl);
+            } catch (error) {
+                console.error('Error processing audio metadata:', error);
+                alert('Error processing audio file metadata.');
+                this.updateVideoInfoText();
+
+                // Clean up the blob URL after error
+                URL.revokeObjectURL(audioBlobUrl);
+            }
+        };
+
+        tempAudio.onerror = (event) => {
+            console.error('Error loading audio metadata:', event);
+            alert('Error processing audio file. The file may be corrupted or incompatible.');
+            this.updateVideoInfoText();
+
+            // Clean up the blob URL after error
+            URL.revokeObjectURL(audioBlobUrl);
+        };
+
+        // Set a timeout to handle cases where metadata never loads
+        setTimeout(() => {
+            if (tempAudio.readyState === 0) {
+                console.error('Timeout waiting for audio metadata');
+                alert('Audio file took too long to load. May be corrupted or incompatible.');
+                this.updateVideoInfoText();
+
+                // Clean up the blob URL after timeout
+                URL.revokeObjectURL(audioBlobUrl);
+            }
+        }, 10000); // 10 second timeout
+    }
+
+    // Process M3U playlist file
+    processM3UFile(file) {
+        // Show loading message
+        if (this.videoInfo) {
+            this.videoInfo.textContent = `Processing M3U playlist: ${file.name}...`;
+        }
+
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            try {
+                const m3uContent = e.target.result;
+                console.log('M3U file content:', m3uContent);
+                
+                // Parse the M3U playlist
+                const playlistItems = this.parseM3U(m3uContent);
+                console.log('Parsed playlist items:', playlistItems);
+
+                if (playlistItems.length === 0) {
+                    // Try to parse as simple list of files (one per line)
+                    const lines = m3uContent.split('\n').filter(line => line.trim() !== '');
+                    console.log('Lines in M3U file:', lines);
+                    
+                    // Check if any lines look like video files
+                    const videoLines = lines.filter(line => {
+                        const trimmed = line.trim();
+                        return !trimmed.startsWith('#') && this.isVideoFile(trimmed);
+                    });
+                    
+                    if (videoLines.length === 0) {
+                        alert('No valid channels or video files found in the M3U playlist. The file may be empty or in an unsupported format.');
+                        this.updateVideoInfoText();
+                        return;
+                    }
+                    
+                    // Create playlist items from video lines
+                    for (const line of videoLines) {
+                        playlistItems.push({
+                            url: line.trim(),
+                            channelName: this.extractFileName(line.trim()),
+                            tvgId: undefined,
+                            logo: undefined,
+                            groupId: 'Local Videos',
+                            userAgent: undefined,
+                            httpReferrer: undefined,
+                            isVlcOpt: false
+                        });
+                    }
+                    
+                    console.log('Created playlist items from video lines:', playlistItems);
+                }
+
+                // Generate a unique identifier for this local playlist
+                const playlistId = `local_m3u_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const playlistName = file.name.replace('.m3u', '').replace('.M3U', '');
+                
+                // Add this local M3U file to playlist history with "local:" prefix
+                const localPlaylistIdentifier = `local:${file.name}`;
+                if (!this.playlistUrls.includes(localPlaylistIdentifier)) {
+                    this.playlistUrls.push(localPlaylistIdentifier);
+                }
+
+                // Add parsed channels to the videos array
+                let addedCount = 0;
+                for (const item of playlistItems) {
+                    // Create a unique ID for the playlist item
+                    const id = `${playlistId}_${addedCount}`;
+
+                    // Check if this is a local file path or a URL
+                    const isLocalFile = !item.url.startsWith('http://') && !item.url.startsWith('https://');
+                    
+                    const videoData = {
+                        id: id,
+                        src: item.url,
+                        name: item.channelName,
+                        size: 0, // Size unknown for streams/local paths
+                        duration: undefined, // Duration unknown initially
+                        thumbnail: item.logo || '',
+                        timestamp: new Date().toISOString(),
+                        type: isLocalFile ? 'local_m3u_path' : 'm3u', // Different type for local paths
+                        groupId: item.groupId,
+                        tvgId: item.tvgId,
+                        isStream: !isLocalFile, // Only mark as stream for URLs
+                        playlistName: playlistName, // Track which playlist this stream came from
+                        isLocalPlaylist: true, // Mark as local playlist (not URL-based)
+                        isLocalPath: isLocalFile, // Mark if it's a local file path
+                        playlistUrl: localPlaylistIdentifier // Track which playlist this item came from
+                    };
+
+                    // Add to videos array if not already present
+                    const isDuplicate = this.videos.some(video => video.src === videoData.src);
+                    if (!isDuplicate) {
+                        this.videos.push(videoData);
+                        addedCount++;
+                    }
+                }
+
+                // Save to storage and update UI
+                this.saveToStorage();
+                this.updateTotalSizeDisplay();
+                this.renderGallery();
+                this.renderPlaylistHistory(); // Update playlist history display
+
+                // Show success message
+                this.videoInfo.textContent = `Loaded ${addedCount} items from playlist: ${playlistName}`;
+
+                // Reset the text after a few seconds
+                setTimeout(() => {
+                    this.updateVideoInfoText();
+                }, 3000);
+
+            } catch (error) {
+                console.error('Error processing M3U file:', error);
+                alert(`Error processing M3U playlist: ${error.message}`);
+                this.updateVideoInfoText();
+            }
+        };
+
+        reader.onerror = (error) => {
+            console.error('Error reading M3U file:', error);
+            alert('Error reading M3U playlist file. The file may be corrupted or inaccessible.');
+            this.updateVideoInfoText();
+        };
+
+        reader.readAsText(file);
+    }
+
     updateVideoInfoText() {
         if (this.videoInfo) {
             this.videoInfo.textContent = 'No video loaded';
@@ -761,12 +1028,12 @@ class VideoPlayerApp {
         if (sizeDisplay) {
             if (totalSize >= 1024 * 1024 * 1024) { // 1 GB in bytes
                 // Convert to GB if greater than or equal to 1 GB
-                const sizeInGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
-                sizeDisplay.textContent = `Total Size: ${sizeInGB} GB`;
+                const sizeInGB = Math.floor(totalSize / (1024 * 1024 * 1024));
+                sizeDisplay.textContent = `${sizeInGB} GB`;
             } else {
                 // Otherwise display in MB
-                const sizeInMB = (totalSize / (1024 * 1024)).toFixed(2);
-                sizeDisplay.textContent = `Total Size: ${sizeInMB} MB`;
+                const sizeInMB = Math.floor(totalSize / (1024 * 1024));
+                sizeDisplay.textContent = `${sizeInMB} MB`;
             }
         }
     }
@@ -1019,22 +1286,58 @@ class VideoPlayerApp {
             thumbnail.onerror = () => {
                 // For streams, try to use a generic TV icon; for videos, show default video icon
                 if (video.isStream) {
-                    thumbnail.style.backgroundColor = '#333';
+                    // Try to use group-specific icons based on groupId
+                    let icon = '📺'; // Default TV icon
+                    let bgColor = '#333';
+                    
+                    if (video.groupId) {
+                        const group = video.groupId.toLowerCase();
+                        if (group.includes('movie') || group.includes('film')) {
+                            icon = '🎬';
+                            bgColor = '#1a237e';
+                        } else if (group.includes('sport') || group.includes('sports')) {
+                            icon = '⚽';
+                            bgColor = '#1b5e20';
+                        } else if (group.includes('news')) {
+                            icon = '📰';
+                            bgColor = '#bf360c';
+                        } else if (group.includes('music')) {
+                            icon = '🎵';
+                            bgColor = '#4a148c';
+                        } else if (group.includes('kid') || group.includes('children')) {
+                            icon = '🧸';
+                            bgColor = '#e65100';
+                        } else if (group.includes('documentary')) {
+                            icon = '📚';
+                            bgColor = '#33691e';
+                        }
+                    }
+                    
+                    thumbnail.style.backgroundColor = bgColor;
                     thumbnail.style.display = 'flex';
                     thumbnail.style.alignItems = 'center';
                     thumbnail.style.justifyContent = 'center';
-                    thumbnail.textContent = '📺';
+                    thumbnail.textContent = icon;
                     thumbnail.style.fontSize = '2rem';
+                    thumbnail.style.color = 'white';
+                    thumbnail.style.fontWeight = 'bold';
                 } else {
-                    // Fallback to a default thumbnail or hide the thumbnail
+                    // For non-stream videos
                     thumbnail.style.backgroundColor = '#333';
                     thumbnail.style.display = 'flex';
                     thumbnail.style.alignItems = 'center';
                     thumbnail.style.justifyContent = 'center';
                     thumbnail.textContent = '📹';
                     thumbnail.style.fontSize = '2rem';
+                    thumbnail.style.color = 'white';
                 }
             };
+            
+            // Also handle case where thumbnail is empty/null
+            if (!video.thumbnail || video.thumbnail.trim() === '') {
+                // Trigger the error handler to show fallback immediately
+                thumbnail.onerror();
+            }
 
             const videoInfo = document.createElement('div');
             videoInfo.className = 'video-info';
@@ -1105,6 +1408,55 @@ class VideoPlayerApp {
             // (since file objects can't be stored in IndexedDB)
             alert(`This video "${video.name}" needs to be re-uploaded as the file reference was lost. Please re-select the file to continue.`);
             return; // Abort play attempt
+        } else if (video.type === 'local_m3u_path') {
+            // For local file paths from M3U playlists, provide options
+            const userChoice = confirm(
+                `To play "${video.name}" from your local M3U playlist:\n\n` +
+                `Option 1: Select the actual file now (will be added to your collection)\n` +
+                `Option 2: Cancel and set up a local server for streaming\n\n` +
+                `Click OK to select the file, or Cancel to learn about local server setup.`
+            );
+            
+            if (userChoice) {
+                // User wants to select the file
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'video/*,audio/*';
+                input.multiple = false;
+
+                input.onchange = (event) => {
+                    const file = event.target.files[0];
+                    if (file) {
+                        // Process the selected file and update the video entry
+                        this.processVideoFile(file, true);
+                        
+                        // Find the updated video entry and play it
+                        setTimeout(() => {
+                            const updatedVideo = this.videos.find(v => v.originalFileName === file.name || v.name === video.name);
+                            if (updatedVideo) {
+                                this.playVideo(updatedVideo);
+                            }
+                        }, 500);
+                    }
+                };
+
+                input.click();
+            } else {
+                // User wants to learn about local server setup
+                alert(
+                    `To stream local media files through M3U playlists:\n\n` +
+                    `1. Set up a local HTTP server:\n` +
+                    `   - Python: Run "python3 -m http.server 8000" in your media folder\n` +
+                    `   - Node.js: Use "http-server" or "serve" packages\n` +
+                    `   - Other: Any web server software works\n\n` +
+                    `2. Update your M3U file to use HTTP URLs instead of local paths:\n` +
+                    `   Change: /path/to/video.mp4\n` +
+                    `   To: http://localhost:8000/video.mp4\n\n` +
+                    `3. Load the updated M3U file via URL input (not file upload)\n\n` +
+                    `This allows the browser to stream files securely.`
+                );
+            }
+            return; // Don't proceed with normal playback
         } else if (video.isStream) {
             // For live streams, try the direct URL first
             this.videoPlayer.src = video.src;
@@ -1200,7 +1552,7 @@ class VideoPlayerApp {
             this.timeDisplay.textContent = `${this.formatTime(0)} / ${this.formatTime(video.duration || 0)}`;
         }
 
-        this.videoModal.style.display = 'block';
+        this.openVideoModal();
 
         // Play the video after a short delay to ensure it's ready
         setTimeout(() => {
@@ -1324,56 +1676,6 @@ class VideoPlayerApp {
         }, 100);
     }
 
-    handleKeyboardShortcuts(e) {
-        switch(e.key) {
-            case ' ':
-                e.preventDefault();
-                this.togglePlayPause();
-                break;
-            case 'ArrowRight':
-                e.preventDefault();
-                this.videoPlayer.currentTime += 10; // Seek forward 10 seconds
-                break;
-            case 'ArrowLeft':
-                e.preventDefault();
-                this.videoPlayer.currentTime -= 10; // Seek backward 10 seconds
-                break;
-            case 'ArrowUp':
-                e.preventDefault();
-                if (this.videoPlayer.volume < 1) {
-                    this.videoPlayer.volume = Math.min(1, this.videoPlayer.volume + 0.1);
-                    this.volumeSlider.value = this.videoPlayer.volume;
-                }
-                this.updateVolumeButton();
-                break;
-            case 'ArrowDown':
-                e.preventDefault();
-                if (this.videoPlayer.volume > 0) {
-                    this.videoPlayer.volume = Math.max(0, this.videoPlayer.volume - 0.1);
-                    this.volumeSlider.value = this.videoPlayer.volume;
-                }
-                this.updateVolumeButton();
-                break;
-            case 'm':
-            case 'M':
-                e.preventDefault();
-                this.toggleMute();
-                break;
-            case 'f':
-            case 'F':
-                e.preventDefault();
-                this.toggleFullscreen();
-                break;
-            case 'Escape':
-                this.videoModal.style.display = 'none';
-                this.videoPlayer.pause();
-                this.cleanupVideoResources();
-                break;
-            default:
-                // Other keys do nothing for video player
-                break;
-        }
-    }
 
     formatTime(seconds) {
         if (isNaN(seconds)) return '00:00';
@@ -1555,8 +1857,14 @@ class VideoPlayerApp {
                 this.videoPlayer.currentTime += 10; // Seek forward 10 seconds
                 break;
             case 'ArrowLeft':
-                e.preventDefault();
-                this.videoPlayer.currentTime -= 10; // Seek backward 10 seconds
+                // Check if Alt key is also pressed (Alt+Left arrow for back navigation)
+                if (e.altKey) {
+                    e.preventDefault();
+                    this.closeVideoModal();
+                } else {
+                    e.preventDefault();
+                    this.videoPlayer.currentTime -= 10; // Seek backward 10 seconds
+                }
                 break;
             case 'ArrowUp':
                 e.preventDefault();
@@ -1638,9 +1946,7 @@ class VideoPlayerApp {
                 this.decreaseSpeed();
                 break;
             case 'Escape':
-                this.videoModal.style.display = 'none';
-                this.videoPlayer.pause();
-                this.cleanupVideoResources();
+                this.closeVideoModal();
                 break;
             default:
                 // Other keys do nothing for video player
@@ -1844,6 +2150,38 @@ class VideoPlayerApp {
     updateZoomIndicator(zoomLevel) {
         // Add zoom indicator to the UI if needed, or update a status element
         // For now, we can just update the button text if there's a zoom button
+        
+        // Save zoom level to localStorage
+        this.saveZoomLevel(zoomLevel);
+    }
+
+    // Save zoom level to localStorage
+    saveZoomLevel(zoomLevel) {
+        try {
+            localStorage.setItem('videoZoomLevel', zoomLevel.toString());
+        } catch (e) {
+            console.error('Error saving zoom level:', e);
+        }
+    }
+
+    // Load zoom level from localStorage
+    loadZoomLevel() {
+        try {
+            const savedZoom = localStorage.getItem('videoZoomLevel');
+            if (savedZoom) {
+                const zoomLevel = parseFloat(savedZoom);
+                if (!isNaN(zoomLevel) && zoomLevel >= 0.5 && zoomLevel <= 3) {
+                    // Apply the saved zoom level
+                    const container = this.videoPlayer.parentElement;
+                    if (container) {
+                        container.style.transform = `scale(${zoomLevel}) translate(${this.panX}px, ${this.panY}px)`;
+                        container.style.transformOrigin = 'center center';
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Error loading zoom level:', e);
+        }
     }
 
     playNextVideo() {
@@ -2151,13 +2489,15 @@ class VideoPlayerApp {
         const lines = content.split('\n').filter(line => line.trim() !== '');
         const playlistItems = [];
 
-        if (lines[0] !== '#EXTM3U') {
-            console.warn('File may not be a valid M3U playlist');
-        }
+        // Check if this is an extended M3U file
+        const isExtendedM3U = lines[0] === '#EXTM3U';
 
         for (let i = 0; i < lines.length; i++) {
-            if (lines[i].startsWith('#EXTINF:')) {
-                const extinfLine = lines[i];
+            const line = lines[i].trim();
+            
+            if (line.startsWith('#EXTINF:')) {
+                // Extended M3U format with metadata
+                const extinfLine = line;
                 const streamUrl = lines[i + 1]?.trim(); // Get the next line as the stream URL
 
                 if (streamUrl) {
@@ -2167,12 +2507,41 @@ class VideoPlayerApp {
                     // Add the parsed item to the list
                     if (item) {
                         playlistItems.push(item);
+                        i++; // Skip the URL line since we've processed it
                     }
                 }
+            } else if (!line.startsWith('#') && this.isVideoFile(line)) {
+                // Simple M3U format - just file paths/URLs
+                // Check if it's a video file (common video extensions)
+                const item = {
+                    url: line,
+                    channelName: this.extractFileName(line),
+                    tvgId: undefined,
+                    logo: undefined,
+                    groupId: 'Local Videos',
+                    userAgent: undefined,
+                    httpReferrer: undefined,
+                    isVlcOpt: false
+                };
+                playlistItems.push(item);
             }
         }
 
         return playlistItems;
+    }
+
+    // Helper method to check if a string is a video file
+    isVideoFile(path) {
+        const videoExtensions = ['.mp4', '.mkv', '.webm', '.mov', '.avi', '.wmv', '.flv', '.m4v', '.mpg', '.mpeg', '.3gp', '.ogg', '.ogv', '.ts', '.m2ts', '.mts', '.vob', '.mp3', '.wav', '.aac', '.flac', '.m4a', '.wma', '.opus'];
+        const lowerPath = path.toLowerCase();
+        return videoExtensions.some(ext => lowerPath.endsWith(ext));
+    }
+
+    // Helper method to extract file name from path
+    extractFileName(path) {
+        // Extract filename from path (handles both / and \ separators)
+        const parts = path.split(/[\\/]/);
+        return parts[parts.length - 1] || 'Unknown Video';
     }
 
     // Method to extract channel info from EXTINF line

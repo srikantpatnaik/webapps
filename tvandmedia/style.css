@@ -50,38 +50,44 @@ header {
     padding: 10px;
 }
 
+.header-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
 header h1 {
     font-size: 1.8rem;
-    margin-bottom: 5px;
+    margin-bottom: 0;
     color: var(--accent);
 }
 
 .total-size-display {
-    font-size: 1rem;
+    font-size: 0.6rem;
     color: var(--text-secondary);
-    margin-top: 5px;
-    text-align: center;
-    padding: 8px;
+    padding: 3px 6px;
     background-color: var(--bg-tertiary);
-    border-radius: 8px;
+    border-radius: 5px;
     display: inline-block;
-    margin: 10px auto 0;
 }
 
 /* Upload Section */
 .upload-section {
     background-color: var(--bg-secondary);
     border-radius: 10px;
-    padding: 25px;
-    margin-bottom: 30px;
+    padding: 15px;
+    margin-bottom: 20px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     text-align: center;
 }
 
 /* Single Input Section */
 .single-input-section {
-    margin-top: 20px;
-    padding: 15px;
+    margin-top: 10px;
+    padding: 10px;
     background-color: var(--bg-tertiary);
     border-radius: 8px;
 }
@@ -89,71 +95,62 @@ header h1 {
 .input-group {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 15px;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.input-row {
+    display: flex;
     align-items: center;
+    gap: 8px;
+    width: 100%;
 }
 
-.input-group label {
-    align-self: flex-start;
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.input-group input {
+.input-row input[type="text"] {
     flex: 1;
-    padding: 12px;
-    width: 100%;
-    background: var(--bg-secondary);
-    border: 2px solid var(--border);
-    border-radius: 8px;
-    color: var(--text-primary);
-    font-size: 1rem;
-    transition: all 0.3s ease;
-}
-
-.input-group input:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(187, 134, 252, 0.3);
-}
-
-.input-group button {
-    background: var(--button-bg);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 12px 20px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    min-height: 46px;
-    width: 100%;
-    max-width: 200px;
-}
-
-.input-group button:hover {
-    background: var(--button-hover);
-}
-
-.input-group input[type="file"] {
-    display: block;
-    width: 100%;
     padding: 10px;
     background: var(--bg-secondary);
     border: 2px solid var(--border);
     border-radius: 8px;
     color: var(--text-primary);
-    font-size: 1rem;
+    font-size: 0.9rem;
     transition: all 0.3s ease;
-    cursor: pointer;
+    min-width: 0; /* Allows the input to shrink properly */
 }
 
-.input-group input[type="file"]:focus {
+.input-row input:focus {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(187, 134, 252, 0.3);
+}
+
+.input-row button, .file-input-button {
+    background: var(--button-bg);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 40px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    width: 80px; /* Make buttons same width */
+    text-align: center;
+    box-sizing: border-box; /* Ensure padding is included in width */
+}
+
+/* Override any other button styles for these specific buttons */
+.input-row button {
+    width: 80px !important;
+    min-height: 40px !important;
+    padding: 10px 16px !important;
+}
+
+.input-row button:hover, .file-input-button:hover {
+    background: var(--button-hover);
 }
 
 .video-info-display {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV and Media</title>
+    <title>TV and media player</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -90,22 +90,23 @@
         </div>
 
         <header>
-            <h1>TV and Media</h1>
-            <div class="total-size-display" id="totalSizeDisplay">Total Size: 0 MB</div>
-            <div id="videoInfo" class="video-info-display">No video loaded</div>
+            <div class="header-title-row">
+                <h1>TV and Media</h1>
+                <div class="total-size-display" id="totalSizeDisplay">0 MB</div>
+            </div>
+            <div id="videoInfo" class="video-info-display" style="display: none;"></div>
         </header>
 
         <main>
             <section class="upload-section">
                 <div class="single-input-section">
                     <div class="input-group">
-                        <label for="mediaInput">Enter media path or URL:</label>
-                        <input type="text" id="mediaInput" placeholder="file:///path/to/video.mp4 OR https://example.com/video.mp4 OR https://example.com/playlist.m3u">
-                        <button id="loadMediaBtn">Load Media</button>
-                    </div>
-                    <div class="input-group">
-                        <label for="fileInput">Or select local video file:</label>
-                        <input type="file" id="fileInput" accept="video/*">
+                        <div class="input-row">
+                            <input type="text" id="mediaInput" placeholder="https://example.com/video.mp4 OR https://example.com/playlist.m3u">
+                            <button id="loadMediaBtn">Get</button>
+                            <input type="file" id="fileInput" accept="video/*,audio/*,.m3u" multiple style="display: none;">
+                            <label for="fileInput" class="file-input-button">Browse</label>
+                        </div>
                     </div>
                 </div>
 
