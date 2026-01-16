@@ -261,6 +261,7 @@ video::-webkit-media-controls-start-playback-button {
     cursor: pointer;
     z-index: 1001;
     text-shadow: 0 0 5px rgba(0,0,0,0.8);
+    display: none; /* Hidden as requested */
 }
 
 .close:hover {

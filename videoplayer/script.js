@@ -2,22 +2,52 @@
 
 class VideoPlayerApp {
     constructor() {
-        this.videos = JSON.parse(localStorage.getItem('storedVideos')) || [];
+        this.videos = [];
         this.currentVideos = [...this.videos];
         this.currentVideoIndex = -1; // Track current video index
         this.globalLoop = false; // Global loop setting
+        this.defaultLoop = true; // Single loop mode enabled by default
         this.initElements();
         this.bindEvents();
         this.initializeVideoPlayer();
         this.initializeVideoPlayerControls();
-        this.renderGallery();
+        this.initializeLoopState();
+        // Load videos asynchronously after initialization
+        this.loadStoredVideos()
+            .then(() => {
+                // After loading videos, render the gallery
+                this.renderGallery();
+            })
+            .catch(err => {
+                console.error('Error loading videos:', err);
+                // Still render gallery even if loading fails
+                this.renderGallery();
+            });
+    }
+
+    async loadStoredVideos() {
+        try {
+            // Try to load from IndexedDB first
+            await this.loadFromIndexedDB();
+            console.log('Videos loaded from IndexedDB');
+        } catch (error) {
+            console.warn('IndexedDB not available or failed to load:', error);
+            // Fallback to localStorage if IndexedDB fails
+            try {
+                this.videos = JSON.parse(localStorage.getItem('storedVideos')) || [];
+                console.log('Videos loaded from localStorage');
+            } catch (localStorageError) {
+                console.error('Error loading from localStorage:', localStorageError);
+                this.videos = [];
+            }
+        }
     }
 
     initializeVideoPlayer() {
         // Set initial values for video player
         this.videoPlayer.volume = 1;
         this.videoPlayer.playbackRate = 1;
-        this.videoPlayer.loop = false;
+        this.videoPlayer.loop = this.defaultLoop; // Set to default loop state
         this.videoPlayer.controls = false; // Hide native controls
 
         // Initialize panning variables
@@ -26,6 +56,10 @@ class VideoPlayerApp {
         this.dragStartY = 0;
         this.panX = 0;
         this.panY = 0;
+
+        // Initialize cursor hide functionality
+        this.cursorHideTimeout = null;
+        this.isCursorHidden = false;
     }
 
     initializeVideoPlayerControls() {
@@ -37,6 +71,93 @@ class VideoPlayerApp {
 
         // Initialize video modal controls visibility
         this.setupControlsVisibility();
+
+        // Setup cursor hiding functionality
+        this.setupCursorHiding();
+    }
+
+    setupCursorHiding() {
+        // Function to hide cursor
+        this.hideCursor = () => {
+            if (!this.isCursorHidden) {
+                this.videoModal.style.cursor = 'none';
+                this.isCursorHidden = true;
+                // Also hide cursor from embedded elements
+                const videoContainer = this.videoModal.querySelector('.video-container');
+                if (videoContainer) {
+                    videoContainer.style.cursor = 'none';
+                }
+                const videoPlayer = this.videoModal.querySelector('.video-player');
+                if (videoPlayer) {
+                    videoPlayer.style.cursor = 'none';
+                }
+            }
+        };
+
+        // Function to show cursor
+        this.showCursor = () => {
+            this.videoModal.style.cursor = 'default';
+            this.isCursorHidden = false;
+            // Also show cursor on embedded elements
+            const videoContainer = this.videoModal.querySelector('.video-container');
+            if (videoContainer) {
+                videoContainer.style.cursor = 'default';
+            }
+            const videoPlayer = this.videoModal.querySelector('.video-player');
+            if (videoPlayer) {
+                videoPlayer.style.cursor = 'default';
+            }
+        };
+
+        // Hide cursor immediately when video starts playing
+        this.videoPlayer.addEventListener('play', () => {
+            if (this.videoModal.style.display === 'block') {
+                // Hide cursor immediately
+                this.hideCursor();
+            }
+        });
+
+        // Show cursor when mouse moves
+        videoModal.addEventListener('mousemove', () => {
+            this.showCursor();
+            this.startCursorHideTimer(); // Restart the timer
+        });
+
+        // Show cursor when controls are shown
+        this.videoPlayer.addEventListener('play', () => {
+            this.showCursor();
+        });
+
+        // Hide cursor when video is paused
+        this.videoPlayer.addEventListener('pause', () => {
+            this.hideCursor();
+        });
+
+        // Hide cursor when video ends (but not if controls are active)
+        this.videoPlayer.addEventListener('ended', () => {
+            // Don't hide immediately after video ends - user might want to see controls
+            setTimeout(() => {
+                if (this.videoModal.style.display === 'block' && this.videoPlayer.paused) {
+                    this.hideCursor();
+                }
+            }, 2000);
+        });
+    }
+
+    startCursorHideTimer() {
+        // Clear existing timer
+        clearTimeout(this.cursorHideTimeout);
+
+        // Set new timer to hide cursor after 3 seconds of inactivity
+        this.cursorHideTimeout = setTimeout(() => {
+            if (this.videoModal.style.display === 'block' && !this.videoPlayer.paused) {
+                const controls = this.videoModal.querySelector('.video-controls');
+                // Only hide cursor if controls are not visible
+                if (controls && controls.style.opacity !== '1') {
+                    this.hideCursor();
+                }
+            }
+        }, 3000); // Hide cursor after 3 seconds of inactivity
     }
 
     setupControlsVisibility() {
@@ -110,12 +231,17 @@ class VideoPlayerApp {
 
     bindEvents() {
         // File upload events
-        this.uploadArea.addEventListener('click', () => {
-            this.fileInput.click();
+        this.uploadArea.addEventListener('click', (e) => {
+            // Only trigger file input if not clicking on another element inside uploadArea
+            if (e.target === this.uploadArea || e.target === this.uploadArea.firstElementChild || e.target === this.uploadArea.querySelector('h3') || e.target === this.uploadArea.querySelector('p')) {
+                this.fileInput.click();
+            }
         });
 
         this.fileInput.addEventListener('change', (e) => {
-            this.handleFiles(e.target.files);
+            if (e.target.files && e.target.files.length > 0) {
+                this.handleFiles(e.target.files);
+            }
         });
 
         // Load video from URL
@@ -138,17 +264,31 @@ class VideoPlayerApp {
         // Drag and drop events
         this.uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             this.uploadArea.style.borderColor = 'var(--accent)';
             this.uploadArea.style.backgroundColor = 'rgba(187, 134, 252, 0.1)';
         });
 
-        this.uploadArea.addEventListener('dragleave', () => {
-            this.uploadArea.style.borderColor = 'var(--border)';
-            this.uploadArea.style.backgroundColor = 'transparent';
+        this.uploadArea.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.uploadArea.style.borderColor = 'var(--accent)';
+            this.uploadArea.style.backgroundColor = 'rgba(187, 134, 252, 0.1)';
+        });
+
+        this.uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Only reset if we're actually leaving the element, not just moving inside it
+            if (!this.uploadArea.contains(e.relatedTarget)) {
+                this.uploadArea.style.borderColor = 'var(--border)';
+                this.uploadArea.style.backgroundColor = 'transparent';
+            }
         });
 
         this.uploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             this.uploadArea.style.borderColor = 'var(--border)';
             this.uploadArea.style.backgroundColor = 'transparent';
 
@@ -159,12 +299,18 @@ class VideoPlayerApp {
         this.closeModal.addEventListener('click', () => {
             this.videoModal.style.display = 'none';
             this.videoPlayer.pause();
+            // Show cursor when modal is closed
+            this.videoModal.style.cursor = 'default';
+            this.isCursorHidden = false;
         });
 
         this.videoModal.addEventListener('click', (e) => {
             if (e.target === this.videoModal) {
                 this.videoModal.style.display = 'none';
                 this.videoPlayer.pause();
+                // Show cursor when modal is closed
+                this.videoModal.style.cursor = 'default';
+                this.isCursorHidden = false;
             }
         });
 
@@ -181,6 +327,13 @@ class VideoPlayerApp {
         this.videoPlayer.addEventListener('ended', () => {
             if (!this.videoPlayer.loop) {
                 this.playPauseBtn.textContent = '▶';
+
+                // If global loop is enabled, play the next video automatically
+                if (this.globalLoop && this.videos.length > 1) {
+                    setTimeout(() => {
+                        this.playNextVideo();
+                    }, 500); // Small delay to allow for smooth transition
+                }
             }
         });
 
@@ -233,15 +386,28 @@ class VideoPlayerApp {
     }
 
     handleFiles(files) {
+        if (!files || files.length === 0) {
+            return;
+        }
+
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            if (file.type.startsWith('video/')) {
+            if (file.type && file.type.startsWith('video/')) {
                 this.processVideoFile(file);
+            } else {
+                // Alert user that non-video files were dropped/selected
+                const fileName = file.name || 'Unknown file';
+                alert(`Skipping non-video file: ${fileName}. Only video files are supported.`);
             }
         }
     }
 
     processVideoFile(file) {
+        // Show loading message
+        if (this.videoInfo) {
+            this.videoInfo.textContent = `Processing: ${file.name}...`;
+        }
+
         const reader = new FileReader();
 
         reader.onload = (e) => {
@@ -251,6 +417,7 @@ class VideoPlayerApp {
 
             if (isDuplicate) {
                 alert('This video already exists in your collection.');
+                this.updateVideoInfoText();
                 return;
             }
 
@@ -263,13 +430,15 @@ class VideoPlayerApp {
                 try {
                     // Generate thumbnail at 1 second
                     const canvas = document.createElement('canvas');
-                    canvas.width = tempVideo.videoWidth;
-                    canvas.height = tempVideo.videoHeight;
+                    // Set dimensions safely, defaulting to 100x100 if video dimensions are invalid
+                    canvas.width = tempVideo.videoWidth > 0 ? tempVideo.videoWidth : 100;
+                    canvas.height = tempVideo.videoHeight > 0 ? tempVideo.videoHeight : 100;
                     const ctx = canvas.getContext('2d');
 
-                    // Capture frame at 1 second
-                    tempVideo.currentTime = 1;
-                    tempVideo.addEventListener('seeked', () => {
+                    // Capture frame at 1 second if duration is sufficient, otherwise at 0
+                    const seekTime = tempVideo.duration > 1 ? 1 : 0;
+
+                    const captureFrame = () => {
                         try {
                             ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
                             const thumbnail = canvas.toDataURL('image/jpeg');
@@ -285,22 +454,18 @@ class VideoPlayerApp {
                             };
 
                             this.videos.push(videoData);
-                            this.saveToLocalStorage();
+                            this.saveToStorage();
 
                             // Instead of reloading the page, just refresh the gallery
                             this.renderGallery();
 
-                            // Show message that video was added
-                            if (this.videoInfo && this.videoInfo.parentElement) {
-                                this.videoInfo.textContent = `Added: ${file.name} to your collection`;
+                            // Show success message
+                            this.videoInfo.textContent = `Added: ${file.name} to your collection`;
 
-                                // Reset the text after a few seconds
-                                setTimeout(() => {
-                                    if (this.videoInfo.textContent.includes('Added:')) {
-                                        this.videoInfo.textContent = 'No video loaded';
-                                    }
-                                }, 3000);
-                            }
+                            // Reset the text after a few seconds
+                            setTimeout(() => {
+                                this.updateVideoInfoText();
+                            }, 3000);
                         } catch (drawError) {
                             console.error('Error drawing thumbnail:', drawError);
 
@@ -316,32 +481,228 @@ class VideoPlayerApp {
                             };
 
                             this.videos.push(videoData);
-                            this.saveToLocalStorage();
+                            this.saveToStorage();
                             this.renderGallery();
+
+                            // Notify user that video was added despite thumbnail error
+                            this.videoInfo.textContent = `Added: ${file.name} (thumbnail error occurred)`;
+                            setTimeout(() => {
+                                this.updateVideoInfoText();
+                            }, 3000);
                         }
-                    }, { once: true }); // Use once to avoid multiple triggers
+                    };
+
+                    // If video duration is too short, just use the first frame
+                    if (seekTime === 0) {
+                        captureFrame();
+                    } else {
+                        // Capture frame at 1 second
+                        tempVideo.currentTime = seekTime;
+
+                        const onSeeked = () => {
+                            captureFrame();
+                            tempVideo.removeEventListener('seeked', onSeeked);
+                        };
+
+                        tempVideo.addEventListener('seeked', onSeeked, { once: true });
+                    }
                 } catch (error) {
                     console.error('Error processing video metadata:', error);
                     alert('Error processing video file metadata.');
+                    this.updateVideoInfoText();
                 }
             };
 
-            tempVideo.onerror = () => {
-                console.error('Error loading video metadata');
+            tempVideo.onerror = (event) => {
+                console.error('Error loading video metadata:', event);
                 alert('Error processing video file. The file may be corrupted or incompatible.');
+                this.updateVideoInfoText();
             };
+
+            // Set a timeout to handle cases where metadata never loads
+            setTimeout(() => {
+                if (tempVideo.readyState === 0) {
+                    console.error('Timeout waiting for video metadata');
+                    alert('Video file took too long to load. May be corrupted or incompatible.');
+                    this.updateVideoInfoText();
+                }
+            }, 10000); // 10 second timeout
         };
 
-        reader.onerror = () => {
-            console.error('Error reading video file');
+        reader.onerror = (event) => {
+            console.error('Error reading video file:', event);
             alert('Error reading video file. Please try a different file.');
+            this.updateVideoInfoText();
         };
 
         reader.readAsDataURL(file);
     }
 
+    updateVideoInfoText() {
+        if (this.videoInfo) {
+            this.videoInfo.textContent = 'No video loaded';
+        }
+    }
+
+    async clearAllStorage() {
+        // Clear both IndexedDB and localStorage for consistency
+        try {
+            // Clear IndexedDB
+            const deleteReq = indexedDB.deleteDatabase('VideoPlayerDB');
+            deleteReq.onsuccess = () => {
+                console.log('IndexedDB cleared successfully');
+            };
+            deleteReq.onerror = () => {
+                console.error('Error clearing IndexedDB');
+            };
+        } catch (error) {
+            console.error('Error during IndexedDB deletion:', error);
+        }
+
+        // Clear localStorage
+        localStorage.removeItem('storedVideos');
+
+        // Empty current videos array
+        this.videos = [];
+
+        // Refresh gallery display
+        this.renderGallery();
+
+        // Update info text
+        if (this.videoInfo) {
+            this.videoInfo.textContent = 'No video loaded';
+        }
+    }
+
+    saveToStorage() {
+        // Try to save using the available storage option
+        this.saveToIndexedDB()
+            .catch(() => {
+                // Fallback to localStorage if IndexedDB fails
+                this.saveToLocalStorageAsFallback();
+            });
+    }
+
+    saveToIndexedDB() {
+        return new Promise((resolve, reject) => {
+            if (!window.indexedDB) {
+                reject('IndexedDB not supported');
+                return;
+            }
+
+            const request = indexedDB.open('VideoPlayerDB', 1);
+
+            request.onerror = (event) => {
+                console.error('Database error:', event.target.error);
+                reject(event.target.error);
+            };
+
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                const transaction = db.transaction(['videos'], 'readwrite');
+                const store = transaction.objectStore('videos');
+
+                // Clear existing data and add current videos
+                const clearRequest = store.clear();
+
+                clearRequest.onsuccess = () => {
+                    if (this.videos && this.videos.length > 0) {
+                        for (const video of this.videos) {
+                            store.add(video);
+                        }
+                    } else {
+                        // If no videos to save, just complete the transaction
+                    }
+                };
+
+                transaction.oncomplete = () => {
+                    console.log('Videos saved to IndexedDB successfully');
+                    resolve();
+                };
+
+                transaction.onerror = (event) => {
+                    console.error('Transaction error:', event.target.error);
+                    reject(event.target.error);
+                };
+            };
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('videos')) {
+                    const store = db.createObjectStore('videos', { keyPath: 'id' });
+                    store.createIndex('timestamp', 'timestamp', { unique: false });
+                }
+            };
+        });
+    }
+
+    loadFromIndexedDB() {
+        return new Promise((resolve, reject) => {
+            if (!window.indexedDB) {
+                reject('IndexedDB not supported');
+                return;
+            }
+
+            const request = indexedDB.open('VideoPlayerDB', 1);
+
+            request.onerror = (event) => {
+                console.error('Database error:', event.target.error);
+                reject(event.target.error);
+            };
+
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                const transaction = db.transaction(['videos'], 'readonly');
+                const store = transaction.objectStore('videos');
+                const getAllRequest = store.getAll();
+
+                getAllRequest.onsuccess = () => {
+                    this.videos = getAllRequest.result;
+                    console.log('Videos loaded from IndexedDB');
+                    resolve(this.videos);
+                };
+
+                getAllRequest.onerror = (event) => {
+                    console.error('Error getting videos:', event.target.error);
+                    reject(event.target.error);
+                };
+            };
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('videos')) {
+                    const store = db.createObjectStore('videos', { keyPath: 'id' });
+                    store.createIndex('timestamp', 'timestamp', { unique: false });
+                }
+            };
+        });
+    }
+
+    saveToLocalStorageAsFallback() {
+        try {
+            // Check if the data will fit in localStorage
+            const dataString = JSON.stringify(this.videos);
+
+            // Check for localStorage quota
+            localStorage.setItem('storedVideos', dataString);
+            console.log('Videos saved to localStorage');
+        } catch (e) {
+            if (e.name === 'QuotaExceededError') {
+                // Storage quota exceeded even for localStorage
+                alert('Storage quota exceeded. Please remove some videos or clear your browser storage to make room for new videos.');
+
+                // Remove the last added video to maintain state consistency
+                this.videos.pop();
+            } else {
+                console.error('Error saving to localStorage:', e);
+                alert('Error saving video data. Please try again.');
+            }
+        }
+    }
+
     saveToLocalStorage() {
-        localStorage.setItem('storedVideos', JSON.stringify(this.videos));
+        // Deprecated function - redirect to new storage system
+        this.saveToStorage();
     }
 
     renderGallery() {
@@ -408,7 +769,9 @@ class VideoPlayerApp {
             this.currentVideoIndex = videoIndex;
         }
 
+        // Set source and handle loading
         this.videoPlayer.src = video.src;
+        this.videoPlayer.load(); // Explicitly load the source
 
         // Wait for metadata to load to update info display
         this.videoPlayer.onloadedmetadata = () => {
@@ -419,15 +782,43 @@ class VideoPlayerApp {
         // Handle error loading video
         this.videoPlayer.onerror = (e) => {
             console.error('Error loading video:', e);
+            console.error('Video src type:', typeof video.src);
+            console.error('Video src length:', video.src ? video.src.length : 'undefined');
             alert('Failed to load the video. The file may be corrupted or incompatible.');
+        };
+
+        this.videoPlayer.oncanplay = () => {
+            // Video is ready to play
+            console.log('Video is ready to play');
         };
 
         this.videoModal.style.display = 'block';
 
         // Play the video after a short delay to ensure it's ready
         setTimeout(() => {
-            this.videoPlayer.play();
-            this.playPauseBtn.textContent = '⏸';
+            // Check if the video is ready to play before attempting to play
+            if (this.videoPlayer.readyState >= 2) { // HAVE_CURRENT_DATA
+                this.videoPlayer.play()
+                    .then(() => {
+                        this.playPauseBtn.textContent = '⏸';
+                    })
+                    .catch(error => {
+                        console.error('Error attempting to play video:', error);
+                        alert('Could not play the video. It may still be loading.');
+                    });
+            } else {
+                // If not ready, set up an event listener
+                this.videoPlayer.oncanplaythrough = () => {
+                    this.videoPlayer.play()
+                        .then(() => {
+                            this.playPauseBtn.textContent = '⏸';
+                        })
+                        .catch(error => {
+                            console.error('Error attempting to play video:', error);
+                            alert('Could not play the video. It may still be loading.');
+                        });
+                };
+            }
         }, 100);
     }
 
@@ -490,6 +881,18 @@ class VideoPlayerApp {
             }
             this.fullscreenBtn.textContent = '⛶'; // Change back to maximize icon
         }
+
+        // Ensure cursor visibility is reset after fullscreen toggle
+        setTimeout(() => {
+            if (!document.fullscreenElement && this.videoModal.style.display === 'block' && !this.videoPlayer.paused) {
+                // Restart cursor hiding timer
+                this.startCursorHideTimer();
+            } else if (!document.fullscreenElement) {
+                // Show cursor when exiting fullscreen if video is not playing
+                this.videoModal.style.cursor = 'default';
+                this.isCursorHidden = false;
+            }
+        }, 100);
     }
 
     handleKeyboardShortcuts(e) {
@@ -614,8 +1017,19 @@ class VideoPlayerApp {
 
     toggleLoop() {
         this.videoPlayer.loop = !this.videoPlayer.loop;
-        this.loopBtn.textContent = this.videoPlayer.loop ? '🔄' : '🔁';
-        this.loopBtn.title = this.videoPlayer.loop ? 'Disable Loop' : 'Enable Loop';
+        this.updateLoopButton();
+    }
+
+    updateLoopButton() {
+        if (this.loopBtn) {
+            this.loopBtn.textContent = this.videoPlayer.loop ? '🔄' : '🔁';
+            this.loopBtn.title = this.videoPlayer.loop ? 'Disable Loop' : 'Enable Loop';
+        }
+    }
+
+    initializeLoopState() {
+        // Initialize the loop button to match the default state
+        this.updateLoopButton();
     }
 
     changeSpeed() {
@@ -758,25 +1172,29 @@ class VideoPlayerApp {
         // Extract current zoom value
         if (currentTransform && currentTransform.includes('scale(')) {
             try {
-                currentZoom = parseFloat(currentTransform.match(/scale\(([^)]+)\)/)[1]) || 1;
+                const scaleMatch = currentTransform.match(/scale\(([0-9.]+)(?:,\s*([0-9.]+))?\)/);
+                if (scaleMatch) {
+                    currentZoom = parseFloat(scaleMatch[1]) || 1;
+                }
             } catch(e) {
                 currentZoom = 1;
                 // If parsing fails, start with default zoom
             }
         }
 
-        // Define zoom levels
-        const zoomLevels = [1, 1.25, 1.5, 2];
-        const currentIndex = zoomLevels.indexOf(currentZoom);
-        const nextIndex = (currentIndex + 1) % zoomLevels.length;
-        const newZoom = zoomLevels[nextIndex];
+        // Use a more gradual increment for smoother zooming
+        const zoomFactor = 1.1; // 10% increment (was 25%)
+        const newZoom = currentZoom * zoomFactor;
+
+        // Limit zoom range
+        const finalZoom = Math.min(3, newZoom); // Cap at 3x zoom
 
         // Apply zoom with center origin, keeping panning if any
-        container.style.transform = `scale(${newZoom}) translate(${this.panX}px, ${this.panY}px)`;
+        container.style.transform = `scale(${finalZoom}) translate(${this.panX}px, ${this.panY}px)`;
         container.style.transformOrigin = 'center center';
 
         // Update the zoom indicator in the UI
-        this.updateZoomIndicator(newZoom);
+        this.updateZoomIndicator(finalZoom);
     }
 
     zoomOut() {
@@ -787,34 +1205,28 @@ class VideoPlayerApp {
         // Extract current zoom value
         if (currentTransform && currentTransform.includes('scale(')) {
             try {
-                currentZoom = parseFloat(currentTransform.match(/scale\(([^)]+)\)/)[1]) || 1;
+                const scaleMatch = currentTransform.match(/scale\(([0-9.]+)(?:,\s*([0-9.]+))?\)/);
+                if (scaleMatch) {
+                    currentZoom = parseFloat(scaleMatch[1]) || 1;
+                }
             } catch(e) {
                 currentZoom = 1;
             }
         }
 
-        // Define zoom levels
-        const zoomLevels = [1, 1.25, 1.5, 2];
-        const currentIndex = zoomLevels.indexOf(currentZoom);
-
-        // If currently at 1x, go to 1x (no change), else go to previous level
-        let newZoom = currentZoom;
-        if (currentIndex > 0) {
-            newZoom = zoomLevels[currentIndex - 1];
-        } else {
-            // If at lowest level (1x), go to 1x anyway - this could be a no-op or we might want to go lower
-            newZoom = 0.75; // Go slightly below 1x to show zoom out effect
-        }
+        // Use a more gradual decrement for smoother zooming
+        const zoomFactor = 0.9; // Reduce by 10% (was 20%)
+        const newZoom = currentZoom * zoomFactor;
 
         // Clamp to minimum zoom of 0.5
-        newZoom = Math.max(0.5, newZoom);
+        const finalZoom = Math.max(0.5, newZoom);
 
         // Apply zoom with center origin, keeping panning if any
-        container.style.transform = `scale(${newZoom}) translate(${this.panX}px, ${this.panY}px)`;
+        container.style.transform = `scale(${finalZoom}) translate(${this.panX}px, ${this.panY}px)`;
         container.style.transformOrigin = 'center center';
 
         // Update the zoom indicator in the UI
-        this.updateZoomIndicator(newZoom);
+        this.updateZoomIndicator(finalZoom);
     }
 
     resetZoom() {
@@ -988,7 +1400,7 @@ class VideoPlayerApp {
         const globalLoopBtn = document.getElementById('globalLoopBtn');
         if (globalLoopBtn) {
             globalLoopBtn.textContent = this.globalLoop ? '🔁' : '↺';
-            globalLoopBtn.title = this.globalLoop ? 'Disable Global Loop' : 'Enable Global Loop';
+            globalLoopBtn.title = this.globalLoop ? 'Disable Global Loop (Will auto-play next video when current ends)' : 'Enable Global Loop (Will auto-play next video when current ends)';
         }
 
         // Show temporary status
@@ -1043,34 +1455,84 @@ class VideoPlayerApp {
     // Touchpad zoom handler
     setupTouchpadZoom() {
         const container = this.videoPlayer.parentElement;
+        let lastWheelEventTime = 0;
 
-        // Listen for wheel events with Ctrl key (touchpad pinch gesture)
+        // Listen for wheel events (for touchpad pinch gesture, without requiring Ctrl key)
         container.addEventListener('wheel', (e) => {
-            if (e.ctrlKey) {
-                e.preventDefault();
-
-                const currentTransform = container.style.transform;
-                let currentZoom = 1;
-
-                // Extract current zoom value
-                if (currentTransform && currentTransform.includes('scale(')) {
-                    try {
-                        currentZoom = parseFloat(currentTransform.match(/scale\(([^)]+)\)/)[1]) || 1;
-                    } catch(e) {
-                        currentZoom = 1;
-                    }
-                }
-
-                // Adjust zoom based on scroll direction
-                const delta = e.deltaY > 0 ? -0.25 : 0.25;
-                const newZoom = Math.max(0.5, Math.min(3, currentZoom + delta)); // Limit between 0.5x and 3x
-
-                // Apply zoom with center origin
-                container.style.transform = `scale(${newZoom})`;
-                container.style.transformOrigin = 'center center';
-
-                this.updateZoomIndicator(newZoom);
+            // Only zoom on vertical scroll (deltaY), not horizontal
+            if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) {
+                return; // Ignore horizontal scrolling
             }
+
+            // Optional: Check for Ctrl/Meta/Alt to only zoom with those keys
+            // Remove this check to enable zoom on any wheel event
+            // if (!e.ctrlKey && !e.metaKey) return;
+
+            e.preventDefault();
+
+            const currentTime = Date.now();
+            // Throttle zoom events to make them smoother (limit to ~60fps)
+            if (currentTime - lastWheelEventTime < 16) {
+                return;
+            }
+            lastWheelEventTime = currentTime;
+
+            const currentTransform = container.style.transform;
+            let currentZoom = 1;
+
+            // Extract current zoom value
+            if (currentTransform && currentTransform.includes('scale(')) {
+                try {
+                    const scaleMatch = currentTransform.match(/scale\(([0-9.]+)(?:,\s*([0-9.]+))?\)/);
+                    if (scaleMatch) {
+                        currentZoom = parseFloat(scaleMatch[1]) || 1;
+                    }
+                } catch(e) {
+                    currentZoom = 1;
+                }
+            }
+
+            // Use a more gradual zoom scale for smoother experience
+            // Calculate zoom factor based on deltaY for more precise control
+            const zoomIntensity = 0.02; // Further reduced from 0.05 for even smoother zoom
+            let zoomFactor;
+
+            if (e.deltaY < 0) {
+                // Scrolling up (zoom in)
+                zoomFactor = 1 + zoomIntensity;
+            } else {
+                // Scrolling down (zoom out)
+                zoomFactor = 1 - zoomIntensity;
+            }
+
+            let newZoom = currentZoom * zoomFactor;
+
+            // Limit zoom range
+            newZoom = Math.max(0.5, Math.min(3, newZoom));
+
+            // Apply zoom with center origin and maintain panning if present
+            // Extract panning values if they exist in the transform
+            let panX = this.panX || 0;
+            let panY = this.panY || 0;
+
+            // Check for translation in the current transform
+            if (currentTransform && currentTransform.includes('translate')) {
+                try {
+                    const translateMatch = currentTransform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+                    if (translateMatch) {
+                        panX = parseFloat(translateMatch[1]) || 0;
+                        panY = parseFloat(translateMatch[2]) || 0;
+                    }
+                } catch(e) {
+                    // If parsing fails, use current panX and panY
+                }
+            }
+
+            // Apply the transformation
+            container.style.transform = `scale(${newZoom}) translate(${panX}px, ${panY}px)`;
+            container.style.transformOrigin = 'center center';
+
+            this.updateZoomIndicator(newZoom);
         }, { passive: false });
     }
 }
