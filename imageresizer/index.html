@@ -349,8 +349,9 @@
             <ol>
                 <li>Paste an image using Ctrl+V (or Cmd+V on Mac) anywhere on the page</li>
                 <li>Alternatively, drag and drop an image file or click the upload area</li>
-                <li>Select a resize factor from the buttons (0.3x, 0.6x, 0.8x, 1.3x, 1.5x)</li>
-                <li>Download or copy the resized image</li>
+                <li>Or paste an image URL in the text box and click "Load Image"</li>
+                <li>By default, resized image will be 0.6x of original size</li>
+                <li>Optionally select another resize factor from the buttons (0.3x, 0.6x, 0.8x, 1.3x, 1.5x)</li>
             </ol>
         </div>
 
@@ -361,6 +362,12 @@
                     <h3>Paste or Drop Image</h3>
                     <p>Press Ctrl+V to paste an image from clipboard, or drag & drop an image file here</p>
                     <p id="imageInfo" class="resolution-info">No image loaded</p>
+                </div>
+
+                <div class="input-group">
+                    <label for="imageUrl">Or paste image URL:</label>
+                    <input type="text" id="imageUrl" placeholder="Paste image URL here...">
+                    <button id="submitBtn">Load Image</button>
                 </div>
                 
                 <div id="imageLayout" class="image-layout">
@@ -391,8 +398,7 @@
                 </div>
                 
                 <div id="actionButtons" class="action-buttons" style="display: none;">
-                    <button id="downloadBtn" class="download-btn">📥 Download</button>
-                    <button id="copyBtn" class="copy-btn">📋 Copy to Clipboard</button>
+                    <!-- Removed download and copy buttons as requested -->
                 </div>
             </div>
             
@@ -403,6 +409,8 @@
     <script>
         // DOM elements
         const uploadArea = document.getElementById('uploadArea');
+        const imageUrl = document.getElementById('imageUrl');
+        const submitBtn = document.getElementById('submitBtn');
         const imageInfo = document.getElementById('imageInfo');
         const originalContainer = document.getElementById('originalContainer');
         const originalImage = document.getElementById('originalImage');
@@ -412,12 +420,10 @@
         const resizedResolution = document.getElementById('resizedResolution');
         const resizeFactors = document.getElementById('resizeFactors');
         const actionButtons = document.getElementById('actionButtons');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const copyBtn = document.getElementById('copyBtn');
         const errorContainer = document.getElementById('errorContainer');
-        
+
         let originalImageData = null;
-        let currentResizeFactor = 1.0;
+        let currentResizeFactor = 0.6; // Changed default to 0.6x
         
         // Set up paste listener on the entire page
         document.addEventListener('paste', handlePaste);
@@ -445,6 +451,23 @@
             fileInput.onchange = handleFileSelect;
             fileInput.click();
         });
+
+        // Event listener for the URL submission
+        submitBtn.addEventListener('click', () => {
+            const url = imageUrl.value.trim();
+            if (url) {
+                loadImageFromUrl(url);
+            } else {
+                showError('Please enter an image URL');
+            }
+        });
+
+        // Allow pressing Enter in the URL input
+        imageUrl.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitBtn.click();
+            }
+        });
         
         // Add event listeners to resize buttons
         const resizeBtns = document.querySelectorAll('.resize-btn');
@@ -462,11 +485,6 @@
             });
         });
         
-        // Download button
-        downloadBtn.addEventListener('click', downloadResizedImage);
-        
-        // Copy button
-        copyBtn.addEventListener('click', copyResizedImage);
         
         function handlePaste(e) {
             if (!e.clipboardData || !e.clipboardData.items) {
@@ -508,40 +526,97 @@
                 loadImageToFile(file);
             }
         }
-        
-        function loadImageToFile(file) {
-            const reader = new FileReader();
-            
-            reader.onload = function(e) {
-                originalImageData = e.target.result;
-                
+
+        function loadImageFromUrl(url) {
+            // Validate URL format
+            try {
+                new URL(url);
+            } catch (e) {
+                showError('Invalid URL format');
+                return;
+            }
+
+            // Check if URL is for an image
+            if (!/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i.test(url)) {
+                showError('URL does not appear to be an image');
+                return;
+            }
+
+            // Create an image object to load the image
+            const img = new Image();
+
+            img.crossOrigin = 'Anonymous'; // Handle CORS if possible
+            img.onload = function() {
+                // Convert image to data URL
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                originalImageData = canvas.toDataURL('image/jpeg', 0.9);
+
                 // Display original image
                 originalImage.src = originalImageData;
                 originalContainer.style.display = 'block';
-                
+
+                const width = img.width;
+                const height = img.height;
+                originalResolution.textContent = `Resolution: ${width} × ${height}px`;
+                imageInfo.textContent = `Image loaded: ${width} × ${height}px`;
+
+                // Set default resize factor to 0.6 (now the default) and activate the button
+                setCurrentFactor(0.6);
+
+                // Show the resize factors and hide action buttons
+                resizeFactors.style.display = 'flex';
+                actionButtons.style.display = 'none'; // Hide action buttons as requested
+
+                // Initially show resized image at 0.6x
+                resizeImage(0.6);
+            };
+
+            img.onerror = function() {
+                showError('Failed to load image from URL. The image may not be accessible due to CORS policies.');
+            };
+
+            img.src = url;
+        }
+        
+        function loadImageToFile(file) {
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                originalImageData = e.target.result;
+
+                // Display original image
+                originalImage.src = originalImageData;
+                originalContainer.style.display = 'block';
+
                 // Wait for image to load to get dimensions
                 originalImage.onload = function() {
                     const width = originalImage.naturalWidth;
                     const height = originalImage.naturalHeight;
                     originalResolution.textContent = `Resolution: ${width} × ${height}px`;
                     imageInfo.textContent = `Image loaded: ${width} × ${height}px`;
-                    
-                    // Set default resize factor to 1.0 and activate the button
-                    setCurrentFactor(1.0);
-                    
-                    // Show the resize factors and action buttons
+
+                    // Set default resize factor to 0.6 and activate the button
+                    setCurrentFactor(0.6);
+
+                    // Show the resize factors and hide action buttons
                     resizeFactors.style.display = 'flex';
-                    actionButtons.style.display = 'flex';
-                    
-                    // Initially show resized image at 1.0x
-                    resizeImage(1.0);
+                    actionButtons.style.display = 'none'; // Hide action buttons as requested
+
+                    // Initially show resized image at 0.6x
+                    resizeImage(0.6);
                 };
             };
-            
+
             reader.onerror = function() {
                 showError('Error reading the image file');
             };
-            
+
             reader.readAsDataURL(file);
         }
         
@@ -563,84 +638,43 @@
         
         function resizeImage(factor) {
             if (!originalImageData) return;
-            
+
             const img = new Image();
             img.onload = function() {
                 // Calculate new dimensions while preserving aspect ratio
                 const newWidth = Math.floor(img.width * factor);
                 const newHeight = Math.floor(img.height * factor);
-                
+
                 // Create canvas to draw the resized image
                 const canvas = document.createElement('canvas');
                 canvas.width = newWidth;
                 canvas.height = newHeight;
-                
+
                 const ctx = canvas.getContext('2d');
-                
+
                 // Draw the image on the canvas with new dimensions
                 ctx.drawImage(img, 0, 0, newWidth, newHeight);
-                
+
                 // Get the data URL of the resized image
                 const resizedImageData = canvas.toDataURL('image/jpeg', 0.9);
-                
+
                 // Display the resized image
                 resizedImage.src = resizedImageData;
                 resizedContainer.style.display = 'block';
-                
+
                 // Update resolution info
                 resizedResolution.textContent = `Resolution: ${newWidth} × ${newHeight}px`;
-                
+
                 // Update current factor
                 currentResizeFactor = factor;
+
+                // Automatically copy the resized image to clipboard
+                copyResizedImageToClipboard(resizedImageData);
             };
-            
+
             img.src = originalImageData;
         }
         
-        function downloadResizedImage() {
-            if (!resizedImage.src || resizedImage.src === window.location.href) {
-                showError('No resized image to download');
-                return;
-            }
-            
-            // Create a temporary link element
-            const link = document.createElement('a');
-            link.download = `resized_image_${Math.round(currentResizeFactor * 100)}.jpg`;
-            link.href = resizedImage.src;
-            
-            // Trigger the download
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-        
-        function copyResizedImage() {
-            if (!resizedImage.src || resizedImage.src === window.location.href) {
-                showError('No resized image to copy');
-                return;
-            }
-            
-            // Convert data URL to blob
-            fetch(resizedImage.src)
-                .then(res => res.blob())
-                .then(blob => {
-                    // Create a ClipboardItem with the blob
-                    const clipboardItem = new ClipboardItem({ [blob.type]: blob });
-                    
-                    // Write to clipboard
-                    navigator.clipboard.write([clipboardItem])
-                        .then(() => {
-                            // Show success message
-                            showSuccess('Image copied to clipboard!');
-                        })
-                        .catch(err => {
-                            showError('Failed to copy image: ' + err);
-                        });
-                })
-                .catch(err => {
-                    showError('Error processing image for copy: ' + err);
-                });
-        }
         
         function showError(message) {
             errorContainer.innerHTML = `<div class="error">${message}</div>`;
@@ -653,16 +687,47 @@
         
         function showSuccess(message) {
             errorContainer.innerHTML = `<div class="error" style="background: #2c442c; color: #6be770; border-color: #3e6b3e;">${message}</div>`;
-            
+
             // Clear success message after 3 seconds
             setTimeout(() => {
                 errorContainer.innerHTML = '';
             }, 3000);
         }
+
+        function copyResizedImageToClipboard(imageData) {
+            // Convert data URL to blob
+            fetch(imageData)
+                .then(res => res.blob())
+                .then(blob => {
+                    // Create a ClipboardItem with the blob
+                    const clipboardItem = new ClipboardItem({ [blob.type]: blob });
+
+                    // Write to clipboard
+                    navigator.clipboard.write([clipboardItem])
+                        .then(() => {
+                            // Optionally show a success message
+                            // showSuccess('Image automatically copied to clipboard!');
+                        })
+                        .catch(err => {
+                            // Silently fail since automatic copying shouldn't interrupt the user
+                            // showError('Failed to copy image: ' + err);
+                        });
+                })
+                .catch(err => {
+                    // Silently fail since automatic copying shouldn't interrupt the user
+                    // showError('Error processing image for copy: ' + err);
+                });
+        }
         
         // Initialize the app
         window.addEventListener('load', () => {
             console.log('Image Resizer loaded. Ready to paste images!');
+
+            // Set the 0.6x button as active by default
+            const defaultBtn = document.querySelector('[data-factor="0.6"]');
+            if (defaultBtn) {
+                defaultBtn.classList.add('active');
+            }
         });
     </script>
 </body>
