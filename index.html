@@ -3,444 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Player - Auto Loaded</title>
+    <title>Web Apps Dashboard</title>
     <style>
-        body {
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --success: #4cc9f0;
+            --background: #121212;
+            --card-bg: #1e1e1e;
+            --text: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border: #333;
+            --input-bg: #2d2d2d;
+            --input-border: #444;
+            --button-bg: #4361ee;
+            --button-hover: #3a56d4;
+            --data-card-bg: #252525;
+            --border-radius: 12px;
+            --box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            --transition: all 0.3s ease;
+        }
+
+        * {
             margin: 0;
             padding: 0;
-            height: 100vh;
-            background-color: #000; /* Black background as mentioned */
-            overflow: hidden;
-            cursor: none; /* Initially hide the cursor */
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* Class to temporarily show cursor */
-        .show-cursor {
-            cursor: auto !important;
-        }
-
-        /* Storage size display */
-        .storage-size {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: white;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 5px 10px;
-            border-radius: 4px;
-            z-index: 9999;
-        }
-
-        /* Total videos size display */
-        .total-video-size {
-            position: absolute;
-            top: 10px;
-            right: 150px; /* Position to the left of storage size */
-            color: white;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 3px 8px;
-            border-radius: 4px;
-            z-index: 9998;
-        }
-
-        /* Video gallery style */
-        .video-gallery {
-            position: absolute;
-            top: 50px;
-            left: 10px;
-            right: 10px;
-            bottom: 10px;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            overflow-y: auto;
-            padding: 10px;
-        }
-
-        .video-item {
-            background-color: #333;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            position: relative;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        }
-
-        .video-item:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .video-thumbnail {
-            width: 100%;
-            height: 120px;
-            object-fit: cover;
-            display: block;
-        }
-
-        .video-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-            padding: 10px;
-            color: white;
-        }
-
-        .video-title {
-            font-size: 12px;
-            font-weight: 500;
-            margin-bottom: 5px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .video-meta {
+        body {
+            background: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .video-duration {
-            font-size: 10px;
-            color: #aaa;
-        }
-
-        .video-size {
-            font-size: 10px;
-            color: #aaa;
-        }
-
-        .video-remove {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(255, 0, 0, 0.8);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-            display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
-            z-index: 1000;
         }
 
-        .video-remove:hover {
-            background: rgba(255, 50, 50, 0.9);
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
         }
 
-        /* Optional: Add a subtle indicator to show the page is working */
-        .indicator {
-            position: absolute;
-            top: 20px;
-            left: 20px;
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            width: 100%;
+        }
+
+        .app-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 25px;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .app-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+            background: #252527;
+        }
+
+        .app-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .app-title {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .app-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .app-link {
+            display: inline-block;
+            background: var(--button-bg);
             color: white;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            opacity: 0.7;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            transition: var(--transition);
         }
 
-        /* Loading animation */
-        .loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-family: Arial, sans-serif;
-            font-size: 16px;
+        .app-link:hover {
+            background: var(--button-hover);
+            transform: translateY(-2px);
+        }
+
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .apps-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="indicator">Black page with hidden cursor | Cursor shows on fast movement</div>
-    <div class="loading" id="loading">Loading videos...</div>
+    <div class="container">
+        <header>
+            <h1>Web Apps Dashboard</h1>
+            <p class="subtitle">Access all your web applications from one place</p>
+        </header>
 
-    <div class="video-gallery" id="videoGallery"></div>
+        <main>
+            <div class="apps-grid">
+                <div class="app-card">
+                    <div class="app-icon">🌡️</div>
+                    <h2 class="app-title">Weather</h2>
+                    <p class="app-description">Check real-time weather data for any city</p>
+                    <a href="./weather/index.html" class="app-link">Launch App</a>
+                </div>
 
-    <script>
-        // Storage size display
-        function getLocalStorageSize() {
-            let totalSize = 0;
+                <div class="app-card">
+                    <div class="app-icon">🔥</div>
+                    <h2 class="app-title">FIRE Calculator</h2>
+                    <p class="app-description">Financial Independence, Retire Early calculator</p>
+                    <a href="./fire/fire_calculator.html" class="app-link">Launch App</a>
+                </div>
 
-            for(let key in localStorage) {
-                if(localStorage.hasOwnProperty(key)) {
-                    totalSize += ((localStorage[key].length + key.length) * 2); // Each character is approximately 2 bytes
-                }
-            }
+                <div class="app-card">
+                    <div class="app-icon">💰</div>
+                    <h2 class="app-title">Expense Logger</h2>
+                    <p class="app-description">Track your expenses with monthly organization</p>
+                    <a href="./expenses/index.html" class="app-link">Launch App</a>
+                </div>
 
-            return totalSize;
-        }
+                <div class="app-card">
+                    <div class="app-icon">📅</div>
+                    <h2 class="app-title">Day Planner</h2>
+                    <p class="app-description">Time-bound task management with discipline tracking</p>
+                    <a href="./planner/index.html" class="app-link">Launch App</a>
+                </div>
 
-        function formatStorageSize(bytes) {
-            const mb = bytes / (1024 * 1024);
-            const gb = bytes / (1024 * 1024 * 1024);
+                <div class="app-card">
+                    <div class="app-icon">🖼️</div>
+                    <h2 class="app-title">Image Organizer</h2>
+                    <p class="app-description">Organize images with tags in a Pinterest-like layout</p>
+                    <a href="./imageorganizer/index.html" class="app-link">Launch App</a>
+                </div>
 
-            if (gb >= 1) {
-                return gb.toFixed(2) + ' GB';
-            } else {
-                return mb.toFixed(2) + ' MB';
-            }
-        }
+                <div class="app-card">
+                    <div class="app-icon">🖼️</div>
+                    <h2 class="app-title">Image Resizer</h2>
+                    <p class="app-description">Paste images and get different size options</p>
+                    <a href="./imageresizer/index.html" class="app-link">Launch App</a>
+                </div>
 
-        function updateStorageSizeDisplay() {
-            const size = getLocalStorageSize();
-            const formattedSize = formatStorageSize(size);
+                <div class="app-card">
+                    <div class="app-icon">🎬</div>
+                    <h2 class="app-title">TV and Media</h2>
+                    <p class="app-description">Play m3u playlists and media playback</p>
+                    <a href="./tvandmedia/index.html" class="app-link">Launch App</a>
+                </div>
 
-            let storageSizeElement = document.getElementById('storage-size-display');
-            if (!storageSizeElement) {
-                storageSizeElement = document.createElement('div');
-                storageSizeElement.id = 'storage-size-display';
-                storageSizeElement.className = 'storage-size';
-                document.body.appendChild(storageSizeElement);
-            }
+            </div>
+        </main>
 
-            storageSizeElement.textContent = 'Local Storage: ' + formattedSize;
-        }
-
-        // Video-related functions
-        let videos = [];
-
-        function loadVideosFromStorage() {
-            try {
-                const storedVideos = localStorage.getItem('storedVideos');
-                if (storedVideos) {
-                    videos = JSON.parse(storedVideos);
-                } else {
-                    videos = [];
-                }
-            } catch(e) {
-                console.error('Error loading videos from storage:', e);
-                videos = [];
-            }
-        }
-
-        function getTotalVideoSize() {
-            let totalSize = 0;
-            for(const video of videos) {
-                totalSize += video.size || 0;
-            }
-            return totalSize;
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        function updateTotalVideoSizeDisplay() {
-            const totalSize = getTotalVideoSize();
-            const formattedSize = formatFileSize(totalSize);
-
-            let totalVideoSizeElement = document.getElementById('total-video-size-display');
-            if (!totalVideoSizeElement) {
-                totalVideoSizeElement = document.createElement('div');
-                totalVideoSizeElement.id = 'total-video-size-display';
-                totalVideoSizeElement.className = 'total-video-size';
-                document.body.appendChild(totalVideoSizeElement);
-            }
-
-            totalVideoSizeElement.textContent = 'Videos: ' + formattedSize;
-        }
-
-        function renderVideoGallery() {
-            const gallery = document.getElementById('videoGallery');
-            const loadingElement = document.getElementById('loading');
-
-            // Hide loading indicator
-            if (loadingElement) {
-                loadingElement.style.display = 'none';
-            }
-
-            // Clear gallery
-            gallery.innerHTML = '';
-
-            if (videos.length === 0) {
-                gallery.innerHTML = '<div style="color:white; font-family:Arial; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;">No videos found. Add videos using the video player.</div>';
-                return;
-            }
-
-            videos.forEach(video => {
-                const videoItem = document.createElement('div');
-                videoItem.className = 'video-item';
-                videoItem.dataset.id = video.id;
-
-                // Create thumbnail image
-                const thumbnail = document.createElement('img');
-                thumbnail.className = 'video-thumbnail';
-                thumbnail.src = video.thumbnail || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="120" viewBox="0 0 200 120"><rect width="200" height="120" fill="%23333"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23aaa" font-size="16">No Preview</text></svg>';
-                thumbnail.alt = video.name;
-
-                // Error handling for thumbnail
-                thumbnail.onerror = () => {
-                    thumbnail.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="120" viewBox="0 0 200 120"><rect width="200" height="120" fill="%23333"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23aaa" font-size="16">No Preview</text></svg>';
-                };
-
-                // Create overlay
-                const overlay = document.createElement('div');
-                overlay.className = 'video-overlay';
-
-                const title = document.createElement('div');
-                title.className = 'video-title';
-                title.textContent = video.name;
-
-                const meta = document.createElement('div');
-                meta.className = 'video-meta';
-
-                const duration = document.createElement('div');
-                duration.className = 'video-duration';
-                const mins = Math.floor(video.duration / 60);
-                const secs = Math.floor(video.duration % 60);
-                duration.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-
-                const size = document.createElement('div');
-                size.className = 'video-size';
-                size.textContent = formatFileSize(video.size);
-
-                meta.appendChild(duration);
-                meta.appendChild(size);
-
-                overlay.appendChild(title);
-                overlay.appendChild(meta);
-
-                // Create remove button
-                const removeBtn = document.createElement('button');
-                removeBtn.className = 'video-remove';
-                removeBtn.textContent = '×';
-                removeBtn.title = 'Remove video';
-                removeBtn.onclick = function(e) {
-                    e.stopPropagation(); // Prevent video click event
-                    removeVideo(video.id);
-                };
-
-                videoItem.appendChild(thumbnail);
-                videoItem.appendChild(overlay);
-                videoItem.appendChild(removeBtn);
-
-                videoItem.addEventListener('click', () => {
-                    // Open the video player in modal or navigate to video player
-                    openVideoPlayer(video);
-                });
-
-                gallery.appendChild(videoItem);
-            });
-        }
-
-        function removeVideo(videoId) {
-            videos = videos.filter(video => video.id !== videoId);
-            localStorage.setItem('storedVideos', JSON.stringify(videos));
-
-            // Update displays
-            renderVideoGallery();
-            updateTotalVideoSizeDisplay();
-            updateStorageSizeDisplay();
-        }
-
-        function openVideoPlayer(video) {
-            // Create a video player modal or navigate to the video player
-            // For now, we'll redirect to the video player page
-            window.location.href = './videoplayer/index.html';
-        }
-
-        // Initialize on load
-        function initialize() {
-            loadVideosFromStorage();
-            renderVideoGallery();
-            updateTotalVideoSizeDisplay();
-            updateStorageSizeDisplay();
-
-            // Update sizes periodically
-            setInterval(updateStorageSizeDisplay, 5000);
-            setInterval(updateTotalVideoSizeDisplay, 5000);
-        }
-
-        // Variables to track mouse movement
-        let cursorVisible = false;
-        let hideTimeout;
-        let previousX = 0;
-        let previousY = 0;
-        let previousTime = Date.now();
-
-        document.addEventListener('mousemove', function(e) {
-            const currentTime = Date.now();
-            const deltaX = Math.abs(e.clientX - previousX);
-            const deltaY = Math.abs(e.clientY - previousY);
-            const deltaTime = currentTime - previousTime;
-
-            // Calculate speed (distance/time)
-            const speed = Math.sqrt(deltaX * deltaX + deltaY * deltaY) / deltaTime;
-
-            // If movement is fast enough (> 0.5 pixels/ms), show cursor
-            if (speed > 0.5) {
-                showCursor();
-            }
-
-            // Track last position and time
-            previousX = e.clientX;
-            previousY = e.clientY;
-            previousTime = currentTime;
-
-            // Clear any existing timeout and set new one to hide cursor after delay
-            clearTimeout(hideTimeout);
-            hideTimeout = setTimeout(hideCursor, 1000); // Hide cursor after 1 second of no movement
-        });
-
-        // Function to show the cursor
-        function showCursor() {
-            if (!cursorVisible) {
-                document.body.classList.add('show-cursor');
-                cursorVisible = true;
-
-                // Clear any existing timeout to prevent hiding
-                clearTimeout(hideTimeout);
-
-                // Set timeout to hide cursor after showing for a moment
-                hideTimeout = setTimeout(hideCursor, 1000); // Hide after 1 second
-            }
-        }
-
-        // Function to hide the cursor
-        function hideCursor() {
-            if (cursorVisible) {
-                document.body.classList.remove('show-cursor');
-                cursorVisible = false;
-            }
-        }
-
-        // Initialize cursor as hidden
-        document.body.classList.remove('show-cursor');
-        hideCursor();
-
-        // Also hide cursor on other events that indicate user intent
-        document.addEventListener('mousedown', showCursor);
-        document.addEventListener('mouseup', function() {
-            clearTimeout(hideTimeout);
-            hideTimeout = setTimeout(hideCursor, 1000);
-        });
-        document.addEventListener('keydown', showCursor);
-        document.addEventListener('keyup', function() {
-            clearTimeout(hideTimeout);
-            hideTimeout = setTimeout(hideCursor, 1000);
-        });
-
-        // Run initialization when page loads
-        window.addEventListener('load', initialize);
-    </script>
+        <footer class="footer">
+            <p>Web Apps Collection | Ready for GitHub Pages Hosting</p>
+        </footer>
+    </div>
 </body>
 </html>
