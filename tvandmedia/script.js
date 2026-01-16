@@ -1009,7 +1009,7 @@ class VideoPlayerApp {
         // Show a heading if there are playlists
         if (this.playlistUrls.length > 0) {
             const heading = document.createElement('h4');
-            heading.textContent = 'Loaded Playlists:';
+            heading.textContent = '';
             heading.style.margin = '0 0 10px 0';
             heading.style.color = 'var(--accent)';
             playlistHistory.appendChild(heading);
@@ -1258,8 +1258,8 @@ class VideoPlayerApp {
             // Create save and remove buttons for all videos (including streams)
             // For streams, we'll add save buttons but they'll show appropriate messages when clicked
             
-            // Add save button for videos that allow saving
-            if (video.allowSave) {
+            // Add save button for videos that allow saving (but not for Live TV streams)
+            if (video.allowSave && !video.isLiveTV) {
                 const saveBtn = document.createElement('button');
                 saveBtn.className = 'save-btn';
                 saveBtn.innerHTML = '💾';
@@ -1273,10 +1273,11 @@ class VideoPlayerApp {
 
             // Add save to storage button for videos that can be saved to storage
             // For M3U streams, this will attempt to download and save the stream
-            if ((video.type === 'url' && video.allowSave) || 
+            // But NOT for Live TV streams (.m3u8)
+            if (!video.isLiveTV && ((video.type === 'url' && video.allowSave) || 
                 video.type === 'local_file' || 
                 video.type === 'm3u' || 
-                video.type === 'local_m3u_path') {
+                video.type === 'local_m3u_path')) {
                 
                 const saveToStorageBtn = document.createElement('button');
                 saveToStorageBtn.className = 'save-to-storage-btn';
@@ -1527,12 +1528,35 @@ class VideoPlayerApp {
             console.error('Video src type:', typeof video.src);
             console.error('Video src length:', video.src ? video.src.length : 'undefined');
 
-            // If it's a stream and failed, try with CORS proxy
-            if (video.isStream) {
+            // Helper function to check if URL is a local address
+            const isLocalAddress = (url) => {
+                try {
+                    const urlObj = new URL(url);
+                    const hostname = urlObj.hostname;
+                    return hostname === 'localhost' || 
+                           hostname === '127.0.0.1' || 
+                           hostname === '0.0.0.0' ||
+                           hostname === '::1' ||
+                           hostname.startsWith('192.168.') ||
+                           hostname.startsWith('10.') ||
+                           hostname.startsWith('172.') ||
+                           hostname.endsWith('.local');
+                } catch {
+                    return false;
+                }
+            };
+
+            // If it's a stream and failed, try with CORS proxy (but not for local addresses)
+            if (video.isStream && !isLocalAddress(video.src)) {
                 const corsProxyUrl = `https://cors-anywhere.herokuapp.com/${video.src}`;
                 console.log('Trying with CORS proxy:', corsProxyUrl);
                 this.videoPlayer.src = corsProxyUrl;
                 this.videoPlayer.load();
+            } else if (video.isStream && isLocalAddress(video.src)) {
+                // For local addresses, provide specific error message
+                alert(`Failed to load stream from local address: ${video.src}\n\n` +
+                      `Local addresses (localhost, 127.0.0.1, 0.0.0.0) cannot use CORS proxy.\n` +
+                      `Make sure the local server is running and accessible directly.`);
             } else {
                 alert('Failed to load the video. The file may be corrupted or incompatible.');
             }
@@ -1770,13 +1794,37 @@ class VideoPlayerApp {
         let attemptedWithProxy = false;
         this.videoPlayer.onerror = (e) => {
             console.error('Video loading error:', e);
-            if (!attemptedWithProxy && !url.startsWith('https://cors-anywhere.herokuapp.com/')) {
-                // Try with CORS proxy
+            
+            // Helper function to check if URL is a local address
+            const isLocalAddress = (url) => {
+                try {
+                    const urlObj = new URL(url);
+                    const hostname = urlObj.hostname;
+                    return hostname === 'localhost' || 
+                           hostname === '127.0.0.1' || 
+                           hostname === '0.0.0.0' ||
+                           hostname === '::1' ||
+                           hostname.startsWith('192.168.') ||
+                           hostname.startsWith('10.') ||
+                           hostname.startsWith('172.') ||
+                           hostname.endsWith('.local');
+                } catch {
+                    return false;
+                }
+            };
+            
+            if (!attemptedWithProxy && !url.startsWith('https://cors-anywhere.herokuapp.com/') && !isLocalAddress(url)) {
+                // Try with CORS proxy (but not for local addresses)
                 attemptedWithProxy = true;
                 const corsProxyUrl = `https://cors-anywhere.herokuapp.com/${url}`;
                 console.log('Trying with CORS proxy:', corsProxyUrl);
                 this.videoPlayer.src = corsProxyUrl;
                 this.videoPlayer.load();
+            } else if (isLocalAddress(url)) {
+                // For local addresses, provide specific error message
+                alert(`Failed to load video from local address: ${url}\n\n` +
+                      `Local addresses (localhost, 127.0.0.1, 0.0.0.0) cannot use CORS proxy.\n` +
+                      `Make sure the local server is running and accessible directly.`);
             } else {
                 // Already tried with proxy or proxy was already in use
                 const CORS_MESSAGE = `Failed to load video from URL. This is likely a CORS issue.\n\nIf the video is still not loading:\n1. The server may not allow external access\n2. The CORS proxy service may be down\n3. The URL may be incorrect or inaccessible`;
@@ -2469,32 +2517,36 @@ class VideoPlayerApp {
                 return;
             }
 
-            // Add parsed channels to the videos array
-            for (const item of playlistItems) {
-                // Create a unique ID for the playlist item
-                const id = `m3u_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                // Add parsed channels to the videos array
+                for (const item of playlistItems) {
+                    // Create a unique ID for the playlist item
+                    const id = `m3u_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-                const videoData = {
-                    id: id,
-                    src: item.url,
-                    name: item.channelName,
-                    size: 0, // Stream URLs don't have a defined size
-                    duration: undefined, // Live streams don't have a duration
-                    thumbnail: item.logo || '',
-                    timestamp: new Date().toISOString(),
-                    type: 'm3u', // Mark as M3U playlist item
-                    groupId: item.groupId,
-                    tvgId: item.tvgId,
-                    isStream: true, // Mark as live stream
-                    playlistUrl: url // Track which playlist this stream came from
-                };
+                    // Check if this is a Live TV stream (ends with .m3u8)
+                    const isLiveTV = this.isLiveTVStream(item.url);
 
-                // Add to videos array if not already present
-                const isDuplicate = this.videos.some(video => video.src === videoData.src);
-                if (!isDuplicate) {
-                    this.videos.push(videoData);
+                    const videoData = {
+                        id: id,
+                        src: item.url,
+                        name: item.channelName,
+                        size: 0, // Stream URLs don't have a defined size
+                        duration: undefined, // Live streams don't have a duration
+                        thumbnail: item.logo || '',
+                        timestamp: new Date().toISOString(),
+                        type: 'm3u', // Mark as M3U playlist item
+                        groupId: item.groupId,
+                        tvgId: item.tvgId,
+                        isStream: true, // Mark as live stream
+                        isLiveTV: isLiveTV, // Mark as Live TV if it's an .m3u8 stream
+                        playlistUrl: url // Track which playlist this stream came from
+                    };
+
+                    // Add to videos array if not already present
+                    const isDuplicate = this.videos.some(video => video.src === videoData.src);
+                    if (!isDuplicate) {
+                        this.videos.push(videoData);
+                    }
                 }
-            }
 
             // Add to playlist URLs list
             this.playlistUrls.push(url);
@@ -2564,6 +2616,13 @@ class VideoPlayerApp {
         const videoExtensions = ['.mp4', '.mkv', '.webm', '.mov', '.avi', '.wmv', '.flv', '.m4v', '.mpg', '.mpeg', '.3gp', '.ogg', '.ogv', '.ts', '.m2ts', '.mts', '.vob', '.mp3', '.wav', '.aac', '.flac', '.m4a', '.wma', '.opus'];
         const lowerPath = path.toLowerCase();
         return videoExtensions.some(ext => lowerPath.endsWith(ext));
+    }
+
+    // Helper method to check if a URL is a Live TV stream (ends with .m3u8)
+    isLiveTVStream(url) {
+        if (!url || typeof url !== 'string') return false;
+        const lowerUrl = url.toLowerCase();
+        return lowerUrl.endsWith('.m3u8');
     }
 
     // Helper method to extract file name from path
@@ -2677,9 +2736,54 @@ class VideoPlayerApp {
             // Show loading message
             this.showMessage(`Downloading "${video.name}"...`);
             
-            // Try with CORS proxy if direct fetch fails
+            // Helper function to check if URL is a local address
+            const isLocalAddress = (url) => {
+                try {
+                    const urlObj = new URL(url);
+                    const hostname = urlObj.hostname;
+                    return hostname === 'localhost' || 
+                           hostname === '127.0.0.1' || 
+                           hostname === '0.0.0.0' ||
+                           hostname === '::1' ||
+                           hostname.startsWith('192.168.') ||
+                           hostname.startsWith('10.') ||
+                           hostname.startsWith('172.') ||
+                           hostname.endsWith('.local');
+                } catch {
+                    return false;
+                }
+            };
+            
+            // Helper function to normalize local addresses (convert 0.0.0.0 to localhost)
+            const normalizeLocalAddress = (url) => {
+                try {
+                    const urlObj = new URL(url);
+                    if (urlObj.hostname === '0.0.0.0') {
+                        // Replace 0.0.0.0 with localhost
+                        urlObj.hostname = 'localhost';
+                        return urlObj.toString();
+                    }
+                } catch {
+                    // If URL parsing fails, return the original URL
+                }
+                return url;
+            };
+            
+            // Try with CORS proxy if direct fetch fails (but not for local addresses)
             const tryDownload = (url, useProxy = false) => {
-                const fetchUrl = useProxy ? `https://cors-anywhere.herokuapp.com/${url}` : url;
+                // Don't use proxy for local addresses
+                if (isLocalAddress(url) && useProxy) {
+                    // Local addresses shouldn't use CORS proxy
+                    const errorMessage = `Cannot download from local address "${url}" using CORS proxy.\n\n` +
+                                       `Local addresses (localhost, 127.0.0.1, 0.0.0.0) cannot be accessed through CORS proxy.\n` +
+                                       `Please ensure the local server is running and accessible directly.`;
+                    alert(errorMessage);
+                    return;
+                }
+                
+                // Normalize local addresses (convert 0.0.0.0 to localhost)
+                let fetchUrl = isLocalAddress(url) ? normalizeLocalAddress(url) : url;
+                fetchUrl = useProxy ? `https://cors-anywhere.herokuapp.com/${fetchUrl}` : fetchUrl;
                 
                 fetch(fetchUrl)
                     .then(response => {
@@ -2719,19 +2823,45 @@ class VideoPlayerApp {
                     .catch(error => {
                         console.error('Error downloading video:', error);
                         
-                        if (!useProxy) {
-                            // Try with CORS proxy
+                        if (!useProxy && !isLocalAddress(url)) {
+                            // Try with CORS proxy (but not for local addresses)
                             console.log('Trying with CORS proxy...');
                             tryDownload(url, true);
                         } else {
-                            // Both direct and proxy attempts failed
-                            const errorMessage = `Failed to download "${video.name}" for storage.\n\n` +
-                                               `Possible reasons:\n` +
-                                               `1. The server may block downloads (CORS issue)\n` +
-                                               `2. The video URL may be protected or require authentication\n` +
-                                               `3. Network connection issue\n` +
-                                               `4. The CORS proxy service may be unavailable\n\n` +
-                                               `Try downloading the video manually and uploading it as a file.`;
+                            // Both direct and proxy attempts failed, or it's a local address
+                            let errorMessage;
+                            if (isLocalAddress(url)) {
+                                // Check if this might be a CORS issue between localhost and 0.0.0.0
+                                const currentOrigin = window.location.origin;
+                                const urlObj = new URL(url);
+                                const urlOrigin = urlObj.origin;
+                                
+                                if (currentOrigin !== urlOrigin) {
+                                    errorMessage = `Failed to download from local address "${url}".\n\n` +
+                                                 `CORS Issue Detected:\n` +
+                                                 `• Current page: ${currentOrigin}\n` +
+                                                 `• Video server: ${urlOrigin}\n\n` +
+                                                 `Solutions:\n` +
+                                                 `1. Access the video player via ${urlOrigin.replace('8001', '8000')} instead of ${currentOrigin}\n` +
+                                                 `2. Or serve the video from ${currentOrigin.replace('8000', '8001')}\n` +
+                                                 `3. Use the same hostname (localhost) for both servers`;
+                                } else {
+                                    errorMessage = `Failed to download from local address "${url}".\n\n` +
+                                                 `Possible reasons:\n` +
+                                                 `1. The local server may not be running\n` +
+                                                 `2. The server may be blocking the request\n` +
+                                                 `3. The URL may be incorrect\n\n` +
+                                                 `Make sure the local server is running and accessible.`;
+                                }
+                            } else {
+                                errorMessage = `Failed to download "${video.name}" for storage.\n\n` +
+                                             `Possible reasons:\n` +
+                                             `1. The server may block downloads (CORS issue)\n` +
+                                             `2. The video URL may be protected or require authentication\n` +
+                                             `3. Network connection issue\n` +
+                                             `4. The CORS proxy service may be unavailable\n\n` +
+                                             `Try downloading the video manually and uploading it as a file.`;
+                            }
                             alert(errorMessage);
                         }
                     });
