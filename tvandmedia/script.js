@@ -9,6 +9,7 @@ class VideoPlayerApp {
         this.defaultLoop = true; // Single loop mode enabled by default
         this.isLoadingVideos = true; // Flag to track loading state
         this.playlistUrls = []; // Track loaded playlist URLs
+        this.useTextThumbnails = false; // Default to image thumbnails
         this.initElements();
         this.bindEvents();
         this.initializeVideoPlayer();
@@ -99,6 +100,8 @@ class VideoPlayerApp {
         // Setup cursor hiding functionality
         this.setupCursorHiding();
 
+        // Setup mobile gesture controls
+        this.setupMobileGestureControls();
     }
 
     setupCursorHiding() {
@@ -258,6 +261,7 @@ class VideoPlayerApp {
         this.speedDisplay = document.getElementById('speedDisplay');
         this.loopBtn = document.getElementById('loopBtn');
         this.globalLoopBtn = document.getElementById('globalLoopBtn');
+        this.thumbnailToggle = document.getElementById('thumbnailToggle');
         
         // Initialize history state management
         this.isModalOpen = false;
@@ -421,6 +425,22 @@ class VideoPlayerApp {
             totalSizeDisplay.title = 'Click to clear all storage (IndexedDB and local files)';
             totalSizeDisplay.addEventListener('click', () => {
                 this.clearAllStorageWithConfirmation();
+            });
+        }
+
+        // Handle thumbnail toggle switch
+        if (this.thumbnailToggle) {
+            // Load saved preference
+            const savedPreference = localStorage.getItem('useTextThumbnails');
+            if (savedPreference !== null) {
+                this.useTextThumbnails = savedPreference === 'true';
+                this.thumbnailToggle.checked = this.useTextThumbnails;
+            }
+
+            this.thumbnailToggle.addEventListener('change', (e) => {
+                this.useTextThumbnails = e.target.checked;
+                localStorage.setItem('useTextThumbnails', this.useTextThumbnails);
+                this.renderGallery();
             });
         }
     }
@@ -1255,53 +1275,16 @@ class VideoPlayerApp {
             videoItem.className = 'video-item';
             videoItem.dataset.id = video.id;
 
-            // Create save and remove buttons for all videos (including streams)
-            // For streams, we'll add save buttons but they'll show appropriate messages when clicked
-            
-            // Add save button for videos that allow saving (but not for Live TV streams)
-            if (video.allowSave && !video.isLiveTV) {
-                const saveBtn = document.createElement('button');
-                saveBtn.className = 'save-btn';
-                saveBtn.innerHTML = '💾';
-                saveBtn.title = `Save ${video.name}`;
-                saveBtn.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Prevent triggering the video click event
-                    this.saveVideo(video);
-                });
-                videoItem.appendChild(saveBtn);
-            }
-
-            // Add save to storage button for videos that can be saved to storage
-            // For M3U streams, this will attempt to download and save the stream
-            // But NOT for Live TV streams (.m3u8)
-            if (!video.isLiveTV && ((video.type === 'url' && video.allowSave) || 
-                video.type === 'local_file' || 
-                video.type === 'm3u' || 
-                video.type === 'local_m3u_path')) {
-                
-                const saveToStorageBtn = document.createElement('button');
-                saveToStorageBtn.className = 'save-to-storage-btn';
-                saveToStorageBtn.innerHTML = '📥';
-                
-                // Set appropriate title based on video type
-                if (video.type === 'local_file') {
-                    if (video.needsReUpload) {
-                        saveToStorageBtn.title = `Re-upload ${video.name} to restore (was lost on reload)`;
-                    } else {
-                        saveToStorageBtn.title = `Save ${video.name} to storage (streamed)`;
-                    }
-                } else if (video.type === 'm3u' || video.type === 'local_m3u_path') {
-                    saveToStorageBtn.title = `Save ${video.name} to storage (M3U stream)`;
-                } else {
-                    saveToStorageBtn.title = `Save ${video.name} to storage`;
-                }
-                
-                saveToStorageBtn.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Prevent triggering the video click event
-                    this.saveVideoToStorage(video);
-                });
-                videoItem.appendChild(saveToStorageBtn);
-            }
+            // Add 3-dots menu button for actions
+            const menuBtn = document.createElement('button');
+            menuBtn.className = 'video-menu-btn';
+            menuBtn.innerHTML = '⋮';
+            menuBtn.title = `Actions for ${video.name}`;
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent triggering the video click event
+                this.showVideoMenu(e, video);
+            });
+            videoItem.appendChild(menuBtn);
 
             // Add remove button for all videos
             const removeBtn = document.createElement('button');
@@ -1314,60 +1297,110 @@ class VideoPlayerApp {
             });
             videoItem.appendChild(removeBtn);
 
-            const thumbnail = document.createElement('img');
-            thumbnail.alt = `Thumbnail for ${video.name}`;
-            thumbnail.className = 'video-thumbnail';
-            thumbnail.loading = 'lazy';
-
-            // Set up error handler first
-            thumbnail.onerror = () => {
-                this.showFallbackThumbnail(thumbnail, video);
-            };
-
-            // Set up load handler to detect successful loads
-            thumbnail.onload = () => {
-                // Thumbnail loaded successfully
-                thumbnail.style.backgroundColor = '';
-                thumbnail.style.display = '';
-                thumbnail.textContent = '';
-            };
-
-            // For M3U streams, use the logo; for videos, use the thumbnail
-            let thumbnailUrl = video.thumbnail;
-            
-            // Check if we should use a fallback immediately
-            const shouldUseFallback = !thumbnailUrl || 
-                                     thumbnailUrl.trim() === '' || 
-                                     (video.isStream && !this.isValidUrl(thumbnailUrl));
-            
-            if (shouldUseFallback) {
-                // Show fallback immediately without trying to load
-                const fallbackContainer = this.showFallbackThumbnail(thumbnail, video);
-                if (fallbackContainer) {
-                    // If showFallbackThumbnail returned a container (because thumbnail had no parent),
-                    // use the container instead of the thumbnail
-                    videoItem.appendChild(fallbackContainer);
-                    // The container is now the thumbnail, so we don't need to append the original thumbnail
-                } else {
-                    // If showFallbackThumbnail didn't return a container (it replaced the thumbnail in-place),
-                    // we still need to append the thumbnail to the videoItem
-                    videoItem.appendChild(thumbnail);
-                }
-            } else {
-                // Try to load the thumbnail
-                thumbnail.src = thumbnailUrl;
-                videoItem.appendChild(thumbnail);
+            if (this.useTextThumbnails) {
+                // Create text-based thumbnail
+                const textThumbnail = document.createElement('div');
+                textThumbnail.className = 'text-thumbnail';
                 
-                // Set a timeout to show fallback if image takes too long to load
-                setTimeout(() => {
-                    if (!thumbnail.complete || thumbnail.naturalWidth === 0) {
-                        const fallbackContainer = this.showFallbackThumbnail(thumbnail, video);
-                        if (fallbackContainer) {
-                            // Replace thumbnail with container
-                            thumbnail.parentNode.replaceChild(fallbackContainer, thumbnail);
+                // Create icon based on video type
+                let icon = '📹';
+                let bgColor = '#333';
+                
+                if (video.isStream) {
+                    icon = '📺';
+                    bgColor = '#1a237e';
+                    
+                    // Use group-specific colors for streams
+                    if (video.groupId) {
+                        const group = video.groupId.toLowerCase();
+                        if (group.includes('movie') || group.includes('film')) {
+                            bgColor = '#1a237e';
+                        } else if (group.includes('sport') || group.includes('sports')) {
+                            bgColor = '#1b5e20';
+                        } else if (group.includes('news')) {
+                            bgColor = '#bf360c';
+                        } else if (group.includes('music')) {
+                            bgColor = '#4a148c';
+                        } else if (group.includes('kid') || group.includes('children')) {
+                            bgColor = '#e65100';
+                        } else if (group.includes('documentary')) {
+                            bgColor = '#33691e';
                         }
                     }
-                }, 1000); // 1 second timeout
+                } else if (video.isAudio) {
+                    icon = '🎵';
+                    bgColor = '#4a148c';
+                }
+                
+                textThumbnail.style.backgroundColor = bgColor;
+                textThumbnail.style.color = 'white';
+                textThumbnail.style.display = 'flex';
+                textThumbnail.style.alignItems = 'center';
+                textThumbnail.style.justifyContent = 'center';
+                textThumbnail.style.fontSize = '1.5rem';
+                textThumbnail.style.height = '60px';
+                textThumbnail.style.borderRadius = '4px';
+                textThumbnail.style.marginBottom = '8px';
+                textThumbnail.textContent = icon;
+                
+                videoItem.appendChild(textThumbnail);
+            } else {
+                // Create image thumbnail (original behavior)
+                const thumbnail = document.createElement('img');
+                thumbnail.alt = `Thumbnail for ${video.name}`;
+                thumbnail.className = 'video-thumbnail';
+                thumbnail.loading = 'lazy';
+
+                // Set up error handler first
+                thumbnail.onerror = () => {
+                    this.showFallbackThumbnail(thumbnail, video);
+                };
+
+                // Set up load handler to detect successful loads
+                thumbnail.onload = () => {
+                    // Thumbnail loaded successfully
+                    thumbnail.style.backgroundColor = '';
+                    thumbnail.style.display = '';
+                    thumbnail.textContent = '';
+                };
+
+                // For M3U streams, use the logo; for videos, use the thumbnail
+                let thumbnailUrl = video.thumbnail;
+                
+                // Check if we should use a fallback immediately
+                const shouldUseFallback = !thumbnailUrl || 
+                                         thumbnailUrl.trim() === '' || 
+                                         (video.isStream && !this.isValidUrl(thumbnailUrl));
+                
+                if (shouldUseFallback) {
+                    // Show fallback immediately without trying to load
+                    const fallbackContainer = this.showFallbackThumbnail(thumbnail, video);
+                    if (fallbackContainer) {
+                        // If showFallbackThumbnail returned a container (because thumbnail had no parent),
+                        // use the container instead of the thumbnail
+                        videoItem.appendChild(fallbackContainer);
+                        // The container is now the thumbnail, so we don't need to append the original thumbnail
+                    } else {
+                        // If showFallbackThumbnail didn't return a container (it replaced the thumbnail in-place),
+                        // we still need to append the thumbnail to the videoItem
+                        videoItem.appendChild(thumbnail);
+                    }
+                } else {
+                    // Try to load the thumbnail
+                    thumbnail.src = thumbnailUrl;
+                    videoItem.appendChild(thumbnail);
+                    
+                    // Set a timeout to show fallback if image takes too long to load
+                    setTimeout(() => {
+                        if (!thumbnail.complete || thumbnail.naturalWidth === 0) {
+                            const fallbackContainer = this.showFallbackThumbnail(thumbnail, video);
+                            if (fallbackContainer) {
+                                // Replace thumbnail with container
+                                thumbnail.parentNode.replaceChild(fallbackContainer, thumbnail);
+                            }
+                        }
+                    }, 1000); // 1 second timeout
+                }
             }
 
             const videoInfo = document.createElement('div');
@@ -1404,7 +1437,6 @@ class VideoPlayerApp {
             videoInfo.appendChild(title);
             videoInfo.appendChild(meta);
 
-            videoItem.appendChild(thumbnail);
             videoItem.appendChild(videoInfo);
 
             videoItem.addEventListener('click', () => {
@@ -2488,6 +2520,64 @@ class VideoPlayerApp {
         }, { passive: false });
     }
 
+    // Mobile gesture controls for video player
+    setupMobileGestureControls() {
+        const videoContainer = this.videoPlayer.parentElement;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+        const minSwipeDistance = 50; // Minimum distance for a swipe gesture
+
+        videoContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+        }, { passive: true });
+
+        videoContainer.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            touchEndY = e.changedTouches[0].screenY;
+            this.handleSwipeGesture();
+        }, { passive: true });
+
+        // Handle swipe gesture
+        this.handleSwipeGesture = () => {
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            const absDeltaX = Math.abs(deltaX);
+            const absDeltaY = Math.abs(deltaY);
+
+            // Check if it's a horizontal swipe (left/right)
+            if (absDeltaX > absDeltaY && absDeltaX > minSwipeDistance) {
+                if (deltaX > 0) {
+                    // Swipe right -> previous video
+                    if (this.videos.length > 1) {
+                        this.playPrevVideo();
+                        this.showMessage('← Previous video');
+                    }
+                } else {
+                    // Swipe left -> next video
+                    if (this.videos.length > 1) {
+                        this.playNextVideo();
+                        this.showMessage('Next video →');
+                    }
+                }
+            }
+            // Check if it's a vertical swipe (up/down)
+            else if (absDeltaY > absDeltaX && absDeltaY > minSwipeDistance) {
+                if (deltaY > 0) {
+                    // Swipe down -> slow playback
+                    this.decreaseSpeed();
+                    this.showMessage('Slower playback');
+                } else {
+                    // Swipe up -> fast playback
+                    this.increaseSpeed();
+                    this.showMessage('Faster playback');
+                }
+            }
+        };
+    }
+
     // Method to load and parse M3U playlist
     async loadM3UPlaylist(url) {
         if (!url) {
@@ -3058,6 +3148,132 @@ class VideoPlayerApp {
             // The caller should use this container instead of the original thumbnail element
             return container;
         }
+    }
+
+    // Show video menu (3-dots menu) for actions
+    showVideoMenu(event, video) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        // Remove any existing menu
+        const existingMenu = document.querySelector('.video-context-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+        
+        // Create menu container
+        const menu = document.createElement('div');
+        menu.className = 'video-context-menu';
+        menu.style.position = 'absolute';
+        menu.style.backgroundColor = 'var(--bg-secondary)';
+        menu.style.border = '1px solid var(--border)';
+        menu.style.borderRadius = '4px';
+        menu.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
+        menu.style.zIndex = '1000';
+        menu.style.minWidth = '150px';
+        menu.style.padding = '5px 0';
+        
+        // Position menu near the click
+        const rect = event.target.getBoundingClientRect();
+        menu.style.left = `${rect.left}px`;
+        menu.style.top = `${rect.bottom + 5}px`;
+        
+        // Add menu items
+        const menuItems = [];
+        
+        // Save to PC option (if allowed and not Live TV)
+        if (video.allowSave && !video.isLiveTV) {
+            menuItems.push({
+                text: '💾 Save to PC',
+                action: () => this.saveVideo(video),
+                disabled: false
+            });
+        }
+        
+        // Save to IndexedDB option (if allowed and not Live TV)
+        if (!video.isLiveTV && ((video.type === 'url' && video.allowSave) || 
+            video.type === 'local_file' || 
+            video.type === 'm3u' || 
+            video.type === 'local_m3u_path')) {
+            
+            let title = 'Save to Storage';
+            if (video.type === 'local_file') {
+                if (video.needsReUpload) {
+                    title = '⚠️ Re-upload to restore';
+                } else {
+                    title = '📥 Save to Storage (streamed)';
+                }
+            } else if (video.type === 'm3u' || video.type === 'local_m3u_path') {
+                title = '📥 Save to Storage (M3U stream)';
+            }
+            
+            menuItems.push({
+                text: title,
+                action: () => this.saveVideoToStorage(video),
+                disabled: false
+            });
+        }
+        
+        // Play option
+        menuItems.push({
+            text: '▶ Play',
+            action: () => this.playVideo(video),
+            disabled: false
+        });
+        
+        // Remove option
+        menuItems.push({
+            text: '🗑️ Remove',
+            action: () => this.removeVideo(video.id),
+            disabled: false
+        });
+        
+        // Add menu items to menu
+        menuItems.forEach(item => {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'menu-item';
+            menuItem.textContent = item.text;
+            menuItem.style.padding = '8px 12px';
+            menuItem.style.cursor = 'pointer';
+            menuItem.style.color = item.disabled ? 'var(--text-secondary)' : 'var(--text-primary)';
+            menuItem.style.fontSize = '0.9rem';
+            
+            if (!item.disabled) {
+                menuItem.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    item.action();
+                    menu.remove();
+                });
+                
+                menuItem.addEventListener('mouseenter', () => {
+                    menuItem.style.backgroundColor = 'var(--bg-tertiary)';
+                });
+                
+                menuItem.addEventListener('mouseleave', () => {
+                    menuItem.style.backgroundColor = '';
+                });
+            } else {
+                menuItem.style.cursor = 'not-allowed';
+            }
+            
+            menu.appendChild(menuItem);
+        });
+        
+        // Add menu to document
+        document.body.appendChild(menu);
+        
+        // Close menu when clicking outside
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        
+        // Use setTimeout to avoid immediate closing
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 10);
     }
 
     // Helper method to check if a URL is valid

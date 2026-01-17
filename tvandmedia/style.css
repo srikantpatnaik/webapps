@@ -375,6 +375,201 @@ header h1 {
     background-color: rgba(255, 0, 0, 0.9);
 }
 
+/* Header Controls */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Thumbnail Toggle */
+.thumbnail-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-tertiary);
+    transition: .4s;
+    border-radius: 20px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: var(--accent);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+
+.toggle-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+/* Text Thumbnails */
+.text-thumbnail {
+    width: 100%;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+/* Video Menu Button */
+.video-menu-btn {
+    position: absolute;
+    top: 5px;
+    right: 35px;
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: background-color 0.3s ease;
+}
+
+.video-menu-btn:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Video Context Menu */
+.video-context-menu {
+    position: absolute;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    z-index: 1000;
+    min-width: 150px;
+    padding: 5px 0;
+}
+
+.video-context-menu .menu-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.video-context-menu .menu-item:hover {
+    background-color: var(--bg-tertiary);
+}
+
+/* Compact layout for text thumbnails */
+.video-item.compact {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    gap: 10px;
+}
+
+.video-item.compact .text-thumbnail {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.video-item.compact .video-info {
+    flex-grow: 1;
+    padding: 0;
+}
+
+.video-item.compact .video-title {
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+
+.video-item.compact .video-meta {
+    font-size: 0.7rem;
+}
+
+.video-item.compact .video-menu-btn {
+    top: 50%;
+    right: 5px;
+    transform: translateY(-50%);
+}
+
+.video-item.compact .remove-btn {
+    top: 50%;
+    right: 35px;
+    transform: translateY(-50%);
+}
+
+/* Responsive adjustments for toggle */
+@media (max-width: 768px) {
+    .header-controls {
+        gap: 10px;
+    }
+    
+    .thumbnail-toggle {
+        font-size: 0.6rem;
+    }
+    
+    .toggle-label {
+        font-size: 0.6rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-title-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .header-controls {
+        justify-content: center;
+    }
+}
+
 .video-thumbnail {
     width: 100%;
     height: 200px;
