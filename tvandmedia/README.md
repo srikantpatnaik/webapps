@@ -35,6 +35,12 @@ A web-based video player application with a single input field for media files a
   - **M**: Mute/Unmute
   - **F**: Toggle fullscreen
   - **Esc**: Close video player
+- **Mobile Gesture Controls**:
+  - **Tap anywhere**: Play/Pause
+  - **Top 30% screen vertical swipe**: Speed control (up for faster, down for slower)
+  - **Middle 40% screen horizontal swipe**: Video navigation (left for next, right for previous)
+  - **Bottom 30% screen horizontal swipe**: Fast seek (left for backward 30s, right for forward 30s)
+  - **Native browser zoom/pan**: Use pinch-to-zoom and drag for panning
 - Progress bar with seek functionality
 - Volume control with slider
 - Playback speed control (0.25x to 2x)

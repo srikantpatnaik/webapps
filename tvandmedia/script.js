@@ -569,17 +569,28 @@ class VideoPlayerApp {
         }
 
         // Check for duplicate video by comparing file properties
-        const isDuplicate = this.videos.some(video =>
+        // Allow re-upload if video needs re-upload (file object was lost)
+        const existingVideoIndex = this.videos.findIndex(video =>
             video.originalFileName === file.name &&
             video.size === file.size &&
             video.timestamp &&
             new Date().getTime() - new Date(video.timestamp).getTime() < 60000 // Within 1 minute
         );
 
-        if (isDuplicate) {
-            alert('This video already exists in your collection.');
-            this.updateVideoInfoText();
-            return;
+        if (existingVideoIndex !== -1) {
+            const existingVideo = this.videos[existingVideoIndex];
+            
+            // If the video needs re-upload, replace it with the new file
+            if (existingVideo.type === 'local_file' && existingVideo.needsReUpload) {
+                // Remove the old entry that needs re-upload
+                this.videos.splice(existingVideoIndex, 1);
+                // Continue processing to add the new file
+            } else {
+                // Otherwise, it's a true duplicate
+                alert('This video already exists in your collection.');
+                this.updateVideoInfoText();
+                return;
+            }
         }
 
         // Create a temporary video element to get duration and thumbnail
@@ -756,17 +767,28 @@ class VideoPlayerApp {
         }
 
         // Check for duplicate audio by comparing file properties
-        const isDuplicate = this.videos.some(video =>
+        // Allow re-upload if audio needs re-upload (file object was lost)
+        const existingAudioIndex = this.videos.findIndex(video =>
             video.originalFileName === file.name &&
             video.size === file.size &&
             video.timestamp &&
             new Date().getTime() - new Date(video.timestamp).getTime() < 60000 // Within 1 minute
         );
 
-        if (isDuplicate) {
-            alert('This audio file already exists in your collection.');
-            this.updateVideoInfoText();
-            return;
+        if (existingAudioIndex !== -1) {
+            const existingAudio = this.videos[existingAudioIndex];
+            
+            // If the audio needs re-upload, replace it with the new file
+            if (existingAudio.type === 'local_file' && existingAudio.needsReUpload) {
+                // Remove the old entry that needs re-upload
+                this.videos.splice(existingAudioIndex, 1);
+                // Continue processing to add the new file
+            } else {
+                // Otherwise, it's a true duplicate
+                alert('This audio file already exists in your collection.');
+                this.updateVideoInfoText();
+                return;
+            }
         }
 
         // Create a temporary audio element to get duration
@@ -2238,12 +2260,12 @@ class VideoPlayerApp {
         }
     }
 
-    // Enable panning functionality
+    // Enable panning functionality (desktop only - mobile uses native zoom/pan)
     setupVideoPanning() {
         const container = this.videoPlayer.parentElement;
         const videoModal = this.videoModal;
 
-        // Mouse events for panning
+        // Mouse events for panning (desktop only)
         videoModal.addEventListener('mousedown', (e) => {
             // Only pan when video is zoomed in
             if (this.getZoomLevel() <= 1) return;
@@ -2275,32 +2297,8 @@ class VideoPlayerApp {
             videoModal.classList.remove('grabbing');
         });
 
-        // Touch events for mobile panning
-        videoModal.addEventListener('touchstart', (e) => {
-            if (this.getZoomLevel() <= 1) return;
-
-            if (e.touches.length === 1) {
-                this.isDragging = true;
-                this.dragStartX = e.touches[0].clientX - this.panX;
-                this.dragStartY = e.touches[0].clientY - this.panY;
-            }
-        });
-
-        document.addEventListener('touchmove', (e) => {
-            if (!this.isDragging) return;
-
-            this.panX = e.touches[0].clientX - this.dragStartX;
-            this.panY = e.touches[0].clientY - this.dragStartY;
-
-            const currentZoom = this.getZoomLevel();
-            container.style.transform = `scale(${currentZoom}) translate(${this.panX}px, ${this.panY}px)`;
-
-            e.preventDefault(); // Prevent scrolling on touch devices
-        });
-
-        document.addEventListener('touchend', () => {
-            this.isDragging = false;
-        });
+        // Mobile: No custom panning - use native browser zoom/pan
+        // Touch events are handled in setupMobileGestureControls for other gestures
     }
 
     // Helper to extract current zoom level
@@ -2596,17 +2594,36 @@ class VideoPlayerApp {
         const minSwipeDistance = 80; // Increased from 50 to 80 to avoid accidental swipes
         const screenHeight = window.innerHeight;
         const topZoneHeight = screenHeight * 0.3; // Top 30% for speed control
-        const bottomZoneHeight = screenHeight * 0.3; // Bottom 30% for zoom control
+        const bottomZoneHeight = screenHeight * 0.3; // Bottom 30% for fast seek
         const middleZoneHeight = screenHeight * 0.4; // Middle 40% for video navigation
 
+        // Add touch to pause/play anywhere on screen
         videoContainer.addEventListener('touchstart', (e) => {
+            // Store touch start position
             touchStartX = e.changedTouches[0].screenX;
             touchStartY = e.changedTouches[0].screenY;
+            
+            // Single tap to pause/play (check if it's a tap, not a swipe)
+            this.touchStartTime = Date.now();
         }, { passive: true });
 
         videoContainer.addEventListener('touchend', (e) => {
             touchEndX = e.changedTouches[0].screenX;
             touchEndY = e.changedTouches[0].screenY;
+            
+            // Check if it's a tap (not a swipe)
+            const deltaX = Math.abs(touchEndX - touchStartX);
+            const deltaY = Math.abs(touchEndY - touchStartY);
+            const touchDuration = Date.now() - this.touchStartTime;
+            
+            // If it's a short tap (less than 300ms) and small movement (less than 10px), treat as tap
+            if (touchDuration < 300 && deltaX < 10 && deltaY < 10) {
+                // Tap to pause/play
+                this.togglePlayPause();
+                return;
+            }
+            
+            // Otherwise handle swipe gestures
             this.handleSwipeGesture(touchStartY, topZoneHeight, middleZoneHeight, bottomZoneHeight);
         }, { passive: true });
 
@@ -2628,13 +2645,11 @@ class VideoPlayerApp {
                     // Swipe right -> previous video
                     if (this.videos.length > 1) {
                         this.playPrevVideo();
-                        // No message shown as requested
                     }
                 } else {
                     // Swipe left -> next video
                     if (this.videos.length > 1) {
                         this.playNextVideo();
-                        // No message shown as requested
                     }
                 }
             }
@@ -2644,24 +2659,19 @@ class VideoPlayerApp {
                 if (deltaY > 0) {
                     // Swipe down -> slow playback
                     this.decreaseSpeed();
-                    // No message shown as requested
                 } else {
                     // Swipe up -> fast playback
                     this.increaseSpeed();
-                    // No message shown as requested
                 }
             }
-            // Check if it's a vertical swipe (up/down) in bottom zone for zoom control
-            else if (isBottomZone && absDeltaY > absDeltaX && absDeltaY > minSwipeDistance * 1.5) {
-                // Require longer swipe for zoom control to avoid accidental inputs
-                if (deltaY > 0) {
-                    // Swipe down -> zoom out
-                    this.zoomOut();
-                    // No message shown as requested
+            // Check if it's a horizontal swipe (left/right) in bottom zone for fast seek
+            else if (isBottomZone && absDeltaX > absDeltaY && absDeltaX > minSwipeDistance) {
+                if (deltaX > 0) {
+                    // Swipe right -> seek forward 30 seconds
+                    this.videoPlayer.currentTime = Math.min(this.videoPlayer.duration, this.videoPlayer.currentTime + 30);
                 } else {
-                    // Swipe up -> zoom in
-                    this.toggleZoom();
-                    // No message shown as requested
+                    // Swipe left -> seek backward 30 seconds
+                    this.videoPlayer.currentTime = Math.max(0, this.videoPlayer.currentTime - 30);
                 }
             }
         };
@@ -3460,4 +3470,3 @@ class VideoPlayerApp {
 document.addEventListener('DOMContentLoaded', () => {
     const videoPlayerApp = new VideoPlayerApp();
 });
-
