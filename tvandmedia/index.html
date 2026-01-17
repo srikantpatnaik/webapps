@@ -101,10 +101,96 @@
                         </label>
                         <span class="toggle-label">Text Thumbnails</span>
                     </div>
+                    <button class="help-button" id="helpButton" title="Show keyboard shortcuts and help">ℹ️</button>
                 </div>
             </div>
             <div id="videoInfo" class="video-info-display" style="display: none;"></div>
         </header>
+        
+        <!-- Help Modal -->
+        <div class="help-modal" id="helpModal">
+            <div class="help-modal-content">
+                <div class="help-modal-header">
+                    <h2>Keyboard Shortcuts & Help</h2>
+                    <span class="help-close" id="helpClose">&times;</span>
+                </div>
+                <div class="help-modal-body">
+                    <div class="help-section">
+                        <h3>🎮 Video Player Controls</h3>
+                        <div class="shortcut-grid">
+                            <div><kbd>Space</kbd> Play/Pause</div>
+                            <div><kbd>→</kbd> Seek Forward 10s</div>
+                            <div><kbd>←</kbd> Seek Backward 10s</div>
+                            <div><kbd>↑</kbd> Volume Up 10%</div>
+                            <div><kbd>↓</kbd> Volume Down 10%</div>
+                            <div><kbd>+</kbd> Increase Speed</div>
+                            <div><kbd>-</kbd> Decrease Speed</div>
+                            <div><kbd>L</kbd> Loop Toggle</div>
+                            <div><kbd>z</kbd> Zoom In/Toggle</div>
+                            <div><kbd>Z</kbd> Zoom Out</div>
+                            <div><kbd>0</kbd> Reset Zoom</div>
+                            <div><kbd>N</kbd> Next Video</div>
+                            <div><kbd>B</kbd> Previous Video</div>
+                            <div><kbd>A</kbd> Global Loop</div>
+                            <div><kbd>O</kbd> Toggle Shortcuts</div>
+                            <div><kbd>M</kbd> Mute/Unmute</div>
+                            <div><kbd>F</kbd> Toggle Fullscreen</div>
+                            <div><kbd>Esc</kbd> Close Video</div>
+                        </div>
+                    </div>
+                    
+                    <div class="help-section">
+                        <h3>📱 Mobile Touch Gestures</h3>
+                        <div class="gesture-info">
+                            <div class="gesture-item">
+                                <div class="gesture-icon">↔️</div>
+                                <div class="gesture-text">
+                                    <strong>Middle 40% of screen:</strong><br>
+                                    Swipe left/right for next/previous video
+                                </div>
+                            </div>
+                            <div class="gesture-item">
+                                <div class="gesture-icon">↕️</div>
+                                <div class="gesture-text">
+                                    <strong>Top 30% of screen:</strong><br>
+                                    Swipe up/down for faster/slower playback
+                                </div>
+                            </div>
+                            <div class="gesture-item">
+                                <div class="gesture-icon">🔍</div>
+                                <div class="gesture-text">
+                                    <strong>Bottom 30% of screen:</strong><br>
+                                    Swipe up/down for zoom in/out
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="help-section">
+                        <h3>💡 How to Use</h3>
+                        <ul class="how-to-list">
+                            <li><strong>Add Videos:</strong> Enter URL or click Browse to upload files</li>
+                            <li><strong>Play Videos:</strong> Click on any thumbnail to play</li>
+                            <li><strong>Save Videos:</strong> Use 💾 icon to save to PC, 📥 to save to browser storage</li>
+                            <li><strong>M3U Playlists:</strong> Enter .m3u URL or upload .m3u file</li>
+                            <li><strong>Toggle Thumbnails:</strong> Use switch to toggle between image/text thumbnails</li>
+                            <li><strong>Clear Storage:</strong> Click total size display to clear all data</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="help-section">
+                        <h3>⚠️ Troubleshooting</h3>
+                        <ul class="troubleshooting-list">
+                            <li><strong>Video won't play:</strong> Try using a different format or check CORS settings</li>
+                            <li><strong>Can't save video:</strong> Some servers block downloads (CORS issue)</li>
+                            <li><strong>Thumbnails not loading:</strong> Try toggling to text thumbnails</li>
+                            <li><strong>Storage full:</strong> Clear storage or remove some videos</li>
+                            <li><strong>Local files:</strong> Use Browse button instead of file:// URLs</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <main>
             <section class="upload-section">

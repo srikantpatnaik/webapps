@@ -262,6 +262,9 @@ class VideoPlayerApp {
         this.loopBtn = document.getElementById('loopBtn');
         this.globalLoopBtn = document.getElementById('globalLoopBtn');
         this.thumbnailToggle = document.getElementById('thumbnailToggle');
+        this.helpButton = document.getElementById('helpButton');
+        this.helpModal = document.getElementById('helpModal');
+        this.helpClose = document.getElementById('helpClose');
         
         // Initialize history state management
         this.isModalOpen = false;
@@ -443,6 +446,36 @@ class VideoPlayerApp {
                 this.renderGallery();
             });
         }
+
+        // Handle help button
+        if (this.helpButton) {
+            this.helpButton.addEventListener('click', () => {
+                this.showHelpModal();
+            });
+        }
+
+        // Handle help modal close button
+        if (this.helpClose) {
+            this.helpClose.addEventListener('click', () => {
+                this.hideHelpModal();
+            });
+        }
+
+        // Close help modal when clicking outside
+        if (this.helpModal) {
+            this.helpModal.addEventListener('click', (e) => {
+                if (e.target === this.helpModal) {
+                    this.hideHelpModal();
+                }
+            });
+        }
+
+        // Close help modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.helpModal.style.display === 'block') {
+                this.hideHelpModal();
+            }
+        });
     }
 
     handleFiles(files) {
@@ -1275,16 +1308,49 @@ class VideoPlayerApp {
             videoItem.className = 'video-item';
             videoItem.dataset.id = video.id;
 
-            // Add 3-dots menu button for actions
-            const menuBtn = document.createElement('button');
-            menuBtn.className = 'video-menu-btn';
-            menuBtn.innerHTML = '⋮';
-            menuBtn.title = `Actions for ${video.name}`;
-            menuBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent triggering the video click event
-                this.showVideoMenu(e, video);
-            });
-            videoItem.appendChild(menuBtn);
+            // Add save button for videos that allow saving
+            if (video.allowSave && !video.isLiveTV) {
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'save-btn';
+                saveBtn.innerHTML = '💾';
+                saveBtn.title = `Save ${video.name} to PC`;
+                saveBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent triggering the video click event
+                    this.saveVideo(video);
+                });
+                videoItem.appendChild(saveBtn);
+            }
+
+            // Add save to storage button for videos that can be saved to storage
+            // For M3U streams, this will attempt to download and save the stream
+            if ((video.type === 'url' && video.allowSave) || 
+                video.type === 'local_file' || 
+                video.type === 'm3u' || 
+                video.type === 'local_m3u_path') {
+                
+                const saveToStorageBtn = document.createElement('button');
+                saveToStorageBtn.className = 'save-to-storage-btn';
+                saveToStorageBtn.innerHTML = '📥';
+                
+                // Set appropriate title based on video type
+                if (video.type === 'local_file') {
+                    if (video.needsReUpload) {
+                        saveToStorageBtn.title = `Re-upload ${video.name} to restore (was lost on reload)`;
+                    } else {
+                        saveToStorageBtn.title = `Save ${video.name} to storage (streamed)`;
+                    }
+                } else if (video.type === 'm3u' || video.type === 'local_m3u_path') {
+                    saveToStorageBtn.title = `Save ${video.name} to storage (M3U stream)`;
+                } else {
+                    saveToStorageBtn.title = `Save ${video.name} to storage`;
+                }
+                
+                saveToStorageBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent triggering the video click event
+                    this.saveVideoToStorage(video);
+                });
+                videoItem.appendChild(saveToStorageBtn);
+            }
 
             // Add remove button for all videos
             const removeBtn = document.createElement('button');
@@ -2527,7 +2593,11 @@ class VideoPlayerApp {
         let touchStartY = 0;
         let touchEndX = 0;
         let touchEndY = 0;
-        const minSwipeDistance = 50; // Minimum distance for a swipe gesture
+        const minSwipeDistance = 80; // Increased from 50 to 80 to avoid accidental swipes
+        const screenHeight = window.innerHeight;
+        const topZoneHeight = screenHeight * 0.3; // Top 30% for speed control
+        const bottomZoneHeight = screenHeight * 0.3; // Bottom 30% for zoom control
+        const middleZoneHeight = screenHeight * 0.4; // Middle 40% for video navigation
 
         videoContainer.addEventListener('touchstart', (e) => {
             touchStartX = e.changedTouches[0].screenX;
@@ -2537,42 +2607,61 @@ class VideoPlayerApp {
         videoContainer.addEventListener('touchend', (e) => {
             touchEndX = e.changedTouches[0].screenX;
             touchEndY = e.changedTouches[0].screenY;
-            this.handleSwipeGesture();
+            this.handleSwipeGesture(touchStartY, topZoneHeight, middleZoneHeight, bottomZoneHeight);
         }, { passive: true });
 
         // Handle swipe gesture
-        this.handleSwipeGesture = () => {
+        this.handleSwipeGesture = (startY, topZoneHeight, middleZoneHeight, bottomZoneHeight) => {
             const deltaX = touchEndX - touchStartX;
             const deltaY = touchEndY - touchStartY;
             const absDeltaX = Math.abs(deltaX);
             const absDeltaY = Math.abs(deltaY);
 
-            // Check if it's a horizontal swipe (left/right)
-            if (absDeltaX > absDeltaY && absDeltaX > minSwipeDistance) {
+            // Determine which zone the touch started in
+            const isTopZone = startY < topZoneHeight;
+            const isMiddleZone = startY >= topZoneHeight && startY < (topZoneHeight + middleZoneHeight);
+            const isBottomZone = startY >= (topZoneHeight + middleZoneHeight);
+
+            // Check if it's a horizontal swipe (left/right) in middle zone for video navigation
+            if (isMiddleZone && absDeltaX > absDeltaY && absDeltaX > minSwipeDistance) {
                 if (deltaX > 0) {
                     // Swipe right -> previous video
                     if (this.videos.length > 1) {
                         this.playPrevVideo();
-                        this.showMessage('← Previous video');
+                        // No message shown as requested
                     }
                 } else {
                     // Swipe left -> next video
                     if (this.videos.length > 1) {
                         this.playNextVideo();
-                        this.showMessage('Next video →');
+                        // No message shown as requested
                     }
                 }
             }
-            // Check if it's a vertical swipe (up/down)
-            else if (absDeltaY > absDeltaX && absDeltaY > minSwipeDistance) {
+            // Check if it's a vertical swipe (up/down) in top zone for speed control
+            else if (isTopZone && absDeltaY > absDeltaX && absDeltaY > minSwipeDistance * 1.5) {
+                // Require longer swipe for speed control to avoid accidental inputs
                 if (deltaY > 0) {
                     // Swipe down -> slow playback
                     this.decreaseSpeed();
-                    this.showMessage('Slower playback');
+                    // No message shown as requested
                 } else {
                     // Swipe up -> fast playback
                     this.increaseSpeed();
-                    this.showMessage('Faster playback');
+                    // No message shown as requested
+                }
+            }
+            // Check if it's a vertical swipe (up/down) in bottom zone for zoom control
+            else if (isBottomZone && absDeltaY > absDeltaX && absDeltaY > minSwipeDistance * 1.5) {
+                // Require longer swipe for zoom control to avoid accidental inputs
+                if (deltaY > 0) {
+                    // Swipe down -> zoom out
+                    this.zoomOut();
+                    // No message shown as requested
+                } else {
+                    // Swipe up -> zoom in
+                    this.toggleZoom();
+                    // No message shown as requested
                 }
             }
         };
@@ -2887,20 +2976,36 @@ class VideoPlayerApp {
                         reader.onload = (e) => {
                             const base64Data = e.target.result;
 
-                            // Create a new video object with the base64 data
-                            const newVideoData = {
-                                id: Date.now() + Math.random().toString(36).substr(2, 9),
-                                src: base64Data,
-                                name: video.name,
-                                size: blob.size,
-                                duration: video.duration,
-                                thumbnail: video.thumbnail,
-                                timestamp: new Date().toISOString(),
-                                allowSave: true // Stored videos can be saved
-                            };
+                            // For M3U streams, update the existing entry instead of creating a new one
+                            if (video.type === 'm3u' || video.type === 'local_m3u_path') {
+                                // Update the existing video entry
+                                const index = this.videos.findIndex(v => v.id === video.id);
+                                if (index !== -1) {
+                                    this.videos[index] = {
+                                        ...this.videos[index],
+                                        src: base64Data,
+                                        size: blob.size,
+                                        type: 'stored_video',
+                                        allowSave: true
+                                    };
+                                }
+                            } else {
+                                // For regular URL videos, create a new video object with the base64 data
+                                const newVideoData = {
+                                    id: Date.now() + Math.random().toString(36).substr(2, 9),
+                                    src: base64Data,
+                                    name: video.name,
+                                    size: blob.size,
+                                    duration: video.duration,
+                                    thumbnail: video.thumbnail,
+                                    timestamp: new Date().toISOString(),
+                                    allowSave: true // Stored videos can be saved
+                                };
 
-                            // Add to videos array
-                            this.videos.push(newVideoData);
+                                // Add to videos array
+                                this.videos.push(newVideoData);
+                            }
+
                             this.saveToStorage();
                             this.updateTotalSizeDisplay();
                             this.renderGallery();
@@ -3329,6 +3434,24 @@ class VideoPlayerApp {
         if (confirm(confirmationMessage)) {
             this.clearAllStorage();
             alert('All storage has been cleared successfully.');
+        }
+    }
+
+    // Show help modal
+    showHelpModal() {
+        if (this.helpModal) {
+            this.helpModal.style.display = 'block';
+            // Prevent scrolling on body when modal is open
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    // Hide help modal
+    hideHelpModal() {
+        if (this.helpModal) {
+            this.helpModal.style.display = 'none';
+            // Restore scrolling on body
+            document.body.style.overflow = '';
         }
     }
 }
