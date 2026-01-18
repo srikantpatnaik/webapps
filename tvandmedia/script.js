@@ -308,6 +308,13 @@ class VideoPlayerApp {
         this.resetZoom();
         // Clean up any blob URLs
         this.cleanupVideoResources();
+        // Ensure video player is visible when modal is closed
+        this.videoPlayer.style.display = 'block';
+        // Hide the image display if it exists
+        const imageElement = this.videoModal.querySelector('.image-display');
+        if (imageElement) {
+            imageElement.style.display = 'none';
+        }
         
         // If pushState is true, push a new state without modalOpen
         if (pushState) {
@@ -485,22 +492,24 @@ class VideoPlayerApp {
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            
+
             // Check if it's an M3U playlist file
             if (file.name && file.name.toLowerCase().endsWith('.m3u')) {
                 this.processM3UFile(file);
             }
-            // Check if it's a video or audio file
-            else if (file.type && (file.type.startsWith('video/') || file.type.startsWith('audio/'))) {
+            // Check if it's a video, audio, or image file
+            else if (file.type && (file.type.startsWith('video/') || file.type.startsWith('audio/') || file.type.startsWith('image/'))) {
                 if (file.type.startsWith('video/')) {
                     this.processVideoFile(file);
-                } else {
+                } else if (file.type.startsWith('audio/')) {
                     this.processAudioFile(file);
+                } else if (file.type.startsWith('image/')) {
+                    this.processImageFile(file);
                 }
             } else {
                 // Alert user that unsupported files were dropped/selected
                 const fileName = file.name || 'Unknown file';
-                alert(`Skipping unsupported file: ${fileName}. Only video, audio, and M3U playlist files are supported.`);
+                alert(`Skipping unsupported file: ${fileName}. Only video, audio, image, and M3U playlist files are supported.`);
             }
         }
     }
@@ -516,12 +525,17 @@ class VideoPlayerApp {
             if (input.toLowerCase().endsWith('.m3u')) {
                 this.loadM3UPlaylist(input);
             } else {
-                // Check if URL ends with popular audio/video formats
-                const videoFormats = ['.mp3', '.wav', '.mp4', '.mkv', '.webm', '.mov', '.avi', '.wmv', '.flv', '.m4v'];
-                const isVideoFormat = videoFormats.some(format => input.toLowerCase().endsWith(format));
+                // Check if URL ends with popular audio/video/image formats
+                const mediaFormats = ['.mp3', '.wav', '.mp4', '.mkv', '.webm', '.mov', '.avi', '.wmv', '.flv', '.m4v',
+                                     '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'];
+                const isMediaFormat = mediaFormats.some(format => input.toLowerCase().endsWith(format));
+                const isImageFormat = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'].some(format => input.toLowerCase().endsWith(format));
 
-                if (isVideoFormat) {
-                    // Handle as regular video URL and show save button
+                if (isImageFormat) {
+                    // Handle as image URL
+                    this.loadImageFromUrl(input);
+                } else if (isMediaFormat) {
+                    // Handle as regular video/audio URL and show save button
                     this.loadVideoFromUrl(input, true); // Pass true to indicate save should be available
                 } else {
                     // For other URLs, try to infer if it's a streaming endpoint
@@ -862,6 +876,149 @@ class VideoPlayerApp {
 
                 // Clean up the blob URL after timeout
                 URL.revokeObjectURL(audioBlobUrl);
+            }
+        }, 10000); // 10 second timeout
+    }
+
+    processImageFile(file, isLocalFile = false) {
+        // Show loading message
+        if (this.videoInfo) {
+            this.videoInfo.textContent = `Processing: ${file.name}...`;
+        }
+
+        // Check for duplicate image by comparing file properties
+        const existingImageIndex = this.videos.findIndex(video =>
+            video.originalFileName === file.name &&
+            video.size === file.size &&
+            video.timestamp &&
+            new Date().getTime() - new Date(video.timestamp).getTime() < 60000 // Within 1 minute
+        );
+
+        if (existingImageIndex !== -1) {
+            const existingImage = this.videos[existingImageIndex];
+
+            // If the image needs re-upload, replace it with the new file
+            if (existingImage.type === 'local_file' && existingImage.needsReUpload) {
+                // Remove the old entry that needs re-upload
+                this.videos.splice(existingImageIndex, 1);
+                // Continue processing to add the new file
+            } else {
+                // Otherwise, it's a true duplicate
+                alert('This image already exists in your collection.');
+                this.updateVideoInfoText();
+                return;
+            }
+        }
+
+        // Create an image object to get dimensions and generate thumbnail
+        const img = new Image();
+
+        // Create a blob URL for the file to enable loading
+        const imageBlobUrl = URL.createObjectURL(file);
+        img.src = imageBlobUrl;
+
+        img.onload = () => {
+            try {
+                // Generate thumbnail from the image
+                const canvas = document.createElement('canvas');
+                // Set fixed dimensions for thumbnails to avoid huge canvas sizes
+                // Use 320x240 as a standard thumbnail size
+                canvas.width = 320;
+                canvas.height = 240;
+                const ctx = canvas.getContext('2d');
+
+                // Calculate scaling to fit image into thumbnail while maintaining aspect ratio
+                const imageAspect = img.width / img.height;
+                const canvasAspect = canvas.width / canvas.height;
+
+                let renderWidth, renderHeight, offsetX, offsetY;
+
+                if (imageAspect > canvasAspect) {
+                    // Image is wider than canvas
+                    renderHeight = canvas.height;
+                    renderWidth = img.width * (canvas.height / img.height);
+                    offsetX = (canvas.width - renderWidth) / 2;
+                    offsetY = 0;
+                } else {
+                    // Image is taller than canvas
+                    renderWidth = canvas.width;
+                    renderHeight = img.height * (canvas.width / img.width);
+                    offsetX = 0;
+                    offsetY = (canvas.height - renderHeight) / 2;
+                }
+
+                // Draw the image scaled to fit the canvas
+                ctx.drawImage(img, offsetX, offsetY, renderWidth, renderHeight);
+
+                // Add a subtle border
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+                const thumbnail = canvas.toDataURL('image/jpeg', 0.8); // 80% quality for smaller file size
+
+                // Store the file object reference and other properties
+                const imageData = {
+                    id: Date.now() + Math.random().toString(36).substr(2, 9),
+                    file: file, // Store the original file object
+                    originalFileName: file.name, // Store the original file name for comparison
+                    name: file.name,
+                    size: file.size,
+                    width: img.width,
+                    height: img.height,
+                    duration: 0, // Images don't have duration
+                    thumbnail: thumbnail,
+                    timestamp: new Date().toISOString(),
+                    allowSave: true, // Local files can be saved to storage
+                    type: 'local_file', // Mark as local file
+                    isImage: true // Mark as image file for UI differentiation
+                };
+
+                this.videos.push(imageData);
+                this.saveToStorage();
+                this.updateTotalSizeDisplay();
+
+                // Instead of reloading the page, just refresh the gallery
+                this.renderGallery();
+
+                // Show success message
+                this.videoInfo.textContent = `Added: ${file.name} to your collection`;
+
+                // Reset the text after a few seconds
+                setTimeout(() => {
+                    this.updateVideoInfoText();
+                }, 3000);
+
+                // Clean up the blob URL after we're done
+                URL.revokeObjectURL(imageBlobUrl);
+            } catch (error) {
+                console.error('Error processing image:', error);
+                alert('Error processing image file.');
+                this.updateVideoInfoText();
+
+                // Clean up the blob URL after error
+                URL.revokeObjectURL(imageBlobUrl);
+            }
+        };
+
+        img.onerror = (event) => {
+            console.error('Error loading image:', event);
+            alert('Error processing image file. The file may be corrupted or incompatible.');
+            this.updateVideoInfoText();
+
+            // Clean up the blob URL after error
+            URL.revokeObjectURL(imageBlobUrl);
+        };
+
+        // Set a timeout to handle cases where image never loads
+        setTimeout(() => {
+            if (!img.complete) {
+                console.error('Timeout waiting for image to load');
+                alert('Image file took too long to load. May be corrupted or incompatible.');
+                this.updateVideoInfoText();
+
+                // Clean up the blob URL after timeout
+                URL.revokeObjectURL(imageBlobUrl);
             }
         }, 10000); // 10 second timeout
     }
@@ -1418,8 +1575,11 @@ class VideoPlayerApp {
                 } else if (video.isAudio) {
                     icon = '🎵';
                     bgColor = '#4a148c';
+                } else if (video.isImage) {
+                    icon = '🖼️';
+                    bgColor = '#4a148c';
                 }
-                
+
                 textThumbnail.style.backgroundColor = bgColor;
                 textThumbnail.style.color = 'white';
                 textThumbnail.style.display = 'flex';
@@ -1430,7 +1590,7 @@ class VideoPlayerApp {
                 textThumbnail.style.borderRadius = '4px';
                 textThumbnail.style.marginBottom = '8px';
                 textThumbnail.textContent = icon;
-                
+
                 videoItem.appendChild(textThumbnail);
             } else {
                 // Create image thumbnail (original behavior)
@@ -1454,13 +1614,37 @@ class VideoPlayerApp {
 
                 // For M3U streams, use the logo; for videos, use the thumbnail
                 let thumbnailUrl = video.thumbnail;
-                
+
+                // For image files, use the image as thumbnail if available
+                if (video.isImage && video.file) {
+                    // Create a blob URL for the image file to use as thumbnail
+                    thumbnailUrl = URL.createObjectURL(video.file);
+
+                    // Set up onload to revoke the URL after loading
+                    thumbnail.onload = () => {
+                        // Thumbnail loaded successfully
+                        thumbnail.style.backgroundColor = '';
+                        thumbnail.style.display = '';
+                        thumbnail.textContent = '';
+
+                        // Revoke the blob URL after loading to free memory
+                        URL.revokeObjectURL(thumbnailUrl);
+                    };
+
+                    // Set up onerror to handle loading errors
+                    thumbnail.onerror = () => {
+                        // Revoke the blob URL on error
+                        URL.revokeObjectURL(thumbnailUrl);
+                        this.showFallbackThumbnail(thumbnail, video);
+                    };
+                }
+
                 // Check if we should use a fallback immediately
-                const shouldUseFallback = !thumbnailUrl || 
-                                         thumbnailUrl.trim() === '' || 
+                const shouldUseFallback = !thumbnailUrl ||
+                                         thumbnailUrl.trim() === '' ||
                                          (video.isStream && !this.isValidUrl(thumbnailUrl));
-                
-                if (shouldUseFallback) {
+
+                if (shouldUseFallback && !video.isImage) {
                     // Show fallback immediately without trying to load
                     const fallbackContainer = this.showFallbackThumbnail(thumbnail, video);
                     if (fallbackContainer) {
@@ -1473,11 +1657,11 @@ class VideoPlayerApp {
                         // we still need to append the thumbnail to the videoItem
                         videoItem.appendChild(thumbnail);
                     }
-                } else {
-                    // Try to load the thumbnail
+                } else if (!video.isImage) {
+                    // Try to load the thumbnail for non-image files
                     thumbnail.src = thumbnailUrl;
                     videoItem.appendChild(thumbnail);
-                    
+
                     // Set a timeout to show fallback if image takes too long to load
                     setTimeout(() => {
                         if (!thumbnail.complete || thumbnail.naturalWidth === 0) {
@@ -1488,6 +1672,10 @@ class VideoPlayerApp {
                             }
                         }
                     }, 1000); // 1 second timeout
+                } else if (video.isImage) {
+                    // For image files, we've already set the thumbnail.src above
+                    thumbnail.src = thumbnailUrl;
+                    videoItem.appendChild(thumbnail);
                 }
             }
 
@@ -1505,6 +1693,22 @@ class VideoPlayerApp {
             if (video.isStream) {
                 const groupInfo = video.groupId || 'Live Stream';
                 meta.textContent = `📺 ${groupInfo}`;
+            } else if (video.isImage) {
+                // For images, show dimensions and size
+                const dimensions = `${video.width}x${video.height}`;
+                const size = this.formatFileSize(video.size);
+                meta.textContent = `${dimensions} • ${size}`;
+
+                // Indicate if the image is currently stored or streamed
+                if (video.type === 'local_file') {
+                    if (video.needsReUpload) {
+                        meta.textContent += ` • ⚠️ (needs re-upload)`;
+                    } else {
+                        meta.textContent += ` • 🖼️ (image)`;
+                    }
+                } else if (video.type === 'stored_video') {
+                    meta.textContent += ` • 💾 (stored)`;
+                }
             } else {
                 const duration = this.formatTime(video.duration);
                 const size = this.formatFileSize(video.size);
@@ -1546,10 +1750,45 @@ class VideoPlayerApp {
         }
 
         // Handle different video types
-        if (video.type === 'local_file' && video.file) {
+        if (video.isImage && video.type === 'local_file' && video.file) {
+            // For image files, create an image element and display it
+            const imageBlobUrl = URL.createObjectURL(video.file);
+
+            // Replace video player with an image element
+            this.videoPlayer.style.display = 'none';
+
+            // Create or reuse an image element
+            let imageElement = this.videoModal.querySelector('.image-display');
+            if (!imageElement) {
+                imageElement = document.createElement('img');
+                imageElement.className = 'image-display';
+                imageElement.style.maxWidth = '100%';
+                imageElement.style.maxHeight = 'calc(100% - 70px)'; // Account for control bar height
+                imageElement.style.objectFit = 'contain';
+                imageElement.style.position = 'absolute';
+                imageElement.style.top = '0';
+                imageElement.style.left = '0';
+                imageElement.style.display = 'block';
+
+                // Insert after the video player element
+                this.videoPlayer.insertAdjacentElement('afterend', imageElement);
+            }
+
+            imageElement.src = imageBlobUrl;
+            this.videoInfo.textContent = `Viewing: ${video.name} (${video.width}x${video.height})`;
+
+            // Store the URL to revoke later when closing modal
+            this.currentVideoBlobUrl = imageBlobUrl;
+        } else if (video.type === 'local_file' && video.file) {
             // For local files, create a blob URL from the stored file object
             const videoBlobUrl = URL.createObjectURL(video.file);
             this.videoPlayer.src = videoBlobUrl;
+            // Hide the image display if it exists
+            const imageElement = this.videoModal.querySelector('.image-display');
+            if (imageElement) {
+                imageElement.style.display = 'none';
+            }
+            this.videoPlayer.style.display = 'block';
             this.videoInfo.textContent = `Playing: ${video.name} ${video.duration ? '(' + this.formatTime(video.duration) + ')' : ''}`;
 
             // Store the URL to revoke later when video stops
@@ -1976,6 +2215,129 @@ class VideoPlayerApp {
         this.videoPlayer.load();
     }
 
+    // Load image from URL
+    loadImageFromUrl(url) {
+        try {
+            new URL(url);
+        } catch (e) {
+            alert('Invalid URL format');
+            return;
+        }
+
+        // Check if URL is for an image
+        if (!/\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(url)) {
+            alert('URL does not appear to be an image. This player supports common image formats (JPG, PNG, GIF, WebP, etc.).');
+            return;
+        }
+
+        // Create an image object for the gallery
+        const fileName = url.substring(url.lastIndexOf('/') + 1);
+        const imageData = {
+            id: `image_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            src: url,
+            name: fileName,
+            size: 0, // Size unknown for URL
+            width: 0, // Width unknown initially
+            height: 0, // Height unknown initially
+            duration: 0, // Images don't have duration
+            thumbnail: url, // Use the image URL as thumbnail
+            timestamp: new Date().toISOString(),
+            type: 'url',
+            allowSave: true, // Images can be saved
+            isImage: true // Mark as image
+        };
+
+        // Check if this URL is already in the collection
+        const isDuplicate = this.videos.some(video => video.src === url && video.type === 'url' && video.isImage);
+        if (isDuplicate) {
+            alert('This image URL is already in your collection.');
+            return;
+        }
+
+        // Add to videos array
+        this.videos.push(imageData);
+        this.saveToStorage();
+        this.updateTotalSizeDisplay();
+        this.renderGallery();
+
+        // Set up error handler that suggests CORS proxy
+        let attemptedWithProxy = false;
+
+        // Create or reuse an image element
+        let imageElement = this.videoModal.querySelector('.image-display');
+        if (!imageElement) {
+            imageElement = document.createElement('img');
+            imageElement.className = 'image-display';
+            imageElement.style.maxWidth = '100%';
+            imageElement.style.maxHeight = 'calc(100% - 70px)'; // Account for control bar height
+            imageElement.style.objectFit = 'contain';
+            imageElement.style.position = 'absolute';
+            imageElement.style.top = '0';
+            imageElement.style.left = '0';
+            imageElement.style.display = 'block';
+
+            // Insert after the video player element
+            this.videoPlayer.insertAdjacentElement('afterend', imageElement);
+        }
+
+        // Hide the video player and show the image
+        this.videoPlayer.style.display = 'none';
+        imageElement.style.display = 'block';
+
+        imageElement.onerror = (e) => {
+            console.error('Image loading error:', e);
+
+            // Helper function to check if URL is a local address
+            const isLocalAddress = (url) => {
+                try {
+                    const urlObj = new URL(url);
+                    const hostname = urlObj.hostname;
+                    return hostname === 'localhost' ||
+                           hostname === '127.0.0.1' ||
+                           hostname === '0.0.0.0' ||
+                           hostname === '::1' ||
+                           hostname.startsWith('192.168.') ||
+                           hostname.startsWith('10.') ||
+                           hostname.startsWith('172.') ||
+                           hostname.endsWith('.local');
+                } catch {
+                    return false;
+                }
+            };
+
+            if (!attemptedWithProxy && !url.startsWith('https://cors-anywhere.herokuapp.com/') && !isLocalAddress(url)) {
+                // Try with CORS proxy (but not for local addresses)
+                attemptedWithProxy = true;
+                const corsProxyUrl = `https://cors-anywhere.herokuapp.com/${url}`;
+                console.log('Trying with CORS proxy:', corsProxyUrl);
+                imageElement.src = corsProxyUrl;
+            } else if (isLocalAddress(url)) {
+                // For local addresses, provide specific error message
+                alert(`Failed to load image from local address: ${url}\n\n` +
+                      `Local addresses (localhost, 127.0.0.1, 0.0.0.0) cannot use CORS proxy.\n` +
+                      `Make sure the local server is running and accessible directly.`);
+            } else {
+                // Already tried with proxy or proxy was already in use
+                const CORS_MESSAGE = `Failed to load image from URL. This is likely a CORS issue.\n\nIf the image is still not loading:\n1. The server may not allow external access\n2. The CORS proxy service may be down\n3. The URL may be incorrect or inaccessible`;
+                alert(CORS_MESSAGE);
+            }
+        };
+
+        imageElement.onload = () => {
+            // Successfully loaded, update image data with dimensions
+            imageData.width = imageElement.naturalWidth;
+            imageData.height = imageElement.naturalHeight;
+
+            // Update the video info with dimensions
+            this.videoInfo.textContent = `Viewing: ${fileName} (${imageData.width}x${imageData.height})`;
+
+            this.videoModal.style.display = 'block';
+        };
+
+        // Set the image source directly
+        imageElement.src = url;
+    }
+
     // Generate thumbnail from a video URL
     generateThumbnailFromUrl(videoData) {
         const tempVideo = document.createElement('video');
@@ -2257,6 +2619,12 @@ class VideoPlayerApp {
         if (this.currentVideoBlobUrl) {
             URL.revokeObjectURL(this.currentVideoBlobUrl);
             this.currentVideoBlobUrl = null;
+        }
+
+        // Hide the image display if it exists
+        const imageElement = this.videoModal.querySelector('.image-display');
+        if (imageElement) {
+            imageElement.style.display = 'none';
         }
     }
 
@@ -2597,32 +2965,47 @@ class VideoPlayerApp {
         const bottomZoneHeight = screenHeight * 0.3; // Bottom 30% for fast seek
         const middleZoneHeight = screenHeight * 0.4; // Middle 40% for video navigation
 
+        // Double-tap detection variables
+        let lastTapTime = 0;
+        const doubleTapDelay = 300; // ms
+
         // Add touch to pause/play anywhere on screen
         videoContainer.addEventListener('touchstart', (e) => {
             // Store touch start position
             touchStartX = e.changedTouches[0].screenX;
             touchStartY = e.changedTouches[0].screenY;
-            
+
             // Single tap to pause/play (check if it's a tap, not a swipe)
             this.touchStartTime = Date.now();
         }, { passive: true });
 
         videoContainer.addEventListener('touchend', (e) => {
+            const currentTime = Date.now();
+            const tapLength = currentTime - lastTapTime;
+
             touchEndX = e.changedTouches[0].screenX;
             touchEndY = e.changedTouches[0].screenY;
-            
+
             // Check if it's a tap (not a swipe)
             const deltaX = Math.abs(touchEndX - touchStartX);
             const deltaY = Math.abs(touchEndY - touchStartY);
             const touchDuration = Date.now() - this.touchStartTime;
-            
+
             // If it's a short tap (less than 300ms) and small movement (less than 10px), treat as tap
             if (touchDuration < 300 && deltaX < 10 && deltaY < 10) {
-                // Tap to pause/play
-                this.togglePlayPause();
+                // Check for double tap
+                if (tapLength < doubleTapDelay && tapLength > 0) {
+                    // Double tap detected - toggle fullscreen
+                    this.toggleFullscreen();
+                } else {
+                    // Single tap - pause/play
+                    this.togglePlayPause();
+                }
+
+                lastTapTime = currentTime;
                 return;
             }
-            
+
             // Otherwise handle swipe gestures
             this.handleSwipeGesture(touchStartY, topZoneHeight, middleZoneHeight, bottomZoneHeight);
         }, { passive: true });
@@ -2675,6 +3058,90 @@ class VideoPlayerApp {
                 }
             }
         };
+
+        // Pinch to zoom and two-finger drag panning functionality
+        let initialDistance = null;
+        let initialZoom = 1;
+        let initialCenterX = 0;
+        let initialCenterY = 0;
+        let initialPanX = 0;
+        let initialPanY = 0;
+
+        videoContainer.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                e.preventDefault(); // Prevent default browser behavior
+
+                // Calculate initial distance between touches
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                initialDistance = Math.sqrt(
+                    Math.pow(touch2.clientX - touch1.clientX, 2) +
+                    Math.pow(touch2.clientY - touch1.clientY, 2)
+                );
+
+                // Calculate initial center point
+                initialCenterX = (touch1.clientX + touch2.clientX) / 2;
+                initialCenterY = (touch1.clientY + touch2.clientY) / 2;
+
+                // Get current zoom level and panning values
+                initialZoom = this.getZoomLevel();
+                initialPanX = this.panX || 0;
+                initialPanY = this.panY || 0;
+            }
+        }, { passive: false });
+
+        videoContainer.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && initialDistance !== null) {
+                e.preventDefault(); // Prevent default browser zoom behavior
+
+                // Calculate current distance between touches
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const currentDistance = Math.sqrt(
+                    Math.pow(touch2.clientX - touch1.clientX, 2) +
+                    Math.pow(touch2.clientY - touch1.clientY, 2)
+                );
+
+                // Calculate current center point
+                const currentCenterX = (touch1.clientX + touch2.clientX) / 2;
+                const currentCenterY = (touch1.clientY + touch2.clientY) / 2;
+
+                // Calculate zoom factor based on distance change
+                const scale = currentDistance / initialDistance;
+                let newZoom = initialZoom * scale;
+
+                // Calculate panning offset based on center movement
+                const panOffsetX = (currentCenterX - initialCenterX);
+                const panOffsetY = (currentCenterY - initialCenterY);
+
+                // Limit zoom range
+                newZoom = Math.max(0.5, Math.min(3, newZoom));
+
+                // Calculate new pan positions
+                let newPanX = initialPanX + panOffsetX;
+                let newPanY = initialPanY + panOffsetY;
+
+                // Apply zoom with center origin and panning
+                const container = this.videoPlayer.parentElement;
+                container.style.transform = `scale(${newZoom}) translate(${newPanX}px, ${newPanY}px)`;
+                container.style.transformOrigin = 'center center';
+
+                // Update panning values for continued movement
+                this.panX = newPanX;
+                this.panY = newPanY;
+
+                this.updateZoomIndicator(newZoom);
+            }
+        }, { passive: false });
+
+        videoContainer.addEventListener('touchend', () => {
+            // Reset initial values when touch ends
+            if (initialDistance !== null) {
+                initialDistance = null;
+                initialCenterX = 0;
+                initialCenterY = 0;
+            }
+        });
     }
 
     // Method to load and parse M3U playlist
@@ -2892,11 +3359,12 @@ class VideoPlayerApp {
                     src: base64Data, // Replace file with base64 data
                     name: video.name,
                     size: video.size,
-                    duration: video.duration,
+                    duration: video.isImage ? 0 : video.duration, // Images don't have duration
                     thumbnail: video.thumbnail,
                     timestamp: new Date().toISOString(),
                     allowSave: true, // Stored videos can be saved
-                    type: 'stored_video' // Mark as stored video
+                    type: 'stored_video', // Mark as stored video
+                    isImage: video.isImage // Preserve image flag
                 };
 
                 // Replace the existing video entry
@@ -3000,16 +3468,17 @@ class VideoPlayerApp {
                                     };
                                 }
                             } else {
-                                // For regular URL videos, create a new video object with the base64 data
+                                // For regular URL videos/images, create a new video object with the base64 data
                                 const newVideoData = {
                                     id: Date.now() + Math.random().toString(36).substr(2, 9),
                                     src: base64Data,
                                     name: video.name,
                                     size: blob.size,
-                                    duration: video.duration,
+                                    duration: video.isImage ? 0 : video.duration, // Images don't have duration
                                     thumbnail: video.thumbnail,
                                     timestamp: new Date().toISOString(),
-                                    allowSave: true // Stored videos can be saved
+                                    allowSave: true, // Stored videos can be saved
+                                    isImage: video.isImage // Preserve image flag
                                 };
 
                                 // Add to videos array
@@ -3096,16 +3565,24 @@ class VideoPlayerApp {
                     return;
                 } else if (video.type === 'local_file' && video.file) {
                     // For local files with file object, create blob URL
-                    const videoBlobUrl = URL.createObjectURL(video.file);
+                    let fileBlobUrl;
+                    if (video.isImage) {
+                        // For image files
+                        fileBlobUrl = URL.createObjectURL(video.file);
+                    } else {
+                        // For video files
+                        fileBlobUrl = URL.createObjectURL(video.file);
+                    }
+
                     const a = document.createElement('a');
-                    a.href = videoBlobUrl;
+                    a.href = fileBlobUrl;
                     a.download = video.name;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
 
                     // Clean up the blob URL
-                    URL.revokeObjectURL(videoBlobUrl);
+                    URL.revokeObjectURL(fileBlobUrl);
                     return;
                 } else {
                     alert(`Cannot save "${video.name}" - no source available`);
@@ -3116,7 +3593,7 @@ class VideoPlayerApp {
             // For local files or videos loaded from URL
             let sourceUrl = video.src;
 
-            // For videos stored as base64, create a Blob URL
+            // For videos/images stored as base64, create a Blob URL
             if (video.src.startsWith('data:')) {
                 // Extract MIME type and data
                 const parts = video.src.split(';base64,');
@@ -3247,6 +3724,12 @@ class VideoPlayerApp {
             container.style.fontSize = '2rem';
             container.style.color = 'white';
             container.style.fontWeight = 'bold';
+        } else if (video.isImage) {
+            // For images
+            container.style.backgroundColor = '#4a148c';
+            container.textContent = '🖼️';
+            container.style.fontSize = '2rem';
+            container.style.color = 'white';
         } else {
             // For non-stream videos
             container.style.backgroundColor = '#333';

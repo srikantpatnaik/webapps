@@ -116,7 +116,7 @@
                 </div>
                 <div class="help-modal-body">
                     <div class="help-section">
-                        <h3>🎮 Video Player Controls</h3>
+                        <h3>🎮 Media Player Controls</h3>
                         <div class="shortcut-grid">
                             <div><kbd>Space</kbd> Play/Pause</div>
                             <div><kbd>→</kbd> Seek Forward 10s</div>
@@ -129,13 +129,13 @@
                             <div><kbd>z</kbd> Zoom In/Toggle</div>
                             <div><kbd>Z</kbd> Zoom Out</div>
                             <div><kbd>0</kbd> Reset Zoom</div>
-                            <div><kbd>N</kbd> Next Video</div>
-                            <div><kbd>B</kbd> Previous Video</div>
+                            <div><kbd>N</kbd> Next Media</div>
+                            <div><kbd>B</kbd> Previous Media</div>
                             <div><kbd>A</kbd> Global Loop</div>
                             <div><kbd>O</kbd> Toggle Shortcuts</div>
                             <div><kbd>M</kbd> Mute/Unmute</div>
                             <div><kbd>F</kbd> Toggle Fullscreen</div>
-                            <div><kbd>Esc</kbd> Close Video</div>
+                            <div><kbd>Esc</kbd> Close Media</div>
                         </div>
                     </div>
                     
@@ -177,15 +177,43 @@
                                     Use native browser pinch-to-zoom and drag for panning
                                 </div>
                             </div>
+                            <div class="gesture-item">
+                                <div class="gesture-icon">👆👆</div>
+                                <div class="gesture-text">
+                                    <strong>Double Tap:</strong><br>
+                                    Toggle fullscreen mode
+                                </div>
+                            </div>
+                            <div class="gesture-item">
+                                <div class="gesture-icon">🤏</div>
+                                <div class="gesture-text">
+                                    <strong>Pinch to Zoom:</strong><br>
+                                    Pinch with two fingers to zoom in/out
+                                </div>
+                            </div>
+                            <div class="gesture-item">
+                                <div class="gesture-icon">👋👋</div>
+                                <div class="gesture-text">
+                                    <strong>Two-Finger Drag:</strong><br>
+                                    Hold and drag with two fingers to pan when zoomed
+                                </div>
+                            </div>
+                            <div class="gesture-item">
+                                <div class="gesture-icon">🔙</div>
+                                <div class="gesture-text">
+                                    <strong>Back Navigation:</strong><br>
+                                    Use phone back button or Alt+Left Arrow to exit player
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
                     <div class="help-section">
                         <h3>💡 How to Use</h3>
                         <ul class="how-to-list">
-                            <li><strong>Add Videos:</strong> Enter URL or click Browse to upload files</li>
-                            <li><strong>Play Videos:</strong> Click on any thumbnail to play</li>
-                            <li><strong>Save Videos:</strong> Use 💾 icon to save to PC, 📥 to save to browser storage</li>
+                            <li><strong>Add Media:</strong> Enter URL or click Browse to upload files (supports video, audio, and images)</li>
+                            <li><strong>Play Media:</strong> Click on any thumbnail to play/view</li>
+                            <li><strong>Save Media:</strong> Use 💾 icon to save to PC, 📥 to save to browser storage</li>
                             <li><strong>M3U Playlists:</strong> Enter .m3u URL or upload .m3u file</li>
                             <li><strong>Toggle Thumbnails:</strong> Use switch to toggle between image/text thumbnails</li>
                             <li><strong>Clear Storage:</strong> Click total size display to clear all data</li>
@@ -213,7 +241,7 @@
                         <div class="input-row">
                             <input type="text" id="mediaInput" placeholder="https://example.com/video.mp4 OR https://example.com/playlist.m3u">
                             <button id="loadMediaBtn">Get</button>
-                            <input type="file" id="fileInput" accept="video/*,audio/*,.m3u" multiple style="display: none;">
+                            <input type="file" id="fileInput" accept="video/*,audio/*,image/*,.m3u" multiple style="display: none;">
                             <label for="fileInput" class="file-input-button">Browse</label>
                         </div>
                     </div>
