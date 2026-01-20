@@ -11,20 +11,30 @@ class VideoPlayerApp {
         this.playlistUrls = []; // Track loaded playlist URLs
         this.useTextThumbnails = false; // Default to image thumbnails
         this.currentFilter = 'all'; // Default filter
+        this.isLocked = false; // Track if media gallery is locked
+        this.passkey = null; // Store the passkey
         this.initElements();
         this.initFilterControls(); // Initialize filter controls
         this.bindEvents();
+        this.initLockOverlay();
         this.initializeVideoPlayer();
         this.initializeVideoPlayerControls();
         this.initializeLoopState();
-        // Render the gallery immediately to show the loading state
+
+        // Load lock state early in the initialization process
+        this.loadLockState();
+
+        // Update the lock button to reflect the current state after initialization
+        this.updateLockButton();
+
+        // Render the gallery immediately to show the loading state (considering lock state)
         this.renderGallery();
 
         // Load videos asynchronously after initialization
         this.loadStoredVideos()
             .then(() => {
                 this.isLoadingVideos = false;
-                // After loading videos, re-render the gallery
+                // After loading videos, re-render the gallery (lock state already loaded)
                 this.renderGallery();
 
                 // Force a small layout update to ensure visibility
@@ -65,6 +75,31 @@ class VideoPlayerApp {
 
         // Load playlist URLs as well
         this.loadPlaylistUrls();
+    }
+
+    // Load lock state and passkey
+    loadLockState() {
+        try {
+            const locked = localStorage.getItem('galleryLocked');
+            if (locked !== null) {
+                this.isLocked = locked === 'true';
+            }
+
+            const passkey = localStorage.getItem('galleryPasskey');
+            if (passkey) {
+                this.passkey = passkey;
+            }
+
+            // Update the lock button to reflect the current state
+            this.updateLockButton();
+
+            // Update the gallery to reflect the lock state
+            if (this.videoGallery) {
+                this.renderGallery();
+            }
+        } catch (e) {
+            console.error('Error loading lock state:', e);
+        }
     }
 
     initializeVideoPlayer() {
@@ -265,12 +300,42 @@ class VideoPlayerApp {
         this.globalLoopBtn = document.getElementById('globalLoopBtn');
         this.thumbnailToggle = document.getElementById('thumbnailToggle');
         this.helpButton = document.getElementById('helpButton');
+        this.lockButton = document.getElementById('lockButton');
         this.helpModal = document.getElementById('helpModal');
         this.helpClose = document.getElementById('helpClose');
-        
+
         // Initialize history state management
         this.isModalOpen = false;
         this.setupHistoryStateManagement();
+    }
+
+    initLockOverlay() {
+        this.lockOverlay = document.getElementById('lockOverlay');
+        this.unlockPasskeyInput = document.getElementById('unlockPasskeyInput');
+        this.unlockSubmitBtn = document.getElementById('unlockSubmitBtn');
+        this.cancelUnlockBtn = document.getElementById('cancelUnlockBtn');
+        this.unlockErrorMessage = document.getElementById('unlockErrorMessage');
+
+        // Bind events for the lock overlay
+        if (this.unlockSubmitBtn) {
+            this.unlockSubmitBtn.addEventListener('click', () => {
+                this.submitUnlock();
+            });
+        }
+
+        if (this.cancelUnlockBtn) {
+            this.cancelUnlockBtn.addEventListener('click', () => {
+                this.cancelUnlock();
+            });
+        }
+
+        if (this.unlockPasskeyInput) {
+            this.unlockPasskeyInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.submitUnlock();
+                }
+            });
+        }
     }
 
     setupHistoryStateManagement() {
@@ -327,6 +392,10 @@ class VideoPlayerApp {
     bindEvents() {
         // Load media from single input field
         this.loadMediaBtn.addEventListener('click', () => {
+            if (this.isLocked) {
+                // Don't show alert since the interface is already disabled
+                return;
+            }
             const input = this.mediaInput.value.trim();
             if (input) {
                 this.handleMediaInput(input);
@@ -338,12 +407,19 @@ class VideoPlayerApp {
         // Allow pressing Enter in the media input
         this.mediaInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                this.loadMediaBtn.click();
+                if (!this.isLocked) {
+                    this.loadMediaBtn.click();
+                }
+                // Don't show alert since the interface is already disabled
             }
         });
 
         // Handle file input changes
         this.fileInput.addEventListener('change', (e) => {
+            if (this.isLocked) {
+                // Don't show alert since the interface is already disabled
+                return;
+            }
             if (e.target.files && e.target.files.length > 0) {
                 this.handleFiles(e.target.files);
             }
@@ -436,7 +512,9 @@ class VideoPlayerApp {
             totalSizeDisplay.style.cursor = 'pointer';
             totalSizeDisplay.title = 'Click to clear all storage (IndexedDB and local files)';
             totalSizeDisplay.addEventListener('click', () => {
-                this.clearAllStorageWithConfirmation();
+                if (!this.isLocked) {
+                    this.clearAllStorageWithConfirmation();
+                }
             });
         }
 
@@ -450,16 +528,20 @@ class VideoPlayerApp {
             }
 
             this.thumbnailToggle.addEventListener('change', (e) => {
-                this.useTextThumbnails = e.target.checked;
-                localStorage.setItem('useTextThumbnails', this.useTextThumbnails);
-                this.renderGallery();
+                if (!this.isLocked) {
+                    this.useTextThumbnails = e.target.checked;
+                    localStorage.setItem('useTextThumbnails', this.useTextThumbnails);
+                    this.renderGallery();
+                }
             });
         }
 
         // Handle help button
         if (this.helpButton) {
             this.helpButton.addEventListener('click', () => {
-                this.showHelpModal();
+                if (!this.isLocked) {
+                    this.showHelpModal();
+                }
             });
         }
 
@@ -467,6 +549,13 @@ class VideoPlayerApp {
         if (this.helpClose) {
             this.helpClose.addEventListener('click', () => {
                 this.hideHelpModal();
+            });
+        }
+
+        // Handle lock button
+        if (this.lockButton) {
+            this.lockButton.addEventListener('click', () => {
+                this.toggleLock();
             });
         }
 
@@ -488,6 +577,11 @@ class VideoPlayerApp {
 
         // Handle paste event on media input to allow pasting images from clipboard
         this.mediaInput.addEventListener('paste', (e) => {
+            if (this.isLocked) {
+                // Don't show alert since the interface is already disabled
+                e.preventDefault();
+                return;
+            }
             this.handlePasteEvent(e);
         });
     }
@@ -1300,12 +1394,19 @@ class VideoPlayerApp {
 
         // Clear localStorage
         localStorage.removeItem('storedVideos');
+        localStorage.removeItem('galleryLocked');
+        localStorage.removeItem('galleryPasskey');
 
         // Empty current videos array
         this.videos = [];
 
         // Clear playlist URLs as well
         this.playlistUrls = [];
+
+        // Reset lock state
+        this.isLocked = false;
+        this.passkey = null;
+        this.updateLockButton();
 
         // Refresh gallery display
         this.renderGallery();
@@ -1324,12 +1425,27 @@ class VideoPlayerApp {
         // Save playlist URLs separately
         this.savePlaylistUrls();
 
+        // Save lock state and passkey
+        this.saveLockState();
+
         // Try to save using the available storage option
         this.saveToIndexedDB()
             .catch(() => {
                 // Fallback to localStorage if IndexedDB fails
                 this.saveToLocalStorageAsFallback();
             });
+    }
+
+    // Save lock state and passkey
+    saveLockState() {
+        try {
+            localStorage.setItem('galleryLocked', this.isLocked.toString());
+            if (this.passkey) {
+                localStorage.setItem('galleryPasskey', this.passkey);
+            }
+        } catch (e) {
+            console.error('Error saving lock state:', e);
+        }
     }
 
     // Save playlist URLs separately
@@ -1690,6 +1806,13 @@ class VideoPlayerApp {
     renderGallery() {
         // Clear the gallery first
         this.videoGallery.innerHTML = '';
+
+        // If gallery is locked, show empty gallery without advertising it's locked
+        if (this.isLocked) {
+            // Show empty gallery message without indicating it's locked
+            this.videoGallery.innerHTML = '<p class="no-videos">No videos to display. Upload some videos to get started.</p>';
+            return;
+        }
 
         // Get filtered videos based on current filter
         const filteredVideos = this.getFilteredVideos();
@@ -4053,6 +4176,7 @@ class VideoPlayerApp {
                                         src: base64Data,
                                         size: blob.size,
                                         type: 'stored_video',
+                                        isStream: undefined, // Remove stream property since it's now stored
                                         allowSave: true
                                     };
                                 }
@@ -4223,12 +4347,15 @@ class VideoPlayerApp {
 
         const playlistUrl = this.playlistUrls[index];
 
-        if (!confirm(`Are you sure you want to remove the playlist: ${playlistUrl}? This will remove all associated videos.`)) {
+        if (!confirm(`Are you sure you want to remove the playlist: ${playlistUrl}? This will remove all associated videos that haven't been saved to storage.`)) {
             return;
         }
 
-        // Remove all videos associated with this playlist URL
-        this.videos = this.videos.filter(video => video.playlistUrl !== playlistUrl);
+        // Remove all videos associated with this playlist URL, except those that have been saved to storage
+        this.videos = this.videos.filter(video =>
+            video.playlistUrl !== playlistUrl ||  // Keep videos not from this playlist
+            video.type === 'stored_video'        // Keep videos from this playlist that were saved to storage
+        );
 
         // Remove the playlist URL from the list
         this.playlistUrls.splice(index, 1);
@@ -4249,8 +4376,11 @@ class VideoPlayerApp {
 
     // Method to clear only M3U playlist items (to allow removal of all streams)
     clearM3UStreams() {
-        // Filter out only the M3U playlist items
-        this.videos = this.videos.filter(video => !video.isStream);
+        // Filter out only the M3U playlist items that haven't been saved to storage
+        this.videos = this.videos.filter(video =>
+            !video.isStream ||  // Keep videos that are not streams
+            video.type === 'stored_video'  // Keep videos that were saved to storage
+        );
 
         // Clear all playlist URLs as well
         this.playlistUrls = [];
@@ -4534,6 +4664,216 @@ class VideoPlayerApp {
             this.helpModal.style.display = 'none';
             // Restore scrolling on body
             document.body.style.overflow = '';
+        }
+    }
+
+    // Toggle lock/unlock functionality
+    async toggleLock() {
+        if (this.isLocked) {
+            // Show the unlock overlay
+            this.showUnlockOverlay();
+        } else {
+            // Lock the gallery
+            if (this.passkey === null) {
+                // First time setting passkey
+                const newPasskey = prompt('Set a passkey to lock the gallery:');
+
+                if (newPasskey && newPasskey.trim() !== '') {
+                    this.passkey = newPasskey.trim();
+                    this.lockGallery();
+                }
+            } else {
+                // Ask for confirmation to lock
+                const confirmLock = confirm('Are you sure you want to lock the media gallery?');
+
+                if (confirmLock) {
+                    this.lockGallery();
+                }
+            }
+        }
+    }
+
+    // Lock the gallery and make the entire app unusable
+    lockGallery() {
+        this.isLocked = true;
+        this.saveLockState(); // Save the locked state
+        this.updateLockButton();
+        this.renderGallery(); // Re-render to hide media
+        this.showMessage('Gallery locked');
+        this.showLockOverlay(); // Show the lock overlay
+    }
+
+    // Show the lock overlay to make the entire app unusable
+    showLockOverlay() {
+        if (this.lockOverlay) {
+            this.lockOverlay.classList.remove('hidden');
+
+            // Disable all inputs and buttons in the main interface
+            this.disableMainInterface();
+        }
+    }
+
+    // Show the unlock overlay
+    showUnlockOverlay() {
+        if (this.lockOverlay) {
+            this.lockOverlay.classList.remove('hidden');
+
+            // Clear any previous error messages
+            this.clearUnlockErrorMessage();
+
+            // Focus the password input
+            if (this.unlockPasskeyInput) {
+                this.unlockPasskeyInput.focus();
+                this.unlockPasskeyInput.select();
+            }
+
+            // Disable main interface
+            this.disableMainInterface();
+        }
+    }
+
+    // Submit the unlock passkey
+    submitUnlock() {
+        const enteredPasskey = this.unlockPasskeyInput.value.trim();
+
+        if (enteredPasskey === this.passkey) {
+            this.unlockGallery();
+        } else {
+            this.showUnlockErrorMessage('Incorrect passkey!');
+            this.unlockPasskeyInput.value = '';
+            this.unlockPasskeyInput.focus();
+        }
+    }
+
+    // Cancel the unlock process
+    cancelUnlock() {
+        this.lockOverlay.classList.add('hidden');
+        this.clearUnlockErrorMessage();
+        this.unlockPasskeyInput.value = '';
+
+        // Re-enable main interface if not locked
+        if (!this.isLocked) {
+            this.enableMainInterface();
+        }
+    }
+
+    // Unlock the gallery
+    unlockGallery() {
+        this.isLocked = false;
+        this.saveLockState(); // Save the unlocked state
+        this.updateLockButton();
+        this.renderGallery(); // Re-render to show media
+        this.showMessage('Gallery unlocked');
+        this.hideLockOverlay(); // Hide the lock overlay
+    }
+
+    // Hide the lock overlay
+    hideLockOverlay() {
+        if (this.lockOverlay) {
+            this.lockOverlay.classList.add('hidden');
+            this.clearUnlockErrorMessage();
+            this.unlockPasskeyInput.value = '';
+
+            // Enable main interface
+            this.enableMainInterface();
+        }
+    }
+
+    // Disable the main interface when locked
+    disableMainInterface() {
+        // Disable all input elements
+        const inputs = document.querySelectorAll('input, textarea, button, select');
+        inputs.forEach(input => {
+            if (!input.closest('.lock-overlay')) { // Don't disable lock overlay elements
+                input.disabled = true;
+                input.classList.add('disabled-by-lock');
+            }
+        });
+
+        // Disable all clickable elements
+        const clickableElements = document.querySelectorAll('*[onclick], *[ondblclick], [tabindex]:not([tabindex="-1"])');
+        clickableElements.forEach(element => {
+            if (!element.closest('.lock-overlay')) { // Don't disable lock overlay elements
+                element.classList.add('disabled-by-lock');
+                element.setAttribute('aria-disabled', 'true');
+            }
+        });
+
+        // Disable drag and drop
+        document.addEventListener('dragover', this.preventDragDuringLock);
+        document.addEventListener('drop', this.preventDragDuringLock);
+    }
+
+    // Enable the main interface when unlocked
+    enableMainInterface() {
+        // Re-enable all input elements
+        const inputs = document.querySelectorAll('.disabled-by-lock');
+        inputs.forEach(input => {
+            input.disabled = false;
+            input.classList.remove('disabled-by-lock');
+        });
+
+        // Re-enable all clickable elements
+        const clickableElements = document.querySelectorAll('[aria-disabled="true"]');
+        clickableElements.forEach(element => {
+            element.classList.remove('disabled-by-lock');
+            element.removeAttribute('aria-disabled');
+        });
+
+        // Re-enable drag and drop
+        document.removeEventListener('dragover', this.preventDragDuringLock);
+        document.removeEventListener('drop', this.preventDragDuringLock);
+    }
+
+    // Prevent drag and drop events during lock
+    preventDragDuringLock = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+
+    // Show error message for unlock
+    showUnlockErrorMessage(message) {
+        if (this.unlockErrorMessage) {
+            this.unlockErrorMessage.textContent = message;
+        }
+    }
+
+    // Clear unlock error message
+    clearUnlockErrorMessage() {
+        if (this.unlockErrorMessage) {
+            this.unlockErrorMessage.textContent = '';
+        }
+    }
+
+    // Update lock button appearance
+    updateLockButton() {
+        if (this.lockButton) {
+            this.lockButton.textContent = this.isLocked ? '🔓' : '🔒';
+            this.lockButton.title = this.isLocked ? 'Unlock media gallery' : 'Lock media gallery';
+        }
+
+        // Show/hide lock overlay based on lock state
+        if (this.isLocked) {
+            this.showLockOverlay();
+        } else {
+            this.hideLockOverlay();
+        }
+    }
+
+    // Update upload section based on lock state
+    updateUploadSection() {
+        const uploadSection = document.querySelector('.upload-section');
+        if (uploadSection) {
+            if (this.isLocked) {
+                // Disable upload functionality when locked
+                uploadSection.style.opacity = '0.5';
+                uploadSection.style.pointerEvents = 'none';
+            } else {
+                // Enable upload functionality when unlocked
+                uploadSection.style.opacity = '1';
+                uploadSection.style.pointerEvents = 'auto';
+            }
         }
     }
 

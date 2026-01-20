@@ -102,6 +102,7 @@
                         <span class="toggle-label">Text Thumbnails</span>
                     </div>
                     <button class="help-button" id="helpButton" title="Show keyboard shortcuts and help">ℹ️</button>
+                    <button class="lock-button" id="lockButton" title="Lock/Unlock media gallery">🔒</button>
                 </div>
             </div>
             <div id="videoInfo" class="video-info-display" style="display: none;"></div>
@@ -110,7 +111,7 @@
             <div class="filter-controls">
                 <button class="filter-btn active" data-filter="all">All</button>
                 <button class="filter-btn" data-filter="saved">Saved</button>
-                <button class="filter-btn" data-filter="streaming">Streaming</button>
+                <button class="filter-btn" data-filter="streaming">Streaming/TV</button>
                 <button class="filter-btn" data-filter="images">Images</button>
                 <button class="filter-btn" data-filter="audio">Audio</button>
             </div>
@@ -267,6 +268,20 @@
                 </div>
             </section>
         </main>
+
+        <!-- Lock Overlay - Shown when gallery is locked -->
+        <div class="lock-overlay hidden" id="lockOverlay">
+            <div class="lock-content">
+                <h2>🔒 Gallery Locked</h2>
+                <p>This media gallery is currently locked. Please enter the passkey to unlock it.</p>
+                <input type="password" id="unlockPasskeyInput" placeholder="Enter passkey...">
+                <div class="unlock-buttons">
+                    <button id="unlockSubmitBtn">Unlock</button>
+                    <button id="cancelUnlockBtn">Cancel</button>
+                </div>
+                <div class="error-message" id="unlockErrorMessage"></div>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
