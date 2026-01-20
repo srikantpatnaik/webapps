@@ -1338,6 +1338,7 @@ kbd {
     gap: 8px;
     margin-top: 10px;
     padding: 10px 0;
+    align-items: center;
 }
 
 .filter-btn {
@@ -1365,6 +1366,50 @@ kbd {
 
 .filter-btn.active:hover {
     background-color: var(--accent-hover);
+}
+
+/* Quick Search Input */
+.search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.quick-search-input {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 30px 6px 12px;
+    font-size: 0.8rem;
+    width: 150px;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.quick-search-input:focus {
+    width: 200px;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(187, 134, 252, 0.3);
+}
+
+.search-clear {
+    position: absolute;
+    right: 10px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: bold;
+    display: none;
+    z-index: 1;
+}
+
+.quick-search-input:not(:placeholder-shown) + .search-clear {
+    display: block;
+}
+
+.search-clear:hover {
+    color: var(--accent);
 }
 
 /* Image Controls */

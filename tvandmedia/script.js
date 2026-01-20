@@ -2061,10 +2061,14 @@ class VideoPlayerApp {
 
         // Check if we have videos to display after filtering
         if (!filteredVideos || filteredVideos.length === 0) {
-            // Show different message based on filter
+            // Show different message based on filter and search
             let message = 'No videos to display. Upload some videos to get started.';
-            if (this.currentFilter !== 'all') {
+            if (this.currentFilter !== 'all' && this.currentSearchQuery) {
+                message = `No ${this.currentFilter} items found matching "${this.currentSearchQuery}" in filename.`;
+            } else if (this.currentFilter !== 'all') {
                 message = `No ${this.currentFilter} items found.`;
+            } else if (this.currentSearchQuery) {
+                message = `No items found matching "${this.currentSearchQuery}" in filename.`;
             }
             this.videoGallery.innerHTML = `<p class="no-videos">${message}</p>`;
             return;
@@ -5585,6 +5589,36 @@ class VideoPlayerApp {
             // Default to 'all' if no saved filter
             this.setActiveFilter('all');
         }
+
+        // Initialize quick search functionality
+        this.initQuickSearch();
+    }
+
+    // Initialize quick search functionality
+    initQuickSearch() {
+        const quickSearchInput = document.getElementById('quickSearch');
+        const searchClear = document.getElementById('searchClear');
+
+        if (quickSearchInput) {
+            quickSearchInput.addEventListener('input', (e) => {
+                this.currentSearchQuery = e.target.value.toLowerCase();
+                this.renderGallery();
+            });
+
+            // Clear search when clear button is clicked
+            if (searchClear) {
+                searchClear.addEventListener('click', () => {
+                    quickSearchInput.value = '';
+                    this.currentSearchQuery = '';
+                    searchClear.style.display = 'none';
+                    this.renderGallery();
+                    quickSearchInput.focus();
+                });
+            }
+
+            // Initialize current search query
+            this.currentSearchQuery = '';
+        }
     }
 
     // Set active filter and update UI
@@ -5606,26 +5640,40 @@ class VideoPlayerApp {
         this.renderGallery();
     }
 
-    // Filter videos based on current filter
+    // Filter videos based on current filter and search query
     getFilteredVideos() {
+        let filteredVideos = this.videos;
+
+        // Apply filter first
         if (!this.currentFilter || this.currentFilter === 'all') {
-            return this.videos;
+            // No filter applied, keep all videos
+        } else {
+            filteredVideos = filteredVideos.filter(video => {
+                switch (this.currentFilter) {
+                    case 'saved':
+                        return video.type === 'stored_video';
+                    case 'streaming':
+                        return video.isStream || video.type === 'm3u' || video.type === 'local_m3u_path';
+                    case 'images':
+                        return video.isImage;
+                    case 'audio':
+                        return video.isAudio;
+                    default:
+                        return true;
+                }
+            });
         }
 
-        return this.videos.filter(video => {
-            switch (this.currentFilter) {
-                case 'saved':
-                    return video.type === 'stored_video';
-                case 'streaming':
-                    return video.isStream || video.type === 'm3u' || video.type === 'local_m3u_path';
-                case 'images':
-                    return video.isImage;
-                case 'audio':
-                    return video.isAudio;
-                default:
-                    return true;
-            }
-        });
+        // Then apply search query if present (only search in filename)
+        if (this.currentSearchQuery && this.currentSearchQuery.trim() !== '') {
+            const searchLower = this.currentSearchQuery.toLowerCase();
+            filteredVideos = filteredVideos.filter(video => {
+                // Search only in video name (filename) for faster performance
+                return video.name.toLowerCase().includes(searchLower);
+            });
+        }
+
+        return filteredVideos;
     }
 
     // Get index of current video in the filtered list
