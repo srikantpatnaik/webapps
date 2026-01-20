@@ -15,6 +15,10 @@ class VideoPlayerApp {
         this.passkey = null; // Store the passkey
         this.autoLockTimeout = null; // Timer for auto-lock
         this.autoLockInterval = 30000; // 30 seconds in milliseconds
+
+        // Initialize lock feature enabled state
+        const savedLockEnabled = localStorage.getItem('lockFeatureEnabled');
+        this._isLockFeatureEnabled = savedLockEnabled !== null ? savedLockEnabled === 'true' : true;
         this.defaultPlaybackRate = 1; // Default playback rate
         this.initElements();
         this.initFilterControls(); // Initialize filter controls
@@ -62,6 +66,9 @@ class VideoPlayerApp {
                 // After loading videos, re-render the gallery (lock state already loaded)
                 this.renderGallery();
 
+                // Regenerate missing thumbnails for saved media
+                this.regenerateMissingThumbnails();
+
                 // Force a small layout update to ensure visibility
                 setTimeout(() => {
                     this.videoGallery.offsetHeight; // Trigger reflow
@@ -89,7 +96,29 @@ class VideoPlayerApp {
             console.warn('IndexedDB not available or failed to load:', error);
             // Fallback to localStorage if IndexedDB fails
             try {
-                this.videos = JSON.parse(localStorage.getItem('storedVideos')) || [];
+                let videos = JSON.parse(localStorage.getItem('storedVideos')) || [];
+
+                // Process videos to regenerate missing thumbnails
+                this.videos = videos.map(video => {
+                    const updatedVideo = { ...video };
+
+                    // If thumbnail is missing for any saved media, try to regenerate it
+                    if (!updatedVideo.thumbnail || updatedVideo.thumbnail.trim() === '') {
+                        if (updatedVideo.src && updatedVideo.src.startsWith('data:')) {
+                            // For stored videos, we can generate a thumbnail from the base64 source
+                            if (updatedVideo.src.startsWith('data:video/')) {
+                                // For video files, we need to create a temporary video element to generate thumbnail
+                                this.generateThumbnailFromBase64(updatedVideo);
+                            } else if (updatedVideo.src.startsWith('data:image/')) {
+                                // For image files, use the base64 source as thumbnail
+                                updatedVideo.thumbnail = updatedVideo.src;
+                            }
+                        }
+                    }
+
+                    return updatedVideo;
+                });
+
                 console.log('Videos loaded from localStorage');
                 this.updateTotalSizeDisplay();
             } catch (localStorageError) {
@@ -327,6 +356,7 @@ class VideoPlayerApp {
         this.loopBtn = document.getElementById('loopBtn');
         this.globalLoopBtn = document.getElementById('globalLoopBtn');
         this.thumbnailToggle = document.getElementById('thumbnailToggle');
+        this.lockToggle = document.getElementById('lockToggle');
         this.helpButton = document.getElementById('helpButton');
         this.lockButton = document.getElementById('lockButton');
         this.helpModal = document.getElementById('helpModal');
@@ -585,12 +615,14 @@ class VideoPlayerApp {
             // Handle global keyboard shortcuts (available even when modal is not open)
             if (e.shiftKey && e.key.toLowerCase() === 'l') {
                 e.preventDefault();
-                // Only allow lock/unlock if not locked, or allow unlock if locked
-                if (!this.isLocked) {
-                    this.toggleLock();
-                } else {
-                    // If locked, show the unlock overlay
-                    this.showUnlockOverlay();
+                if (this.isLockFeatureEnabled()) {
+                    // Only allow lock/unlock if not locked, or allow unlock if locked
+                    if (!this.isLocked) {
+                        this.toggleLock();
+                    } else {
+                        // If locked, show the unlock overlay
+                        this.showUnlockOverlay();
+                    }
                 }
                 return;
             }
@@ -668,7 +700,30 @@ class VideoPlayerApp {
         // Handle lock button
         if (this.lockButton) {
             this.lockButton.addEventListener('click', () => {
-                this.toggleLock();
+                if (this.isLockFeatureEnabled()) {
+                    this.toggleLock();
+                }
+            });
+        }
+
+        // Handle lock toggle switch
+        if (this.lockToggle) {
+            this.lockToggle.checked = this._isLockFeatureEnabled;
+
+            this.lockToggle.addEventListener('change', (e) => {
+                const isEnabled = e.target.checked;
+                localStorage.setItem('lockFeatureEnabled', isEnabled);
+                this._isLockFeatureEnabled = isEnabled;
+
+                // If disabling the lock feature, unlock if currently locked
+                if (!isEnabled && this.isLocked) {
+                    this.isLocked = false;
+                    this.passkey = null;
+                    this.saveLockState();
+                    this.updateLockButton();
+                    this.renderGallery();
+                    this.startAutoLockTimer();
+                }
             });
         }
 
@@ -1380,33 +1435,35 @@ class VideoPlayerApp {
                     const lines = m3uContent.split('\n').filter(line => line.trim() !== '');
                     console.log('Lines in M3U file:', lines);
                     
-                    // Check if any lines look like video files
-                    const videoLines = lines.filter(line => {
+                    // Check if any lines look like video or image files
+                    const mediaLines = lines.filter(line => {
                         const trimmed = line.trim();
-                        return !trimmed.startsWith('#') && this.isVideoFile(trimmed);
+                        return !trimmed.startsWith('#') && (this.isVideoFile(trimmed) || this.isImageFile(trimmed));
                     });
-                    
-                    if (videoLines.length === 0) {
-                        alert('No valid channels or video files found in the M3U playlist. The file may be empty or in an unsupported format.');
+
+                    if (mediaLines.length === 0) {
+                        alert('No valid channels, video, or image files found in the M3U playlist. The file may be empty or in an unsupported format.');
                         this.updateVideoInfoText();
                         return;
                     }
-                    
-                    // Create playlist items from video lines
-                    for (const line of videoLines) {
+
+                    // Create playlist items from media lines
+                    for (const line of mediaLines) {
+                        const isImage = this.isImageFile(line.trim());
                         playlistItems.push({
                             url: line.trim(),
                             channelName: this.extractFileName(line.trim()),
                             tvgId: undefined,
                             logo: undefined,
-                            groupId: 'Local Videos',
+                            groupId: isImage ? 'Images' : 'Local Videos',
                             userAgent: undefined,
                             httpReferrer: undefined,
-                            isVlcOpt: false
+                            isVlcOpt: false,
+                            isImage: isImage
                         });
                     }
-                    
-                    console.log('Created playlist items from video lines:', playlistItems);
+
+                    console.log('Created playlist items from media lines:', playlistItems);
                 }
 
                 // Generate a unique identifier for this local playlist
@@ -1433,13 +1490,14 @@ class VideoPlayerApp {
                         src: item.url,
                         name: item.channelName,
                         size: 0, // Size unknown for streams/local paths
-                        duration: undefined, // Duration unknown initially
+                        duration: item.isImage ? 0 : undefined, // Images don't have duration
                         thumbnail: item.logo || '',
                         timestamp: new Date().toISOString(),
                         type: isLocalFile ? 'local_m3u_path' : 'm3u', // Different type for local paths
                         groupId: item.groupId,
                         tvgId: item.tvgId,
-                        isStream: !isLocalFile, // Only mark as stream for URLs
+                        isStream: !isLocalFile && !item.isImage, // Only mark as stream for URLs that aren't images
+                        isImage: item.isImage, // Mark as image if it's an image file
                         playlistName: playlistName, // Track which playlist this stream came from
                         isLocalPlaylist: true, // Mark as local playlist (not URL-based)
                         isLocalPath: isLocalFile, // Mark if it's a local file path
@@ -1780,7 +1838,24 @@ class VideoPlayerApp {
                             // In a real scenario, we'd need to re-upload them, but for now we'll keep the metadata
                             return { ...video, needsReUpload: true };
                         } else {
-                            return video;
+                            // For other video types, check if thumbnail is missing and regenerate if needed
+                            const updatedVideo = { ...video };
+
+                            // If thumbnail is missing for any saved media, try to regenerate it
+                            if (!updatedVideo.thumbnail || updatedVideo.thumbnail.trim() === '') {
+                                if (updatedVideo.src && updatedVideo.src.startsWith('data:')) {
+                                    // For stored videos, we can generate a thumbnail from the base64 source
+                                    if (updatedVideo.src.startsWith('data:video/')) {
+                                        // For video files, we need to create a temporary video element to generate thumbnail
+                                        this.generateThumbnailFromBase64(updatedVideo);
+                                    } else if (updatedVideo.src.startsWith('data:image/')) {
+                                        // For image files, use the base64 source as thumbnail
+                                        updatedVideo.thumbnail = updatedVideo.src;
+                                    }
+                                }
+                            }
+
+                            return updatedVideo;
                         }
                     });
 
@@ -1920,8 +1995,8 @@ class VideoPlayerApp {
         // Clear the gallery first
         this.videoGallery.innerHTML = '';
 
-        // If gallery is locked, show empty gallery without advertising it's locked
-        if (this.isLocked) {
+        // If gallery is locked and lock feature is enabled, show empty gallery without advertising it's locked
+        if (this.isLocked && this.isLockFeatureEnabled()) {
             // Show empty gallery message without indicating it's locked
             this.videoGallery.innerHTML = '<p class="no-videos">No videos to display. Upload some videos to get started.</p>';
             return;
@@ -3004,6 +3079,11 @@ class VideoPlayerApp {
         this.updateLoopButton();
     }
 
+    // Method to check if lock feature is enabled
+    isLockFeatureEnabled() {
+        return this._isLockFeatureEnabled;
+    }
+
     changeSpeed() {
         const speeds = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
         const currentSpeed = this.videoPlayer.playbackRate;
@@ -4017,7 +4097,8 @@ class VideoPlayerApp {
                         type: 'm3u', // Mark as M3U playlist item
                         groupId: item.groupId,
                         tvgId: item.tvgId,
-                        isStream: true, // Mark as live stream
+                        isStream: !item.isImage, // Mark as live stream if not an image
+                        isImage: item.isImage, // Mark as image if it's an image file
                         isLiveTV: isLiveTV, // Mark as Live TV if it's an .m3u8 stream
                         playlistUrl: url // Track which playlist this stream came from
                     };
@@ -4086,6 +4167,21 @@ class VideoPlayerApp {
                     isVlcOpt: false
                 };
                 playlistItems.push(item);
+            } else if (!line.startsWith('#') && this.isImageFile(line)) {
+                // Simple M3U format - image files
+                // Check if it's an image file (common image extensions)
+                const item = {
+                    url: line,
+                    channelName: this.extractFileName(line),
+                    tvgId: undefined,
+                    logo: undefined,
+                    groupId: 'Images',
+                    userAgent: undefined,
+                    httpReferrer: undefined,
+                    isVlcOpt: false,
+                    isImage: true // Mark as image file
+                };
+                playlistItems.push(item);
             }
         }
 
@@ -4097,6 +4193,13 @@ class VideoPlayerApp {
         const videoExtensions = ['.mp4', '.mkv', '.webm', '.mov', '.avi', '.wmv', '.flv', '.m4v', '.mpg', '.mpeg', '.3gp', '.ogg', '.ogv', '.ts', '.m2ts', '.mts', '.vob', '.mp3', '.wav', '.aac', '.flac', '.m4a', '.wma', '.opus'];
         const lowerPath = path.toLowerCase();
         return videoExtensions.some(ext => lowerPath.endsWith(ext));
+    }
+
+    // Helper method to check if a string is an image file
+    isImageFile(path) {
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'];
+        const lowerPath = path.toLowerCase();
+        return imageExtensions.some(ext => lowerPath.endsWith(ext));
     }
 
     // Helper method to check if a URL is a Live TV stream (ends with .m3u8)
@@ -4135,6 +4238,9 @@ class VideoPlayerApp {
             attributes[attrName.toLowerCase()] = attrValue;
         }
 
+        // Check if the URL is an image file
+        const isImage = this.isImageFile(streamUrl);
+
         // Return the channel object
         return {
             url: streamUrl,
@@ -4144,7 +4250,8 @@ class VideoPlayerApp {
             groupId: attributes['group-title'] || attributes['group_title'] || attributes['group'] || 'Other',
             userAgent: attributes['user-agent'] || attributes['user_agent'] || undefined,
             httpReferrer: attributes['http-referrer'] || attributes['http_referrer'] || undefined,
-            isVlcOpt: extinfLine.toLowerCase().includes('extvlcopt')
+            isVlcOpt: extinfLine.toLowerCase().includes('extvlcopt'),
+            isImage: isImage
         };
     }
 
@@ -4927,8 +5034,13 @@ class VideoPlayerApp {
         }
     }
 
-    // Disable the main interface when locked
+    // Disable the main interface when locked and lock feature is enabled
     disableMainInterface() {
+        if (!this.isLockFeatureEnabled()) {
+            // If lock feature is disabled, don't disable the interface
+            return;
+        }
+
         // Disable all input elements
         const inputs = document.querySelectorAll('input, textarea, button, select');
         inputs.forEach(input => {
@@ -4988,6 +5100,63 @@ class VideoPlayerApp {
 
     // Enable the main interface when unlocked
     enableMainInterface() {
+        if (!this.isLockFeatureEnabled()) {
+            // If lock feature is disabled, just re-enable everything without checking lock state
+            // Re-enable all input elements
+            const inputs = document.querySelectorAll('.disabled-by-lock');
+            inputs.forEach(input => {
+                input.disabled = false;
+                input.classList.remove('disabled-by-lock');
+            });
+
+            // Re-enable all clickable elements
+            const clickableElements = document.querySelectorAll('[aria-disabled="true"]');
+            clickableElements.forEach(element => {
+                element.classList.remove('disabled-by-lock');
+                element.removeAttribute('aria-disabled');
+                element.style.pointerEvents = ''; // Restore pointer events
+            });
+
+            // Re-enable all event listeners
+            const eventTypes = ['click', 'mousedown', 'mouseup', 'mousemove', 'keydown', 'keyup',
+                              'touchstart', 'touchend', 'touchmove', 'focus', 'blur', 'input', 'change'];
+            eventTypes.forEach(eventType => {
+                document.removeEventListener(eventType, this.preventEventDuringLock, true); // Use capture phase
+            });
+
+            // Re-enable video modal controls if modal is open
+            if (this.videoModal && this.videoModal.style.display === 'block') {
+                // Re-enable video player controls
+                const videoControls = this.videoModal.querySelector('.video-controls');
+                if (videoControls) {
+                    videoControls.style.pointerEvents = '';
+                    // Restore controls to their normal state (they might be hidden for other reasons)
+                    // Don't force visibility here as it might be controlled by other logic
+                }
+
+                // Re-enable the video player
+                if (this.videoPlayer) {
+                    this.videoPlayer.style.pointerEvents = '';
+                    this.videoPlayer.style.visibility = '';
+                    this.videoPlayer.style.opacity = '';
+                }
+
+                // Also restore any image display if present
+                const imageElement = this.videoModal.querySelector('.image-display');
+                if (imageElement) {
+                    imageElement.style.pointerEvents = '';
+                    imageElement.style.visibility = '';
+                    imageElement.style.opacity = '';
+                }
+            }
+
+            // Re-enable drag and drop
+            document.removeEventListener('dragover', this.preventDragDuringLock);
+            document.removeEventListener('drop', this.preventDragDuringLock);
+            return;
+        }
+
+        // Only proceed with normal unlock behavior if lock feature is enabled
         // Re-enable all input elements
         const inputs = document.querySelectorAll('.disabled-by-lock');
         inputs.forEach(input => {
@@ -5206,11 +5375,14 @@ class VideoPlayerApp {
 
     // Prevent events during lock (used in capture phase to intercept events before they reach targets)
     preventEventDuringLock = (e) => {
-        // Only prevent events that are not coming from the lock overlay
-        if (!e.target.closest('.lock-overlay')) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
+        // Only prevent events if lock feature is enabled and gallery is locked
+        if (this.isLockFeatureEnabled() && this.isLocked) {
+            // Only prevent events that are not coming from the lock overlay
+            if (!e.target.closest('.lock-overlay')) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
         }
     }
 
@@ -5231,19 +5403,25 @@ class VideoPlayerApp {
     // Update lock button appearance
     updateLockButton() {
         if (this.lockButton) {
-            this.lockButton.textContent = this.isLocked ? '🔓' : '🔒';
-            this.lockButton.title = this.isLocked ? 'Unlock media gallery' : 'Lock media gallery';
+            // Only show lock/unlock button if lock feature is enabled
+            if (this.isLockFeatureEnabled()) {
+                this.lockButton.textContent = this.isLocked ? '🔓' : '🔒';
+                this.lockButton.title = this.isLocked ? 'Unlock media gallery' : 'Lock media gallery';
+                this.lockButton.style.display = 'inline-flex'; // Show the button
+            } else {
+                this.lockButton.style.display = 'none'; // Hide the button when lock feature is disabled
+            }
         }
 
-        // Show/hide lock overlay based on lock state
-        if (this.isLocked) {
+        // Show/hide lock overlay based on lock state and if lock feature is enabled
+        if (this.isLocked && this.isLockFeatureEnabled()) {
             this.showLockOverlay();
         } else {
             this.hideLockOverlay();
         }
 
-        // Manage auto-lock timer based on lock state
-        if (this.isLocked) {
+        // Manage auto-lock timer based on lock state and if lock feature is enabled
+        if (this.isLocked && this.isLockFeatureEnabled()) {
             this.clearAutoLockTimer();
         } else {
             this.startAutoLockTimer();
@@ -5254,12 +5432,12 @@ class VideoPlayerApp {
     updateUploadSection() {
         const uploadSection = document.querySelector('.upload-section');
         if (uploadSection) {
-            if (this.isLocked) {
-                // Disable upload functionality when locked
+            if (this.isLocked && this.isLockFeatureEnabled()) {
+                // Disable upload functionality when locked and lock feature is enabled
                 uploadSection.style.opacity = '0.5';
                 uploadSection.style.pointerEvents = 'none';
             } else {
-                // Enable upload functionality when unlocked
+                // Enable upload functionality when unlocked or lock feature is disabled
                 uploadSection.style.opacity = '1';
                 uploadSection.style.pointerEvents = 'auto';
             }
@@ -5347,6 +5525,28 @@ class VideoPlayerApp {
             return filteredVideos[index];
         }
         return null;
+    }
+
+    // Method to regenerate thumbnails for all saved media that don't have thumbnails
+    regenerateMissingThumbnails() {
+        // Iterate through all videos and regenerate thumbnails for those that are missing
+        this.videos.forEach(video => {
+            if ((!video.thumbnail || video.thumbnail.trim() === '') &&
+                video.src &&
+                video.src.startsWith('data:')) {
+
+                if (video.src.startsWith('data:video/')) {
+                    // For video files, generate thumbnail from base64 source
+                    this.generateThumbnailFromBase64(video);
+                } else if (video.src.startsWith('data:image/')) {
+                    // For image files, use the base64 source as thumbnail
+                    video.thumbnail = video.src;
+                }
+            }
+        });
+
+        // Update the gallery to reflect the new thumbnails
+        this.renderGallery();
     }
 }
 

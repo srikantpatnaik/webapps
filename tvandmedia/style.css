@@ -669,6 +669,15 @@ header h1 {
     color: var(--text-secondary);
 }
 
+/* Lock Toggle */
+.lock-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
 .toggle-switch {
     position: relative;
     display: inline-block;
