@@ -909,6 +909,7 @@ input:checked + .toggle-slider:before {
     left: 50%;
     transform: translate(-50%, -50%);
     display: block;
+    transition: transform 0.3s ease;
 }
 
 /* Hide the native video controls */

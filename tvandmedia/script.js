@@ -503,7 +503,7 @@ class VideoPlayerApp {
                 const blob = items[i].getAsFile();
 
                 // Create a file from the blob
-                const file = new File([blob], `clipboard_image_${Date.now()}.png`, { type: blob.type });
+                const file = new File([blob], `clipboard_image_${Date.now()}.${blob.type.split('/')[1]}`, { type: blob.type });
 
                 // Process the image file
                 this.processImageFile(file);
@@ -511,9 +511,42 @@ class VideoPlayerApp {
                 // Prevent the default paste behavior
                 e.preventDefault();
 
+                // Show a notification to the user
+                this.showNotification('Image pasted and added to gallery');
+
                 return; // Exit after processing the first image
             }
         }
+    }
+
+    // Show notification to user
+    showNotification(message) {
+        // Create or update notification element
+        let notification = document.getElementById('notification');
+        if (!notification) {
+            notification = document.createElement('div');
+            notification.id = 'notification';
+            notification.style.position = 'fixed';
+            notification.style.top = '20px';
+            notification.style.right = '20px';
+            notification.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            notification.style.color = 'white';
+            notification.style.padding = '10px 15px';
+            notification.style.borderRadius = '5px';
+            notification.style.zIndex = '9999';
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.3s ease';
+            document.body.appendChild(notification);
+        }
+
+        // Update and show notification
+        notification.textContent = message;
+        notification.style.opacity = '1';
+
+        // Hide notification after 3 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+        }, 3000);
     }
 
     handleFiles(files) {
@@ -1951,7 +1984,7 @@ class VideoPlayerApp {
 
         // Handle different video types
         if (video.isImage) {
-            // For image files, create an image element and display it
+            // For image files, hide the video player and show an image element in the same container
             let imageSrc;
 
             if (video.type === 'local_file' && video.file) {
@@ -1965,10 +1998,10 @@ class VideoPlayerApp {
                 return;
             }
 
-            // Replace video player with an image element
+            // Hide the video player element
             this.videoPlayer.style.display = 'none';
 
-            // Create or reuse an image element
+            // Create or reuse an image element in the same container
             let imageElement = this.videoModal.querySelector('.image-display');
             if (!imageElement) {
                 imageElement = document.createElement('img');
@@ -1976,17 +2009,19 @@ class VideoPlayerApp {
                 imageElement.style.maxWidth = '100%';
                 imageElement.style.maxHeight = 'calc(100% - 70px)'; // Account for control bar height
                 imageElement.style.objectFit = 'contain';
-                imageElement.style.position = 'absolute';
-                imageElement.style.top = '0';
-                imageElement.style.left = '0';
                 imageElement.style.display = 'block';
                 imageElement.style.cursor = 'grab';
+                imageElement.style.backgroundColor = 'black';
 
                 // Insert after the video player element
                 this.videoPlayer.insertAdjacentElement('afterend', imageElement);
             }
 
             imageElement.src = imageSrc;
+
+            // Make sure the image is visible and video is hidden
+            imageElement.style.display = 'block';
+
             this.videoInfo.textContent = `Viewing: ${video.name} (${video.width || 'unknown'}x${video.height || 'unknown'})`;
 
             // Store the URL to revoke later when closing modal (only for blob URLs)
@@ -1996,22 +2031,39 @@ class VideoPlayerApp {
                 this.currentVideoBlobUrl = null; // Don't revoke for base64 or URLs
             }
 
-            // Set up image-specific controls and interactions
+            // Set up image-specific controls and interactions using the same video player
             this.setupImageViewerControls(imageElement);
+
+            // Reset zoom and positioning after setting up the image
+            setTimeout(() => {
+                this.resetZoom();
+                this.panX = 0;
+                this.panY = 0;
+            }, 100);
         } else if (video.type === 'local_file' && video.file) {
             // For local files, create a blob URL from the stored file object
             const videoBlobUrl = URL.createObjectURL(video.file);
-            this.videoPlayer.src = videoBlobUrl;
             // Hide the image display if it exists
             const imageElement = this.videoModal.querySelector('.image-display');
             if (imageElement) {
                 imageElement.style.display = 'none';
             }
             this.videoPlayer.style.display = 'block';
+            this.videoPlayer.src = videoBlobUrl;
             this.videoInfo.textContent = `Playing: ${video.name} ${video.duration ? '(' + this.formatTime(video.duration) + ')' : ''}`;
 
             // Store the URL to revoke later when video stops
             this.currentVideoBlobUrl = videoBlobUrl;
+
+            // Load the video to ensure it displays properly
+            this.videoPlayer.load();
+
+            // Reset zoom and positioning after setting up the video
+            setTimeout(() => {
+                this.resetZoom();
+                this.panX = 0;
+                this.panY = 0;
+            }, 100);
         } else if (video.type === 'local_file' && video.needsReUpload) {
             // This is a local file that was previously added but the file object was lost
             // (since file objects can't be stored in IndexedDB)
@@ -2068,19 +2120,51 @@ class VideoPlayerApp {
             return; // Don't proceed with normal playback
         } else if (video.isStream) {
             // For live streams, try the direct URL first
+            // Hide the image display if it exists
+            const imageElement = this.videoModal.querySelector('.image-display');
+            if (imageElement) {
+                imageElement.style.display = 'none';
+            }
+            this.videoPlayer.style.display = 'block';
             this.videoPlayer.src = video.src;
             this.videoInfo.textContent = `Playing: ${video.name}`;
+
+            // Load the video to ensure it displays properly
+            this.videoPlayer.load();
+
+            // Reset zoom and positioning after setting up the video
+            setTimeout(() => {
+                this.resetZoom();
+                this.panX = 0;
+                this.panY = 0;
+            }, 100);
         } else {
             // For regular videos, make sure the src is valid
             if (!video.src) {
                 alert('Video source is not defined');
                 return;
             }
+            // Hide the image display if it exists
+            const imageElement = this.videoModal.querySelector('.image-display');
+            if (imageElement) {
+                imageElement.style.display = 'none';
+            }
+            this.videoPlayer.style.display = 'block';
             this.videoPlayer.src = video.src;
             this.videoInfo.textContent = `Playing: ${video.name} ${video.duration ? '(' + this.formatTime(video.duration) + ')' : ''}`;
+
+            // Load the video to ensure it displays properly
+            this.videoPlayer.load();
+
+            // Reset zoom and positioning after setting up the video
+            setTimeout(() => {
+                this.resetZoom();
+                this.panX = 0;
+                this.panY = 0;
+            }, 100);
         }
 
-        this.videoPlayer.load(); // Explicitly load the source
+        // this.videoPlayer.load(); // Explicitly load the source - moved to individual sections
 
         // Wait for metadata to load to update info display and set proper size
         this.videoPlayer.onloadedmetadata = () => {
@@ -2236,193 +2320,25 @@ class VideoPlayerApp {
 
     // Set up image viewer controls with similar functionality to video player
     setupImageViewerControls(imageElement) {
-        // Hide video controls for images and show image-specific controls
+        // Show video controls for images (reuse existing video controls)
         const videoControls = this.videoModal.querySelector('.video-controls');
         if (videoControls) {
-            videoControls.style.display = 'none';
+            videoControls.style.display = 'block';
+            videoControls.style.opacity = '0';
+            videoControls.style.visibility = 'visible';
         }
 
-        // Show image-specific controls if they don't exist
-        let imageControls = this.videoModal.querySelector('.image-controls');
-        if (!imageControls) {
-            imageControls = document.createElement('div');
-            imageControls.className = 'image-controls';
-            imageControls.style.position = 'absolute';
-            imageControls.style.bottom = '0';
-            imageControls.style.left = '0';
-            imageControls.style.right = '0';
-            imageControls.style.background = 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)';
-            imageControls.style.padding = '20px';
-            imageControls.style.zIndex = '1001';
-            imageControls.style.opacity = '0';
-            imageControls.style.visibility = 'hidden';
-            imageControls.style.transition = 'opacity 0.3s ease, visibility 0.3s ease';
-
-            // Create control buttons
-            const controlButtons = document.createElement('div');
-            controlButtons.className = 'control-buttons';
-            controlButtons.style.display = 'flex';
-            controlButtons.style.alignItems = 'center';
-            controlButtons.style.gap = '10px';
-
-            // Add navigation buttons
-            const prevBtn = document.createElement('button');
-            prevBtn.id = 'imagePrevBtn';
-            prevBtn.textContent = '◀';
-            prevBtn.title = 'Previous Image (B)';
-            prevBtn.style.background = 'var(--button-bg)';
-            prevBtn.style.color = 'white';
-            prevBtn.style.border = 'none';
-            prevBtn.style.borderRadius = '50%';
-            prevBtn.style.width = '36px';
-            prevBtn.style.height = '36px';
-            prevBtn.style.display = 'flex';
-            prevBtn.style.alignItems = 'center';
-            prevBtn.style.justifyContent = 'center';
-            prevBtn.style.cursor = 'pointer';
-            prevBtn.style.fontSize = '14px';
-            prevBtn.style.transition = 'background-color 0.3s ease';
-
-            const nextBtn = document.createElement('button');
-            nextBtn.id = 'imageNextBtn';
-            nextBtn.textContent = '▶';
-            nextBtn.title = 'Next Image (N)';
-            nextBtn.style.background = 'var(--button-bg)';
-            nextBtn.style.color = 'white';
-            nextBtn.style.border = 'none';
-            nextBtn.style.borderRadius = '50%';
-            nextBtn.style.width = '36px';
-            nextBtn.style.height = '36px';
-            nextBtn.style.display = 'flex';
-            nextBtn.style.alignItems = 'center';
-            nextBtn.style.justifyContent = 'center';
-            nextBtn.style.cursor = 'pointer';
-            nextBtn.style.fontSize = '14px';
-            nextBtn.style.transition = 'background-color 0.3s ease';
-
-            // Add fullscreen button
-            const fullscreenBtn = document.createElement('button');
-            fullscreenBtn.id = 'imageFullscreenBtn';
-            fullscreenBtn.textContent = '⛶';
-            fullscreenBtn.title = 'Toggle Fullscreen (F)';
-            fullscreenBtn.style.background = 'var(--button-bg)';
-            fullscreenBtn.style.color = 'white';
-            fullscreenBtn.style.border = 'none';
-            fullscreenBtn.style.borderRadius = '50%';
-            fullscreenBtn.style.width = '36px';
-            fullscreenBtn.style.height = '36px';
-            fullscreenBtn.style.display = 'flex';
-            fullscreenBtn.style.alignItems = 'center';
-            fullscreenBtn.style.justifyContent = 'center';
-            fullscreenBtn.style.cursor = 'pointer';
-            fullscreenBtn.style.fontSize = '14px';
-            fullscreenBtn.style.transition = 'background-color 0.3s ease';
-
-            // Add zoom controls
-            const zoomInBtn = document.createElement('button');
-            zoomInBtn.textContent = '+';
-            zoomInBtn.title = 'Zoom In (Z)';
-            zoomInBtn.style.background = 'var(--button-bg)';
-            zoomInBtn.style.color = 'white';
-            zoomInBtn.style.border = 'none';
-            zoomInBtn.style.borderRadius = '50%';
-            zoomInBtn.style.width = '36px';
-            zoomInBtn.style.height = '36px';
-            zoomInBtn.style.display = 'flex';
-            zoomInBtn.style.alignItems = 'center';
-            zoomInBtn.style.justifyContent = 'center';
-            zoomInBtn.style.cursor = 'pointer';
-            zoomInBtn.style.fontSize = '14px';
-            zoomInBtn.style.transition = 'background-color 0.3s ease';
-
-            const zoomOutBtn = document.createElement('button');
-            zoomOutBtn.textContent = '-';
-            zoomOutBtn.title = 'Zoom Out (Shift+Z)';
-            zoomOutBtn.style.background = 'var(--button-bg)';
-            zoomOutBtn.style.color = 'white';
-            zoomOutBtn.style.border = 'none';
-            zoomOutBtn.style.borderRadius = '50%';
-            zoomOutBtn.style.width = '36px';
-            zoomOutBtn.style.height = '36px';
-            zoomOutBtn.style.display = 'flex';
-            zoomOutBtn.style.alignItems = 'center';
-            zoomOutBtn.style.justifyContent = 'center';
-            zoomOutBtn.style.cursor = 'pointer';
-            zoomOutBtn.style.fontSize = '14px';
-            zoomOutBtn.style.transition = 'background-color 0.3s ease';
-
-            const resetZoomBtn = document.createElement('button');
-            resetZoomBtn.textContent = '0';
-            resetZoomBtn.title = 'Reset Zoom (0)';
-            resetZoomBtn.style.background = 'var(--button-bg)';
-            resetZoomBtn.style.color = 'white';
-            resetZoomBtn.style.border = 'none';
-            resetZoomBtn.style.borderRadius = '50%';
-            resetZoomBtn.style.width = '36px';
-            resetZoomBtn.style.height = '36px';
-            resetZoomBtn.style.display = 'flex';
-            resetZoomBtn.style.alignItems = 'center';
-            resetZoomBtn.style.justifyContent = 'center';
-            resetZoomBtn.style.cursor = 'pointer';
-            resetZoomBtn.style.fontSize = '14px';
-            resetZoomBtn.style.transition = 'background-color 0.3s ease';
-
-            // Add close button
-            const closeBtn = document.createElement('button');
-            closeBtn.textContent = '✕';
-            closeBtn.title = 'Close (Esc)';
-            closeBtn.style.background = 'var(--button-bg)';
-            closeBtn.style.color = 'white';
-            closeBtn.style.border = 'none';
-            closeBtn.style.borderRadius = '50%';
-            closeBtn.style.width = '36px';
-            closeBtn.style.height = '36px';
-            closeBtn.style.display = 'flex';
-            closeBtn.style.alignItems = 'center';
-            closeBtn.style.justifyContent = 'center';
-            closeBtn.style.cursor = 'pointer';
-            closeBtn.style.fontSize = '14px';
-            closeBtn.style.transition = 'background-color 0.3s ease';
-
-            controlButtons.appendChild(prevBtn);
-            controlButtons.appendChild(nextBtn);
-            controlButtons.appendChild(zoomInBtn);
-            controlButtons.appendChild(zoomOutBtn);
-            controlButtons.appendChild(resetZoomBtn);
-            controlButtons.appendChild(fullscreenBtn);
-            controlButtons.appendChild(closeBtn);
-
-            imageControls.appendChild(controlButtons);
-            this.videoModal.appendChild(imageControls);
+        // Hide image-specific controls if they exist (we'll use video controls instead)
+        const imageControls = this.videoModal.querySelector('.image-controls');
+        if (imageControls) {
+            imageControls.style.display = 'none';
         }
 
-        // Set up event listeners for image controls
-        document.getElementById('imagePrevBtn').onclick = () => this.playPrevVideo();
-        document.getElementById('imageNextBtn').onclick = () => this.playNextVideo();
-        document.getElementById('imageFullscreenBtn').onclick = () => this.toggleFullscreen();
+        // Set up mouse move to show controls (same as video)
+        this.setupControlsVisibility();
 
-        // Zoom controls
-        document.querySelector('.image-controls button:nth-child(3)').onclick = () => this.toggleZoom(); // Zoom in
-        document.querySelector('.image-controls button:nth-child(4)').onclick = () => this.zoomOut(); // Zoom out
-        document.querySelector('.image-controls button:nth-child(5)').onclick = () => this.resetZoom(); // Reset zoom
-
-        // Close button
-        document.querySelector('.image-controls button:nth-child(7)').onclick = () => this.closeVideoModal();
-
-        // Set up mouse move to show controls
-        this.videoModal.addEventListener('mousemove', () => {
-            if (imageControls) {
-                imageControls.style.opacity = '1';
-                imageControls.style.visibility = 'visible';
-                this.startHideImageControlsTimer(imageControls);
-            }
-        });
-
-        // Start the auto-hide timer for image controls
-        this.startHideImageControlsTimer(imageControls);
-
-        // Set up image panning
-        this.setupImagePanning(imageElement);
+        // Set up panning for images using the same mechanism as videos
+        this.setupVideoPanning();
     }
 
     // Timer to hide image controls
@@ -2438,31 +2354,39 @@ class VideoPlayerApp {
 
     // Set up image panning functionality
     setupImagePanning(imageElement) {
-        let isDragging = false;
-        let dragStartX = 0;
-        let dragStartY = 0;
-        let currentX = 0;
-        let currentY = 0;
+        const container = imageElement.parentElement;
+        const videoModal = this.videoModal;
 
-        imageElement.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            dragStartX = e.clientX - currentX;
-            dragStartY = e.clientY - currentY;
-            imageElement.style.cursor = 'grabbing';
+        // Mouse events for panning (desktop only)
+        videoModal.addEventListener('mousedown', (e) => {
+            // Only pan when image is zoomed in
+            if (this.getZoomLevel() <= 1) return;
+
+            // Only pan on left mouse button, and not on controls
+            if (e.button !== 0) return;
+
+            // Don't pan if clicking on controls
+            if (e.target.closest('.video-controls') || e.target.closest('.image-controls')) return;
+
+            this.isDragging = true;
+            this.dragStartX = e.clientX - this.panX;
+            this.dragStartY = e.clientY - this.panY;
+            videoModal.classList.add('grabbing');
         });
 
         document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
+            if (!this.isDragging) return;
 
-            currentX = e.clientX - dragStartX;
-            currentY = e.clientY - dragStartY;
+            this.panX = e.clientX - this.dragStartX;
+            this.panY = e.clientY - this.dragStartY;
 
-            imageElement.style.transform = `translate(${currentX}px, ${currentY}px)`;
+            const currentZoom = this.getZoomLevel();
+            container.style.transform = `scale(${currentZoom}) translate(${this.panX}px, ${this.panY}px)`;
         });
 
         document.addEventListener('mouseup', () => {
-            isDragging = false;
-            imageElement.style.cursor = 'grab';
+            this.isDragging = false;
+            videoModal.classList.remove('grabbing');
         });
     }
 
@@ -2894,7 +2818,10 @@ class VideoPlayerApp {
                 break;
             case 'ArrowUp':
                 e.preventDefault();
-                if (!isImageViewing) {
+                if (isImageViewing) {
+                    // For images, zoom in when arrow up is pressed
+                    this.toggleZoom();
+                } else {
                     if (this.videoPlayer.volume < 1) {
                         this.videoPlayer.volume = Math.min(1, this.videoPlayer.volume + 0.1);
                         this.volumeSlider.value = this.videoPlayer.volume;
@@ -2904,7 +2831,10 @@ class VideoPlayerApp {
                 break;
             case 'ArrowDown':
                 e.preventDefault();
-                if (!isImageViewing) {
+                if (isImageViewing) {
+                    // For images, zoom out when arrow down is pressed
+                    this.zoomOut();
+                } else {
                     if (this.videoPlayer.volume > 0) {
                         this.videoPlayer.volume = Math.max(0, this.videoPlayer.volume - 0.1);
                         this.volumeSlider.value = this.videoPlayer.volume;
@@ -2957,7 +2887,7 @@ class VideoPlayerApp {
             case 's':
             case 'S':
                 e.preventDefault();
-                // Save current playing video to browser storage
+                // Save current playing media (video or image) to browser storage
                 this.saveCurrentVideoToStorage();
                 break;
             case 'o':  // Toggle keyboard shortcuts
@@ -2993,13 +2923,19 @@ class VideoPlayerApp {
             case '+':
             case '=': // For key combinations like Shift+=
                 e.preventDefault();
-                if (!isImageViewing) {
+                if (isImageViewing) {
+                    // For images, zoom in with + key
+                    this.toggleZoom();
+                } else {
                     this.increaseSpeed();
                 }
                 break;
             case '-':
                 e.preventDefault();
-                if (!isImageViewing) {
+                if (isImageViewing) {
+                    // For images, zoom out with - key
+                    this.zoomOut();
+                } else {
                     this.decreaseSpeed();
                 }
                 break;
@@ -3033,7 +2969,18 @@ class VideoPlayerApp {
     }
 
     toggleZoom() {
-        const container = this.videoPlayer.parentElement;
+        // Determine which element to zoom (video or image)
+        const imageElement = this.videoModal.querySelector('.image-display');
+        const isImageViewing = imageElement && imageElement.style.display !== 'none';
+
+        let elementToZoom;
+        if (isImageViewing) {
+            elementToZoom = imageElement;
+        } else {
+            elementToZoom = this.videoPlayer;
+        }
+
+        const container = elementToZoom.parentElement;
         const currentTransform = container.style.transform;
         let currentZoom = 1;
 
@@ -3066,7 +3013,18 @@ class VideoPlayerApp {
     }
 
     zoomOut() {
-        const container = this.videoPlayer.parentElement;
+        // Determine which element to zoom (video or image)
+        const imageElement = this.videoModal.querySelector('.image-display');
+        const isImageViewing = imageElement && imageElement.style.display !== 'none';
+
+        let elementToZoom;
+        if (isImageViewing) {
+            elementToZoom = imageElement;
+        } else {
+            elementToZoom = this.videoPlayer;
+        }
+
+        const container = elementToZoom.parentElement;
         const currentTransform = container.style.transform;
         let currentZoom = 1;
 
@@ -3098,7 +3056,18 @@ class VideoPlayerApp {
     }
 
     resetZoom() {
-        const container = this.videoPlayer.parentElement;
+        // Determine which element to zoom (video or image)
+        const imageElement = this.videoModal.querySelector('.image-display');
+        const isImageViewing = imageElement && imageElement.style.display !== 'none';
+
+        let elementToZoom;
+        if (isImageViewing) {
+            elementToZoom = imageElement;
+        } else {
+            elementToZoom = this.videoPlayer;
+        }
+
+        const container = elementToZoom.parentElement;
 
         // Reset zoom, panning, and scaling to original state
         if (container) {
@@ -3129,19 +3098,30 @@ class VideoPlayerApp {
 
     // Enable panning functionality (desktop only - mobile uses native zoom/pan)
     setupVideoPanning() {
-        const container = this.videoPlayer.parentElement;
+        // Determine which element to use for panning (video or image)
+        const imageElement = this.videoModal.querySelector('.image-display');
+        const isImageViewing = imageElement && imageElement.style.display !== 'none';
+
+        let elementToPan;
+        if (isImageViewing) {
+            elementToPan = imageElement;
+        } else {
+            elementToPan = this.videoPlayer;
+        }
+
+        const container = elementToPan.parentElement;
         const videoModal = this.videoModal;
 
         // Mouse events for panning (desktop only)
         videoModal.addEventListener('mousedown', (e) => {
-            // Only pan when video is zoomed in
+            // Only pan when video/image is zoomed in
             if (this.getZoomLevel() <= 1) return;
 
             // Only pan on left mouse button, and not on controls
             if (e.button !== 0) return;
 
             // Don't pan if clicking on controls
-            if (e.target.closest('.video-controls')) return;
+            if (e.target.closest('.video-controls') || e.target.closest('.image-controls')) return;
 
             this.isDragging = true;
             this.dragStartX = e.clientX - this.panX;
@@ -3170,7 +3150,18 @@ class VideoPlayerApp {
 
     // Helper to extract current zoom level
     getZoomLevel() {
-        const container = this.videoPlayer.parentElement;
+        // Determine which element to check zoom for (video or image)
+        const imageElement = this.videoModal.querySelector('.image-display');
+        const isImageViewing = imageElement && imageElement.style.display !== 'none';
+
+        let elementToCheck;
+        if (isImageViewing) {
+            elementToCheck = imageElement;
+        } else {
+            elementToCheck = this.videoPlayer;
+        }
+
+        const container = elementToCheck.parentElement;
         const currentTransform = container.style.transform;
 
         if (currentTransform && currentTransform.includes('scale(')) {
@@ -4539,8 +4530,20 @@ class VideoPlayerApp {
             button.addEventListener('click', (e) => {
                 const filter = e.target.getAttribute('data-filter');
                 this.setActiveFilter(filter);
+
+                // Save the selected filter to localStorage
+                localStorage.setItem('selectedFilter', filter);
             });
         });
+
+        // Restore the last selected filter from localStorage
+        const savedFilter = localStorage.getItem('selectedFilter');
+        if (savedFilter) {
+            this.setActiveFilter(savedFilter);
+        } else {
+            // Default to 'all' if no saved filter
+            this.setActiveFilter('all');
+        }
     }
 
     // Set active filter and update UI
