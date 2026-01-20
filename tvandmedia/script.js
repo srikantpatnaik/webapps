@@ -401,6 +401,11 @@ class VideoPlayerApp {
         // Clear any existing timer
         this.clearAutoLockTimer();
 
+        // Only start the timer if lock feature is enabled
+        if (!this.isLockFeatureEnabled()) {
+            return;
+        }
+
         // Set a new timer to lock the app after the specified interval
         this.autoLockTimeout = setTimeout(() => {
             if (!this.isLocked) {
@@ -752,6 +757,48 @@ class VideoPlayerApp {
             }
             this.handlePasteEvent(e);
         });
+
+        // Handle export button
+        const exportButton = document.getElementById('exportButton');
+        if (exportButton) {
+            exportButton.addEventListener('click', () => {
+                if (!this.isLocked) {
+                    this.exportSavedMedia();
+                }
+            });
+        }
+
+        // Handle import button
+        const importButton = document.getElementById('importButton');
+        const importFileInput = document.getElementById('importFileInput');
+
+        if (importButton && importFileInput) {
+            importButton.addEventListener('click', () => {
+                if (!this.isLocked) {
+                    // Clear the file input to allow selecting the same file again
+                    importFileInput.value = '';
+                    importFileInput.click();
+                }
+            });
+
+            importFileInput.addEventListener('change', (e) => {
+                if (this.isLocked) {
+                    return;
+                }
+
+                if (e.target.files && e.target.files.length > 0) {
+                    const file = e.target.files[0];
+
+                    // Validate file type
+                    if (file.type !== 'application/zip' && !file.name.toLowerCase().endsWith('.zip')) {
+                        alert('Please select a valid ZIP file.');
+                        return;
+                    }
+
+                    this.importMediaFromZip(file);
+                }
+            });
+        }
     }
 
     // Handle paste event to process clipboard images
@@ -4931,6 +4978,33 @@ class VideoPlayerApp {
         if (this.videoPlayer && !this.videoPlayer.paused) {
             this.videoPlayer.pause();
         }
+
+        // Hide video modal and controls if visible
+        if (this.videoModal && this.videoModal.style.display === 'block') {
+            // Hide video controls
+            const videoControls = this.videoModal.querySelector('.video-controls');
+            if (videoControls) {
+                videoControls.style.display = 'none';
+            }
+
+            // Hide close button
+            if (this.closeModal) {
+                this.closeModal.style.display = 'none';
+            }
+
+            // Make sure the video player is not visible through the lock
+            if (this.videoPlayer) {
+                this.videoPlayer.style.visibility = 'hidden';
+                this.videoPlayer.style.opacity = '0';
+            }
+
+            // Hide any image display if present
+            const imageElement = this.videoModal.querySelector('.image-display');
+            if (imageElement) {
+                imageElement.style.visibility = 'hidden';
+                imageElement.style.opacity = '0';
+            }
+        }
     }
 
     // Show the lock overlay to make the entire app unusable
@@ -5017,6 +5091,33 @@ class VideoPlayerApp {
 
         // Restart the auto-lock timer when unlocked
         this.startAutoLockTimer();
+
+        // Restore video modal and controls if they were visible before locking
+        if (this.videoModal && this.videoModal.style.display === 'block') {
+            // Show video controls
+            const videoControls = this.videoModal.querySelector('.video-controls');
+            if (videoControls) {
+                videoControls.style.display = 'block';
+            }
+
+            // Show close button
+            if (this.closeModal) {
+                this.closeModal.style.display = 'block';
+            }
+
+            // Make sure the video player is visible again
+            if (this.videoPlayer) {
+                this.videoPlayer.style.visibility = 'visible';
+                this.videoPlayer.style.opacity = '1';
+            }
+
+            // Show any image display if present
+            const imageElement = this.videoModal.querySelector('.image-display');
+            if (imageElement) {
+                imageElement.style.visibility = 'visible';
+                imageElement.style.opacity = '1';
+            }
+        }
     }
 
     // Hide the lock overlay
@@ -5091,6 +5192,11 @@ class VideoPlayerApp {
                 imageElement.style.visibility = 'hidden';
                 imageElement.style.opacity = '0';
             }
+
+            // Hide the close button as well
+            if (this.closeModal) {
+                this.closeModal.style.display = 'none';
+            }
         }
 
         // Disable drag and drop
@@ -5148,6 +5254,11 @@ class VideoPlayerApp {
                     imageElement.style.visibility = '';
                     imageElement.style.opacity = '';
                 }
+
+                // Show the close button again
+                if (this.closeModal) {
+                    this.closeModal.style.display = 'block';
+                }
             }
 
             // Re-enable drag and drop
@@ -5202,6 +5313,11 @@ class VideoPlayerApp {
                 imageElement.style.pointerEvents = '';
                 imageElement.style.visibility = '';
                 imageElement.style.opacity = '';
+            }
+
+            // Show the close button again
+            if (this.closeModal) {
+                this.closeModal.style.display = 'block';
             }
         }
 
@@ -5420,11 +5536,15 @@ class VideoPlayerApp {
             this.hideLockOverlay();
         }
 
-        // Manage auto-lock timer based on lock state and if lock feature is enabled
+        // Manage auto-lock timer based on lock state and feature enabled status
         if (this.isLocked && this.isLockFeatureEnabled()) {
             this.clearAutoLockTimer();
-        } else {
+        } else if (this.isLockFeatureEnabled() && !this.isLocked) {
+            // Only start auto-lock timer if lock feature is enabled AND we're not currently locked
             this.startAutoLockTimer();
+        } else {
+            // If lock feature is disabled, ensure timer is cleared
+            this.clearAutoLockTimer();
         }
     }
 
@@ -5547,6 +5667,281 @@ class VideoPlayerApp {
 
         // Update the gallery to reflect the new thumbnails
         this.renderGallery();
+    }
+
+    // Export all saved media to an uncompressed zip file
+    async exportSavedMedia() {
+        try {
+            // Filter to get only saved media (stored as base64 in storage)
+            const savedVideos = this.videos.filter(video => video.type === 'stored_video');
+
+            if (savedVideos.length === 0) {
+                alert('No saved media to export.');
+                return;
+            }
+
+            // Create a new JSZip instance
+            const zip = new JSZip();
+
+            // Create a metadata file to store video information
+            const metadata = {
+                exportedAt: new Date().toISOString(),
+                totalVideos: savedVideos.length,
+                videos: []
+            };
+
+            // Add each saved video to the zip
+            for (let i = 0; i < savedVideos.length; i++) {
+                const video = savedVideos[i];
+
+                // Extract file extension from the base64 data
+                let fileExtension = '.bin'; // default
+                let mimeType = '';
+
+                if (video.src.startsWith('data:video/')) {
+                    mimeType = 'video';
+                    fileExtension = this.getFileExtensionFromMimeType(video.src);
+                } else if (video.src.startsWith('data:image/')) {
+                    mimeType = 'image';
+                    fileExtension = this.getFileExtensionFromMimeType(video.src);
+                } else if (video.src.startsWith('data:audio/')) {
+                    mimeType = 'audio';
+                    fileExtension = this.getFileExtensionFromMimeType(video.src);
+                }
+
+                // Create a clean filename
+                const cleanName = this.sanitizeFilename(video.name || `media_${i}`);
+                const filename = `${cleanName}${fileExtension}`;
+
+                // Extract base64 data
+                const base64Data = video.src.split(',')[1];
+                const binaryData = atob(base64Data);
+                const arrayBuffer = new ArrayBuffer(binaryData.length);
+                const uint8Array = new Uint8Array(arrayBuffer);
+
+                for (let j = 0; j < binaryData.length; j++) {
+                    uint8Array[j] = binaryData.charCodeAt(j);
+                }
+
+                // Add the media file to the zip
+                zip.file(filename, uint8Array);
+
+                // Add video metadata
+                metadata.videos.push({
+                    id: video.id,
+                    name: video.name,
+                    originalFilename: video.name,
+                    filename: filename,
+                    size: video.size,
+                    duration: video.duration,
+                    timestamp: video.timestamp,
+                    type: video.type,
+                    isImage: video.isImage,
+                    isAudio: video.isAudio
+                });
+            }
+
+            // Add metadata file to the zip
+            zip.file('metadata.json', JSON.stringify(metadata, null, 2));
+
+            // Generate the zip file as a blob
+            const zipBlob = await zip.generateAsync({type: "blob", compression: "STORE"}); // STORE means no compression
+
+            // Create a download link
+            const url = URL.createObjectURL(zipBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `saved_media_export_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            // Clean up the URL object
+            URL.revokeObjectURL(url);
+
+            this.showMessage(`Exported ${savedVideos.length} media files successfully!`);
+        } catch (error) {
+            console.error('Error exporting media:', error);
+            alert('Error exporting media: ' + error.message);
+        }
+    }
+
+    // Import media from a zip file
+    async importMediaFromZip(file) {
+        try {
+            if (!file) {
+                alert('No file selected for import.');
+                return;
+            }
+
+            // Show loading message
+            this.showMessage('Importing media...');
+
+            // Load the zip file
+            const zip = new JSZip();
+            const zipContent = await zip.loadAsync(file);
+
+            // Check if metadata file exists
+            const metadataFile = zipContent.file('metadata.json');
+            if (!metadataFile) {
+                alert('Invalid zip file: Missing metadata.json');
+                return;
+            }
+
+            // Load metadata
+            const metadataJson = await metadataFile.async('text');
+            const metadata = JSON.parse(metadataJson);
+
+            // Process each file in the zip (excluding metadata.json)
+            const files = Object.keys(zipContent.files).filter(filename => filename !== 'metadata.json');
+
+            let importedCount = 0;
+
+            for (const filename of files) {
+                const fileEntry = zipContent.files[filename];
+
+                // Skip directories
+                if (fileEntry.dir) continue;
+
+                // Get file content as ArrayBuffer
+                const arrayBuffer = await fileEntry.async('arraybuffer');
+
+                // Convert ArrayBuffer to base64
+                const bytes = new Uint8Array(arrayBuffer);
+                let binary = '';
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                const base64Data = btoa(binary);
+
+                // Determine MIME type based on file extension
+                const fileExt = filename.split('.').pop().toLowerCase();
+                const mimeType = this.getMimeTypeFromFileExtension(fileExt);
+
+                // Create base64 URL
+                const base64Url = `data:${mimeType};base64,${base64Data}`;
+
+                // Find metadata for this file
+                const videoMetadata = metadata.videos.find(v => v.filename === filename) || {};
+
+                // Create video object
+                const newVideo = {
+                    id: videoMetadata.id || Date.now() + Math.random().toString(36).substr(2, 9),
+                    src: base64Url,
+                    name: videoMetadata.name || filename,
+                    size: videoMetadata.size || arrayBuffer.byteLength,
+                    duration: videoMetadata.duration,
+                    thumbnail: '', // Will be generated later
+                    timestamp: videoMetadata.timestamp || new Date().toISOString(),
+                    allowSave: true,
+                    type: 'stored_video',
+                    isImage: videoMetadata.isImage,
+                    isAudio: videoMetadata.isAudio
+                };
+
+                // Check if this video already exists (by name and size)
+                const existingIndex = this.videos.findIndex(v =>
+                    v.name === newVideo.name && v.size === newVideo.size
+                );
+
+                if (existingIndex === -1) {
+                    // Add to videos array if not duplicate
+                    this.videos.push(newVideo);
+                    importedCount++;
+
+                    // Generate thumbnail for the imported video
+                    if (base64Url.startsWith('data:video/')) {
+                        this.generateThumbnailFromBase64(newVideo);
+                    } else if (base64Url.startsWith('data:image/')) {
+                        newVideo.thumbnail = base64Url;
+                    }
+                } else {
+                    console.log(`Skipped duplicate file: ${filename}`);
+                }
+            }
+
+            // Save to storage and update UI
+            this.saveToStorage();
+            this.updateTotalSizeDisplay();
+            this.renderGallery();
+
+            this.showMessage(`Imported ${importedCount} media files successfully!`);
+        } catch (error) {
+            console.error('Error importing media:', error);
+            alert('Error importing media: ' + error.message);
+        }
+    }
+
+    // Helper method to get file extension from MIME type in base64 string
+    getFileExtensionFromMimeType(base64String) {
+        const mimeType = base64String.split(';')[0].split(':')[1];
+
+        const mimeToExt = {
+            'video/mp4': '.mp4',
+            'video/webm': '.webm',
+            'video/ogg': '.ogg',
+            'video/mkv': '.mkv',
+            'video/avi': '.avi',
+            'video/mov': '.mov',
+            'video/wmv': '.wmv',
+            'video/flv': '.flv',
+            'video/mpeg': '.mpeg',
+            'video/x-matroska': '.mkv',
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/png': '.png',
+            'image/gif': '.gif',
+            'image/webp': '.webp',
+            'image/svg+xml': '.svg',
+            'image/bmp': '.bmp',
+            'audio/mp3': '.mp3',
+            'audio/wav': '.wav',
+            'audio/ogg': '.ogg',
+            'audio/mpeg': '.mp3',
+            'audio/wave': '.wav',
+            'audio/x-wav': '.wav'
+        };
+
+        return mimeToExt[mimeType] || '.bin';
+    }
+
+    // Helper method to get MIME type from file extension
+    getMimeTypeFromFileExtension(ext) {
+        const extToMime = {
+            'mp4': 'video/mp4',
+            'webm': 'video/webm',
+            'ogg': 'video/ogg',
+            'mkv': 'video/x-matroska',
+            'avi': 'video/avi',
+            'mov': 'video/quicktime',
+            'wmv': 'video/x-ms-wmv',
+            'flv': 'video/x-flv',
+            'm4v': 'video/mp4',
+            '3gp': 'video/3gpp',
+            '3g2': 'video/3gpp2',
+            'mjpeg': 'video/x-mjpeg',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'svg': 'image/svg+xml',
+            'bmp': 'image/bmp',
+            'mp3': 'audio/mpeg',
+            'wav': 'audio/wav',
+            'ogg': 'audio/ogg',
+            'm4a': 'audio/mp4',
+            'flac': 'audio/flac',
+            'aac': 'audio/aac'
+        };
+
+        return extToMime[ext.toLowerCase()] || 'application/octet-stream';
+    }
+
+    // Helper method to sanitize filename
+    sanitizeFilename(filename) {
+        // Remove invalid characters and replace with underscores
+        return filename.replace(/[^a-z0-9.-]/gi, '_');
     }
 }
 

@@ -92,25 +92,32 @@
         <header>
             <div class="header-title-row">
                 <h1>TV and Media</h1>
-                <div class="header-controls">
+                <div class="header-main-controls">
                     <div class="total-size-display" id="totalSizeDisplay">0 MB</div>
-                    <div class="thumbnail-toggle">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="thumbnailToggle">
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <span class="toggle-label">Text Thumbnails</span>
-                    </div>
-                    <div class="lock-toggle">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="lockToggle" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <span class="toggle-label">Lock Enabled</span>
-                    </div>
                     <button class="help-button" id="helpButton" title="Show keyboard shortcuts and help">ℹ️</button>
-                    <button class="lock-button" id="lockButton" title="Lock/Unlock media gallery">🔒</button>
                 </div>
+            </div>
+            <div class="header-secondary-controls">
+                <div class="export-import-controls">
+                    <button class="export-button" id="exportButton" title="Export all saved media to zip file">📤</button>
+                    <button class="import-button" id="importButton" title="Import media from zip file">📥</button>
+                    <input type="file" id="importFileInput" accept=".zip" style="display: none;">
+                </div>
+                <div class="thumbnail-toggle">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="thumbnailToggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Text Thumbnails</span>
+                </div>
+                <div class="lock-toggle">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="lockToggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Lock Enabled</span>
+                </div>
+                <button class="lock-button" id="lockButton" title="Lock/Unlock media gallery">🔒</button>
             </div>
             <div id="videoInfo" class="video-info-display" style="display: none;"></div>
 
@@ -292,6 +299,8 @@
         </div>
     </div>
 
+    <!-- Include JSZip library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
