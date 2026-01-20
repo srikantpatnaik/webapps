@@ -10,7 +10,9 @@ class VideoPlayerApp {
         this.isLoadingVideos = true; // Flag to track loading state
         this.playlistUrls = []; // Track loaded playlist URLs
         this.useTextThumbnails = false; // Default to image thumbnails
+        this.currentFilter = 'all'; // Default filter
         this.initElements();
+        this.initFilterControls(); // Initialize filter controls
         this.bindEvents();
         this.initializeVideoPlayer();
         this.initializeVideoPlayerControls();
@@ -483,6 +485,35 @@ class VideoPlayerApp {
                 this.hideHelpModal();
             }
         });
+
+        // Handle paste event on media input to allow pasting images from clipboard
+        this.mediaInput.addEventListener('paste', (e) => {
+            this.handlePasteEvent(e);
+        });
+    }
+
+    // Handle paste event to process clipboard images
+    handlePasteEvent(e) {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+
+        // Look for image data in clipboard
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                // Get the image as a blob
+                const blob = items[i].getAsFile();
+
+                // Create a file from the blob
+                const file = new File([blob], `clipboard_image_${Date.now()}.png`, { type: blob.type });
+
+                // Process the image file
+                this.processImageFile(file);
+
+                // Prevent the default paste behavior
+                e.preventDefault();
+
+                return; // Exit after processing the first image
+            }
+        }
     }
 
     handleFiles(files) {
@@ -516,6 +547,13 @@ class VideoPlayerApp {
 
     // Handle media input by detecting the type of input
     handleMediaInput(input) {
+        // Check if input is base64 encoded image data
+        if (this.isBase64Image(input)) {
+            // Handle as base64 image data
+            this.handleBase64Image(input);
+            return;
+        }
+
         // Detect input type
         if (input.startsWith('file:///')) {
             // Local file path (simulate file opening)
@@ -539,13 +577,69 @@ class VideoPlayerApp {
                     this.loadVideoFromUrl(input, true); // Pass true to indicate save should be available
                 } else {
                     // For other URLs, try to infer if it's a streaming endpoint
-                    this.loadVideoFromUrl(input, false); // Default behavior, no save for streaming
+                    // First, try to check if it's an image by sending a HEAD request
+                    this.checkAndLoadImageOrVideo(input);
                 }
             }
         } else {
             // If it's neither a file:// nor http:// URL, treat as invalid input
             alert('Invalid input. Please enter a valid file path starting with file:/// or a URL starting with http:// or https://');
         }
+    }
+
+    // Check if input is base64 encoded image data
+    isBase64Image(input) {
+        // Check if input starts with data:image/ and contains base64
+        return /^data:image\/[a-zA-Z]*;base64,/.test(input);
+    }
+
+    // Handle base64 image data
+    handleBase64Image(base64Data) {
+        // Create a filename for the base64 image
+        const timestamp = new Date().getTime();
+        const fileName = `pasted_image_${timestamp}.jpg`; // Default to jpg, could be improved to detect actual format
+
+        // Create a blob from the base64 data
+        const byteCharacters = atob(base64Data.split(',')[1]); // Remove data:image/...;base64, prefix
+        const byteArrays = [];
+
+        for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+            const slice = byteCharacters.slice(offset, offset + 512);
+            const byteNumbers = new Array(slice.length);
+            for (let i = 0; i < slice.length; i++) {
+                byteNumbers[i] = slice.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            byteArrays.push(byteArray);
+        }
+
+        const blob = new Blob(byteArrays, { type: 'image/jpeg' }); // Default to jpeg, could be improved
+        const file = new File([blob], fileName, { type: 'image/jpeg' });
+
+        // Process the image file
+        this.processImageFile(file);
+    }
+
+    // Check if URL is an image or video by sending a HEAD request
+    checkAndLoadImageOrVideo(input) {
+        // Send a HEAD request to determine content type
+        fetch(input, { method: 'HEAD' })
+            .then(response => {
+                const contentType = response.headers.get('content-type');
+
+                if (contentType && contentType.startsWith('image/')) {
+                    // It's an image
+                    this.loadImageFromUrl(input);
+                } else {
+                    // Assume it's a video/audio stream
+                    this.loadVideoFromUrl(input, false);
+                }
+            })
+            .catch(error => {
+                console.error('Error checking content type:', error);
+                // If HEAD request fails, try loading as video
+                this.loadVideoFromUrl(input, false);
+            });
     }
 
     // Handle local file by attempting to process it if possible
@@ -1403,7 +1497,21 @@ class VideoPlayerApp {
                         // If it's a video that was previously stored as base64, mark it appropriately
                         if (video.src && typeof video.src === 'string' && video.src.startsWith('data:')) {
                             // This is a stored video in base64 format
-                            return { ...video, type: 'stored_video' };
+                            const updatedVideo = { ...video, type: 'stored_video' };
+
+                            // If thumbnail is empty or missing, generate one from the base64 source
+                            if (!updatedVideo.thumbnail || updatedVideo.thumbnail.trim() === '') {
+                                // For stored videos, we can generate a thumbnail from the base64 source
+                                if (updatedVideo.src.startsWith('data:video/')) {
+                                    // For video files, we need to create a temporary video element to generate thumbnail
+                                    this.generateThumbnailFromBase64(updatedVideo);
+                                } else if (updatedVideo.src.startsWith('data:image/')) {
+                                    // For image files, use the base64 source as thumbnail
+                                    updatedVideo.thumbnail = updatedVideo.src;
+                                }
+                            }
+
+                            return updatedVideo;
                         } else if (video.type === 'local_file') {
                             // Files can't be stored in IndexedDB, so mark them as needing re-upload
                             // This will happen when a user closes the browser and comes back
@@ -1433,6 +1541,90 @@ class VideoPlayerApp {
                 }
             };
         });
+    }
+
+    // Generate thumbnail from base64 video source
+    generateThumbnailFromBase64(video) {
+        // Create a temporary video element to generate thumbnail
+        const tempVideo = document.createElement('video');
+        tempVideo.preload = 'metadata';
+        tempVideo.src = video.src;
+
+        tempVideo.onloadedmetadata = () => {
+            const canvas = document.createElement('canvas');
+            // Set fixed dimensions for thumbnails to avoid huge canvas sizes
+            // Use 320x240 as a standard thumbnail size
+            canvas.width = 320;
+            canvas.height = 240;
+            const ctx = canvas.getContext('2d');
+
+            // Capture frame at 1 second if duration is sufficient, otherwise at 0
+            const seekTime = tempVideo.duration > 1 ? 1 : 0;
+
+            const captureFrame = () => {
+                try {
+                    // Clear canvas first
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // Calculate scaling to fit video into thumbnail while maintaining aspect ratio
+                    const videoAspect = tempVideo.videoWidth / tempVideo.videoHeight;
+                    const canvasAspect = canvas.width / canvas.height;
+
+                    let renderWidth, renderHeight, offsetX, offsetY;
+
+                    if (videoAspect > canvasAspect) {
+                        // Video is wider than canvas
+                        renderHeight = canvas.height;
+                        renderWidth = tempVideo.videoWidth * (canvas.height / tempVideo.videoHeight);
+                        offsetX = (canvas.width - renderWidth) / 2;
+                        offsetY = 0;
+                    } else {
+                        // Video is taller than canvas
+                        renderWidth = canvas.width;
+                        renderHeight = tempVideo.videoHeight * (canvas.width / tempVideo.videoWidth);
+                        offsetX = 0;
+                        offsetY = (canvas.height - renderHeight) / 2;
+                    }
+
+                    // Draw the video frame scaled to fit the canvas
+                    ctx.drawImage(tempVideo, offsetX, offsetY, renderWidth, renderHeight);
+
+                    // Add a subtle border
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+                    const thumbnail = canvas.toDataURL('image/jpeg', 0.8); // 80% quality for smaller file size
+
+                    // Update the video's thumbnail
+                    video.thumbnail = thumbnail;
+
+                    // Update the gallery to show the new thumbnail
+                    this.renderGallery();
+                } catch (drawError) {
+                    console.error('Error drawing thumbnail from base64:', drawError);
+                }
+            };
+
+            // If video duration is too short, just use the first frame
+            if (seekTime === 0) {
+                captureFrame();
+            } else {
+                // Capture frame at 1 second
+                tempVideo.currentTime = seekTime;
+
+                const onSeeked = () => {
+                    captureFrame();
+                    tempVideo.removeEventListener('seeked', onSeeked);
+                };
+
+                tempVideo.addEventListener('seeked', onSeeked, { once: true });
+            }
+        };
+
+        tempVideo.onerror = (event) => {
+            console.error('Error loading base64 video for thumbnail generation:', event);
+        };
     }
 
     saveToLocalStorageAsFallback() {
@@ -1466,6 +1658,9 @@ class VideoPlayerApp {
         // Clear the gallery first
         this.videoGallery.innerHTML = '';
 
+        // Get filtered videos based on current filter
+        const filteredVideos = this.getFilteredVideos();
+
         // Show loading state if we're still loading videos and have no videos yet
         // This ensures the gallery is never completely blank during initial load
         if (this.isLoadingVideos && this.videos.length === 0) {
@@ -1473,14 +1668,19 @@ class VideoPlayerApp {
             return;
         }
 
-        // Check if we have videos to display
-        if (!this.videos || this.videos.length === 0) {
-            this.videoGallery.innerHTML = '<p class="no-videos">No videos to display. Upload some videos to get started.</p>';
+        // Check if we have videos to display after filtering
+        if (!filteredVideos || filteredVideos.length === 0) {
+            // Show different message based on filter
+            let message = 'No videos to display. Upload some videos to get started.';
+            if (this.currentFilter !== 'all') {
+                message = `No ${this.currentFilter} items found.`;
+            }
+            this.videoGallery.innerHTML = `<p class="no-videos">${message}</p>`;
             return;
         }
 
         // Filter out videos that need re-upload before rendering
-        const videosToDisplay = this.videos.filter(video => !(video.type === 'local_file' && video.needsReUpload));
+        const videosToDisplay = filteredVideos.filter(video => !(video.type === 'local_file' && video.needsReUpload));
 
         videosToDisplay.forEach(video => {
             const videoItem = document.createElement('div');
@@ -1750,9 +1950,20 @@ class VideoPlayerApp {
         }
 
         // Handle different video types
-        if (video.isImage && video.type === 'local_file' && video.file) {
+        if (video.isImage) {
             // For image files, create an image element and display it
-            const imageBlobUrl = URL.createObjectURL(video.file);
+            let imageSrc;
+
+            if (video.type === 'local_file' && video.file) {
+                imageSrc = URL.createObjectURL(video.file);
+            } else if (video.type === 'stored_video' && video.src) {
+                imageSrc = video.src; // For stored images, use the base64 src
+            } else if (video.src && video.src.startsWith('http')) {
+                imageSrc = video.src; // For image URLs
+            } else {
+                alert('Image source is not available');
+                return;
+            }
 
             // Replace video player with an image element
             this.videoPlayer.style.display = 'none';
@@ -1769,16 +1980,24 @@ class VideoPlayerApp {
                 imageElement.style.top = '0';
                 imageElement.style.left = '0';
                 imageElement.style.display = 'block';
+                imageElement.style.cursor = 'grab';
 
                 // Insert after the video player element
                 this.videoPlayer.insertAdjacentElement('afterend', imageElement);
             }
 
-            imageElement.src = imageBlobUrl;
-            this.videoInfo.textContent = `Viewing: ${video.name} (${video.width}x${video.height})`;
+            imageElement.src = imageSrc;
+            this.videoInfo.textContent = `Viewing: ${video.name} (${video.width || 'unknown'}x${video.height || 'unknown'})`;
 
-            // Store the URL to revoke later when closing modal
-            this.currentVideoBlobUrl = imageBlobUrl;
+            // Store the URL to revoke later when closing modal (only for blob URLs)
+            if (video.type === 'local_file' && video.file) {
+                this.currentVideoBlobUrl = imageSrc;
+            } else {
+                this.currentVideoBlobUrl = null; // Don't revoke for base64 or URLs
+            }
+
+            // Set up image-specific controls and interactions
+            this.setupImageViewerControls(imageElement);
         } else if (video.type === 'local_file' && video.file) {
             // For local files, create a blob URL from the stored file object
             const videoBlobUrl = URL.createObjectURL(video.file);
@@ -1806,7 +2025,7 @@ class VideoPlayerApp {
                 `Option 2: Cancel and set up a local server for streaming\n\n` +
                 `Click OK to select the file, or Cancel to learn about local server setup.`
             );
-            
+
             if (userChoice) {
                 // User wants to select the file
                 const input = document.createElement('input');
@@ -1819,7 +2038,7 @@ class VideoPlayerApp {
                     if (file) {
                         // Process the selected file and update the video entry
                         this.processVideoFile(file, true);
-                        
+
                         // Find the updated video entry and play it
                         setTimeout(() => {
                             const updatedVideo = this.videos.find(v => v.originalFileName === file.name || v.name === video.name);
@@ -1892,8 +2111,8 @@ class VideoPlayerApp {
                 try {
                     const urlObj = new URL(url);
                     const hostname = urlObj.hostname;
-                    return hostname === 'localhost' || 
-                           hostname === '127.0.0.1' || 
+                    return hostname === 'localhost' ||
+                           hostname === '127.0.0.1' ||
                            hostname === '0.0.0.0' ||
                            hostname === '::1' ||
                            hostname.startsWith('192.168.') ||
@@ -2013,6 +2232,238 @@ class VideoPlayerApp {
                 };
             }
         }, 100);
+    }
+
+    // Set up image viewer controls with similar functionality to video player
+    setupImageViewerControls(imageElement) {
+        // Hide video controls for images and show image-specific controls
+        const videoControls = this.videoModal.querySelector('.video-controls');
+        if (videoControls) {
+            videoControls.style.display = 'none';
+        }
+
+        // Show image-specific controls if they don't exist
+        let imageControls = this.videoModal.querySelector('.image-controls');
+        if (!imageControls) {
+            imageControls = document.createElement('div');
+            imageControls.className = 'image-controls';
+            imageControls.style.position = 'absolute';
+            imageControls.style.bottom = '0';
+            imageControls.style.left = '0';
+            imageControls.style.right = '0';
+            imageControls.style.background = 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)';
+            imageControls.style.padding = '20px';
+            imageControls.style.zIndex = '1001';
+            imageControls.style.opacity = '0';
+            imageControls.style.visibility = 'hidden';
+            imageControls.style.transition = 'opacity 0.3s ease, visibility 0.3s ease';
+
+            // Create control buttons
+            const controlButtons = document.createElement('div');
+            controlButtons.className = 'control-buttons';
+            controlButtons.style.display = 'flex';
+            controlButtons.style.alignItems = 'center';
+            controlButtons.style.gap = '10px';
+
+            // Add navigation buttons
+            const prevBtn = document.createElement('button');
+            prevBtn.id = 'imagePrevBtn';
+            prevBtn.textContent = '◀';
+            prevBtn.title = 'Previous Image (B)';
+            prevBtn.style.background = 'var(--button-bg)';
+            prevBtn.style.color = 'white';
+            prevBtn.style.border = 'none';
+            prevBtn.style.borderRadius = '50%';
+            prevBtn.style.width = '36px';
+            prevBtn.style.height = '36px';
+            prevBtn.style.display = 'flex';
+            prevBtn.style.alignItems = 'center';
+            prevBtn.style.justifyContent = 'center';
+            prevBtn.style.cursor = 'pointer';
+            prevBtn.style.fontSize = '14px';
+            prevBtn.style.transition = 'background-color 0.3s ease';
+
+            const nextBtn = document.createElement('button');
+            nextBtn.id = 'imageNextBtn';
+            nextBtn.textContent = '▶';
+            nextBtn.title = 'Next Image (N)';
+            nextBtn.style.background = 'var(--button-bg)';
+            nextBtn.style.color = 'white';
+            nextBtn.style.border = 'none';
+            nextBtn.style.borderRadius = '50%';
+            nextBtn.style.width = '36px';
+            nextBtn.style.height = '36px';
+            nextBtn.style.display = 'flex';
+            nextBtn.style.alignItems = 'center';
+            nextBtn.style.justifyContent = 'center';
+            nextBtn.style.cursor = 'pointer';
+            nextBtn.style.fontSize = '14px';
+            nextBtn.style.transition = 'background-color 0.3s ease';
+
+            // Add fullscreen button
+            const fullscreenBtn = document.createElement('button');
+            fullscreenBtn.id = 'imageFullscreenBtn';
+            fullscreenBtn.textContent = '⛶';
+            fullscreenBtn.title = 'Toggle Fullscreen (F)';
+            fullscreenBtn.style.background = 'var(--button-bg)';
+            fullscreenBtn.style.color = 'white';
+            fullscreenBtn.style.border = 'none';
+            fullscreenBtn.style.borderRadius = '50%';
+            fullscreenBtn.style.width = '36px';
+            fullscreenBtn.style.height = '36px';
+            fullscreenBtn.style.display = 'flex';
+            fullscreenBtn.style.alignItems = 'center';
+            fullscreenBtn.style.justifyContent = 'center';
+            fullscreenBtn.style.cursor = 'pointer';
+            fullscreenBtn.style.fontSize = '14px';
+            fullscreenBtn.style.transition = 'background-color 0.3s ease';
+
+            // Add zoom controls
+            const zoomInBtn = document.createElement('button');
+            zoomInBtn.textContent = '+';
+            zoomInBtn.title = 'Zoom In (Z)';
+            zoomInBtn.style.background = 'var(--button-bg)';
+            zoomInBtn.style.color = 'white';
+            zoomInBtn.style.border = 'none';
+            zoomInBtn.style.borderRadius = '50%';
+            zoomInBtn.style.width = '36px';
+            zoomInBtn.style.height = '36px';
+            zoomInBtn.style.display = 'flex';
+            zoomInBtn.style.alignItems = 'center';
+            zoomInBtn.style.justifyContent = 'center';
+            zoomInBtn.style.cursor = 'pointer';
+            zoomInBtn.style.fontSize = '14px';
+            zoomInBtn.style.transition = 'background-color 0.3s ease';
+
+            const zoomOutBtn = document.createElement('button');
+            zoomOutBtn.textContent = '-';
+            zoomOutBtn.title = 'Zoom Out (Shift+Z)';
+            zoomOutBtn.style.background = 'var(--button-bg)';
+            zoomOutBtn.style.color = 'white';
+            zoomOutBtn.style.border = 'none';
+            zoomOutBtn.style.borderRadius = '50%';
+            zoomOutBtn.style.width = '36px';
+            zoomOutBtn.style.height = '36px';
+            zoomOutBtn.style.display = 'flex';
+            zoomOutBtn.style.alignItems = 'center';
+            zoomOutBtn.style.justifyContent = 'center';
+            zoomOutBtn.style.cursor = 'pointer';
+            zoomOutBtn.style.fontSize = '14px';
+            zoomOutBtn.style.transition = 'background-color 0.3s ease';
+
+            const resetZoomBtn = document.createElement('button');
+            resetZoomBtn.textContent = '0';
+            resetZoomBtn.title = 'Reset Zoom (0)';
+            resetZoomBtn.style.background = 'var(--button-bg)';
+            resetZoomBtn.style.color = 'white';
+            resetZoomBtn.style.border = 'none';
+            resetZoomBtn.style.borderRadius = '50%';
+            resetZoomBtn.style.width = '36px';
+            resetZoomBtn.style.height = '36px';
+            resetZoomBtn.style.display = 'flex';
+            resetZoomBtn.style.alignItems = 'center';
+            resetZoomBtn.style.justifyContent = 'center';
+            resetZoomBtn.style.cursor = 'pointer';
+            resetZoomBtn.style.fontSize = '14px';
+            resetZoomBtn.style.transition = 'background-color 0.3s ease';
+
+            // Add close button
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✕';
+            closeBtn.title = 'Close (Esc)';
+            closeBtn.style.background = 'var(--button-bg)';
+            closeBtn.style.color = 'white';
+            closeBtn.style.border = 'none';
+            closeBtn.style.borderRadius = '50%';
+            closeBtn.style.width = '36px';
+            closeBtn.style.height = '36px';
+            closeBtn.style.display = 'flex';
+            closeBtn.style.alignItems = 'center';
+            closeBtn.style.justifyContent = 'center';
+            closeBtn.style.cursor = 'pointer';
+            closeBtn.style.fontSize = '14px';
+            closeBtn.style.transition = 'background-color 0.3s ease';
+
+            controlButtons.appendChild(prevBtn);
+            controlButtons.appendChild(nextBtn);
+            controlButtons.appendChild(zoomInBtn);
+            controlButtons.appendChild(zoomOutBtn);
+            controlButtons.appendChild(resetZoomBtn);
+            controlButtons.appendChild(fullscreenBtn);
+            controlButtons.appendChild(closeBtn);
+
+            imageControls.appendChild(controlButtons);
+            this.videoModal.appendChild(imageControls);
+        }
+
+        // Set up event listeners for image controls
+        document.getElementById('imagePrevBtn').onclick = () => this.playPrevVideo();
+        document.getElementById('imageNextBtn').onclick = () => this.playNextVideo();
+        document.getElementById('imageFullscreenBtn').onclick = () => this.toggleFullscreen();
+
+        // Zoom controls
+        document.querySelector('.image-controls button:nth-child(3)').onclick = () => this.toggleZoom(); // Zoom in
+        document.querySelector('.image-controls button:nth-child(4)').onclick = () => this.zoomOut(); // Zoom out
+        document.querySelector('.image-controls button:nth-child(5)').onclick = () => this.resetZoom(); // Reset zoom
+
+        // Close button
+        document.querySelector('.image-controls button:nth-child(7)').onclick = () => this.closeVideoModal();
+
+        // Set up mouse move to show controls
+        this.videoModal.addEventListener('mousemove', () => {
+            if (imageControls) {
+                imageControls.style.opacity = '1';
+                imageControls.style.visibility = 'visible';
+                this.startHideImageControlsTimer(imageControls);
+            }
+        });
+
+        // Start the auto-hide timer for image controls
+        this.startHideImageControlsTimer(imageControls);
+
+        // Set up image panning
+        this.setupImagePanning(imageElement);
+    }
+
+    // Timer to hide image controls
+    startHideImageControlsTimer(controls) {
+        clearTimeout(this.hideImageControlsTimeout);
+        this.hideImageControlsTimeout = setTimeout(() => {
+            if (controls) {
+                controls.style.opacity = '0';
+                controls.style.visibility = 'hidden';
+            }
+        }, 3000); // Hide controls after 3 seconds of inactivity
+    }
+
+    // Set up image panning functionality
+    setupImagePanning(imageElement) {
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let currentX = 0;
+        let currentY = 0;
+
+        imageElement.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            dragStartX = e.clientX - currentX;
+            dragStartY = e.clientY - currentY;
+            imageElement.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            currentX = e.clientX - dragStartX;
+            currentY = e.clientY - dragStartY;
+
+            imageElement.style.transform = `translate(${currentX}px, ${currentY}px)`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            imageElement.style.cursor = 'grab';
+        });
     }
 
     togglePlayPause() {
@@ -2406,14 +2857,25 @@ class VideoPlayerApp {
     }
 
     handleKeyboardShortcuts(e) {
+        // Check if we're currently viewing an image
+        const imageElement = this.videoModal.querySelector('.image-display');
+        const isImageViewing = imageElement && imageElement.style.display !== 'none';
+
         switch(e.key) {
             case ' ':
                 e.preventDefault();
-                this.togglePlayPause();
+                if (!isImageViewing) {
+                    this.togglePlayPause();
+                }
                 break;
             case 'ArrowRight':
                 e.preventDefault();
-                this.videoPlayer.currentTime += 10; // Seek forward 10 seconds
+                if (isImageViewing) {
+                    // For images, go to next image
+                    this.playNextVideo();
+                } else {
+                    this.videoPlayer.currentTime += 10; // Seek forward 10 seconds
+                }
                 break;
             case 'ArrowLeft':
                 // Check if Alt key is also pressed (Alt+Left arrow for back navigation)
@@ -2422,29 +2884,40 @@ class VideoPlayerApp {
                     this.closeVideoModal();
                 } else {
                     e.preventDefault();
-                    this.videoPlayer.currentTime -= 10; // Seek backward 10 seconds
+                    if (isImageViewing) {
+                        // For images, go to previous image
+                        this.playPrevVideo();
+                    } else {
+                        this.videoPlayer.currentTime -= 10; // Seek backward 10 seconds
+                    }
                 }
                 break;
             case 'ArrowUp':
                 e.preventDefault();
-                if (this.videoPlayer.volume < 1) {
-                    this.videoPlayer.volume = Math.min(1, this.videoPlayer.volume + 0.1);
-                    this.volumeSlider.value = this.videoPlayer.volume;
+                if (!isImageViewing) {
+                    if (this.videoPlayer.volume < 1) {
+                        this.videoPlayer.volume = Math.min(1, this.videoPlayer.volume + 0.1);
+                        this.volumeSlider.value = this.videoPlayer.volume;
+                    }
+                    this.updateVolumeButton();
                 }
-                this.updateVolumeButton();
                 break;
             case 'ArrowDown':
                 e.preventDefault();
-                if (this.videoPlayer.volume > 0) {
-                    this.videoPlayer.volume = Math.max(0, this.videoPlayer.volume - 0.1);
-                    this.volumeSlider.value = this.videoPlayer.volume;
+                if (!isImageViewing) {
+                    if (this.videoPlayer.volume > 0) {
+                        this.videoPlayer.volume = Math.max(0, this.videoPlayer.volume - 0.1);
+                        this.volumeSlider.value = this.videoPlayer.volume;
+                    }
+                    this.updateVolumeButton();
                 }
-                this.updateVolumeButton();
                 break;
             case 'm':
             case 'M':
                 e.preventDefault();
-                this.toggleMute();
+                if (!isImageViewing) {
+                    this.toggleMute();
+                }
                 break;
             case 'f':
             case 'F':
@@ -2468,14 +2941,24 @@ class VideoPlayerApp {
             case 'l':
             case 'L':
                 e.preventDefault();
-                // Toggle local loop for current video only
-                this.toggleLoop();
+                if (!isImageViewing) {
+                    // Toggle local loop for current video only
+                    this.toggleLoop();
+                }
                 break;
             case 'a':
             case 'A':
                 e.preventDefault();
-                // Toggle global loop for all videos
-                this.toggleGlobalLoop();
+                if (!isImageViewing) {
+                    // Toggle global loop for all videos
+                    this.toggleGlobalLoop();
+                }
+                break;
+            case 's':
+            case 'S':
+                e.preventDefault();
+                // Save current playing video to browser storage
+                this.saveCurrentVideoToStorage();
                 break;
             case 'o':  // Toggle keyboard shortcuts
             case 'O':
@@ -2485,24 +2968,40 @@ class VideoPlayerApp {
                 break;
             case 'z':  // Zoom in/toggle
                 e.preventDefault();
-                this.toggleZoom();
+                if (isImageViewing) {
+                    this.toggleZoom();
+                } else {
+                    this.toggleZoom();
+                }
                 break;
             case 'Z':  // Zoom out
                 e.preventDefault();
-                this.zoomOut();
+                if (isImageViewing) {
+                    this.zoomOut();
+                } else {
+                    this.zoomOut();
+                }
                 break;
             case '0':
                 e.preventDefault();
-                this.resetZoom();
+                if (isImageViewing) {
+                    this.resetZoom();
+                } else {
+                    this.resetZoom();
+                }
                 break;
             case '+':
             case '=': // For key combinations like Shift+=
                 e.preventDefault();
-                this.increaseSpeed();
+                if (!isImageViewing) {
+                    this.increaseSpeed();
+                }
                 break;
             case '-':
                 e.preventDefault();
-                this.decreaseSpeed();
+                if (!isImageViewing) {
+                    this.decreaseSpeed();
+                }
                 break;
             case 'Escape':
                 this.closeVideoModal();
@@ -2726,87 +3225,99 @@ class VideoPlayerApp {
     }
 
     playNextVideo() {
-        if (this.videos.length <= 1) return;
+        const filteredVideos = this.getFilteredVideos();
+        if (filteredVideos.length <= 1) return;
 
-        // Find current video index based on src
-        const currentSrc = this.videoPlayer.src;
-        let currentIndex = -1;
+        // Get current video index in the filtered list
+        let currentIndex = this.getCurrentVideoIndexInFilteredList();
+        if (currentIndex === -1) {
+            // If current video is not in the filtered list, try to find it by src
+            const currentSrc = this.videoPlayer.src;
+            const currentVideo = this.videos.find(video =>
+                video.src === currentSrc ||
+                video.src === currentSrc.split('?')[0] ||
+                (video.file && URL.createObjectURL(video.file) === currentSrc)
+            );
 
-        for (let i = 0; i < this.videos.length; i++) {
-            if (this.videos[i].src === currentSrc || this.videos[i].src === currentSrc.split('?')[0]) {
-                currentIndex = i;
-                break;
+            if (currentVideo) {
+                currentIndex = filteredVideos.findIndex(video => video.id === currentVideo.id);
             }
         }
 
-        // If not found in stored videos, use internal tracking
         if (currentIndex === -1) {
-            currentIndex = this.currentVideoIndex;
+            // If still not found, start from the beginning
+            currentIndex = 0;
         }
 
-        // Find the next valid video that can be played (not needing re-upload)
+        // Find the next valid video in the filtered list that can be played (not needing re-upload)
         let nextIndex = currentIndex;
         let attempts = 0;
 
         do {
-            nextIndex = (nextIndex + 1) % this.videos.length;
+            nextIndex = (nextIndex + 1) % filteredVideos.length;
             attempts++;
 
             // Check if this video can be played (not a local file that needs re-upload)
-            const video = this.videos[nextIndex];
+            const video = filteredVideos[nextIndex];
             if (!(video.type === 'local_file' && video.needsReUpload)) {
-                // Update internal tracking
-                this.currentVideoIndex = nextIndex;
+                // Update internal tracking to the actual index in the main videos array
+                this.currentVideoIndex = this.videos.findIndex(v => v.id === video.id);
                 // Play the next video
                 this.playVideo(video);
                 return; // Exit successfully
             }
-        } while (attempts < this.videos.length); // Stop after checking all videos once
+        } while (attempts < filteredVideos.length); // Stop after checking all filtered videos once
 
-        // If we get here, all videos need re-upload
-        alert('All videos need to be re-uploaded. Please re-select your files.');
+        // If we get here, all filtered videos need re-upload
+        alert('All filtered videos need to be re-uploaded. Please re-select your files.');
     }
 
     playPrevVideo() {
-        if (this.videos.length <= 1) return;
+        const filteredVideos = this.getFilteredVideos();
+        if (filteredVideos.length <= 1) return;
 
-        // Find current video index based on src
-        const currentSrc = this.videoPlayer.src;
-        let currentIndex = -1;
+        // Get current video index in the filtered list
+        let currentIndex = this.getCurrentVideoIndexInFilteredList();
+        if (currentIndex === -1) {
+            // If current video is not in the filtered list, try to find it by src
+            const currentSrc = this.videoPlayer.src;
+            const currentVideo = this.videos.find(video =>
+                video.src === currentSrc ||
+                video.src === currentSrc.split('?')[0] ||
+                (video.file && URL.createObjectURL(video.file) === currentSrc)
+            );
 
-        for (let i = 0; i < this.videos.length; i++) {
-            if (this.videos[i].src === currentSrc || this.videos[i].src === currentSrc.split('?')[0]) {
-                currentIndex = i;
-                break;
+            if (currentVideo) {
+                currentIndex = filteredVideos.findIndex(video => video.id === currentVideo.id);
             }
         }
 
-        // If not found in stored videos, use internal tracking
         if (currentIndex === -1) {
-            currentIndex = this.currentVideoIndex;
+            // If still not found, start from the end
+            currentIndex = filteredVideos.length - 1;
         }
 
-        // Find the previous valid video that can be played (not needing re-upload)
+        // Find the previous valid video in the filtered list that can be played (not needing re-upload)
         let prevIndex = currentIndex;
         let attempts = 0;
 
         do {
-            prevIndex = (prevIndex - 1 + this.videos.length) % this.videos.length;
+            prevIndex = (prevIndex - 1 + filteredVideos.length) % filteredVideos.length;
             attempts++;
 
             // Check if this video can be played (not a local file that needs re-upload)
-            const video = this.videos[prevIndex];
+            const video = filteredVideos[prevIndex];
             if (!(video.type === 'local_file' && video.needsReUpload)) {
-                // Update internal tracking
-                this.currentVideoIndex = prevIndex;
+                // Update internal tracking to the actual index in the main videos array
+                this.currentVideoIndex = this.videos.findIndex(v => v.id === video.id);
                 // Play the previous video
                 this.playVideo(video);
                 return; // Exit successfully
             }
-        } while (attempts < this.videos.length); // Stop after checking all videos once
+        } while (attempts < filteredVideos.length); // Stop after checking all filtered videos once
 
-        // If we get here, all videos need re-upload
-        alert('All videos need to be re-uploaded. Please re-select your files.');
+        // If we get here, all filtered videos need re-upload
+        alert('All filtered videos need to be re-uploaded. Please re-select your files.');
     }
 
     toggleGlobalLoop() {
@@ -2825,14 +3336,42 @@ class VideoPlayerApp {
 
     toggleKeyboardShortcuts() {
         const shortcutsDiv = document.querySelector('.keyboard-shortcuts');
-        if (shortcutsDiv.style.opacity === '1') {
+        if (shortcutsDiv.style.opacity === '1' || shortcutsDiv.style.opacity === '0.8') {
             shortcutsDiv.style.opacity = '0';
             shortcutsDiv.style.visibility = 'hidden';
-            this.showMessage('Keyboard Shortcuts: HIDDEN');
+            this.showMessage('HIDDEN');
         } else {
             shortcutsDiv.style.opacity = '0.8';
             shortcutsDiv.style.visibility = 'visible';
-            this.showMessage('Keyboard Shortcuts: VISIBLE');
+            this.showMessage('VISIBLE');
+        }
+    }
+
+    saveCurrentVideoToStorage() {
+        // Find the current video being played
+        if (this.currentVideoIndex >= 0 && this.currentVideoIndex < this.videos.length) {
+            const currentVideo = this.videos[this.currentVideoIndex];
+
+            // Call the existing saveVideoToStorage method
+            this.saveVideoToStorage(currentVideo);
+
+            // Print "saved" message
+            this.showMessage('Saved');
+        } else {
+            // If we don't have a current video index, try to find the video by src
+            const currentSrc = this.videoPlayer.src;
+            const currentVideo = this.videos.find(video =>
+                video.src === currentSrc ||
+                video.src === currentSrc.split('?')[0] ||
+                (video.file && URL.createObjectURL(video.file) === currentSrc)
+            );
+
+            if (currentVideo) {
+                this.saveVideoToStorage(currentVideo);
+                this.showMessage('Saved');
+            } else {
+                console.log('No current video found to save');
+            }
         }
     }
 
@@ -2969,17 +3508,42 @@ class VideoPlayerApp {
         let lastTapTime = 0;
         const doubleTapDelay = 300; // ms
 
+        // Long press detection variables
+        let longPressTimer = null;
+        const longPressDelay = 3000; // 3 seconds for long press
+
         // Add touch to pause/play anywhere on screen
         videoContainer.addEventListener('touchstart', (e) => {
             // Store touch start position
             touchStartX = e.changedTouches[0].screenX;
             touchStartY = e.changedTouches[0].screenY;
 
+            // Start long press timer
+            clearTimeout(longPressTimer);
+            longPressTimer = setTimeout(() => {
+                // Long press detected - save current video
+                this.saveCurrentVideoToStorage();
+                this.showMessage('Saved');
+            }, longPressDelay);
+
             // Single tap to pause/play (check if it's a tap, not a swipe)
             this.touchStartTime = Date.now();
         }, { passive: true });
 
+        // Clear long press timer on touch end
         videoContainer.addEventListener('touchend', (e) => {
+            clearTimeout(longPressTimer);
+        }, { passive: true });
+
+        // Clear long press timer on touch move (to prevent long press if user starts swiping)
+        videoContainer.addEventListener('touchmove', () => {
+            clearTimeout(longPressTimer);
+        }, { passive: true });
+
+        // Combine the existing touchend logic with the long press timer clearing
+        const originalTouchEndHandler = (e) => {
+            clearTimeout(longPressTimer); // Clear the long press timer
+
             const currentTime = Date.now();
             const tapLength = currentTime - lastTapTime;
 
@@ -3008,7 +3572,9 @@ class VideoPlayerApp {
 
             // Otherwise handle swipe gestures
             this.handleSwipeGesture(touchStartY, topZoneHeight, middleZoneHeight, bottomZoneHeight);
-        }, { passive: true });
+        };
+
+        videoContainer.addEventListener('touchend', originalTouchEndHandler, { passive: true });
 
         // Handle swipe gesture
         this.handleSwipeGesture = (startY, topZoneHeight, middleZoneHeight, bottomZoneHeight) => {
@@ -3022,15 +3588,15 @@ class VideoPlayerApp {
             const isMiddleZone = startY >= topZoneHeight && startY < (topZoneHeight + middleZoneHeight);
             const isBottomZone = startY >= (topZoneHeight + middleZoneHeight);
 
-            // Check if it's a horizontal swipe (left/right) in middle zone for video navigation
+            // Check if it's a horizontal swipe (left/right) in middle zone for video/image navigation
             if (isMiddleZone && absDeltaX > absDeltaY && absDeltaX > minSwipeDistance) {
                 if (deltaX > 0) {
-                    // Swipe right -> previous video
+                    // Swipe right -> previous video/image
                     if (this.videos.length > 1) {
                         this.playPrevVideo();
                     }
                 } else {
-                    // Swipe left -> next video
+                    // Swipe left -> next video/image
                     if (this.videos.length > 1) {
                         this.playNextVideo();
                     }
@@ -3038,23 +3604,35 @@ class VideoPlayerApp {
             }
             // Check if it's a vertical swipe (up/down) in top zone for speed control
             else if (isTopZone && absDeltaY > absDeltaX && absDeltaY > minSwipeDistance * 1.5) {
-                // Require longer swipe for speed control to avoid accidental inputs
-                if (deltaY > 0) {
-                    // Swipe down -> slow playback
-                    this.decreaseSpeed();
-                } else {
-                    // Swipe up -> fast playback
-                    this.increaseSpeed();
+                // Check if we're viewing an image (no speed control for images)
+                const imageElement = this.videoModal.querySelector('.image-display');
+                const isImageViewing = imageElement && imageElement.style.display !== 'none';
+
+                if (!isImageViewing) {
+                    // Require longer swipe for speed control to avoid accidental inputs
+                    if (deltaY > 0) {
+                        // Swipe down -> slow playback
+                        this.decreaseSpeed();
+                    } else {
+                        // Swipe up -> fast playback
+                        this.increaseSpeed();
+                    }
                 }
             }
             // Check if it's a horizontal swipe (left/right) in bottom zone for fast seek
             else if (isBottomZone && absDeltaX > absDeltaY && absDeltaX > minSwipeDistance) {
-                if (deltaX > 0) {
-                    // Swipe right -> seek forward 30 seconds
-                    this.videoPlayer.currentTime = Math.min(this.videoPlayer.duration, this.videoPlayer.currentTime + 30);
-                } else {
-                    // Swipe left -> seek backward 30 seconds
-                    this.videoPlayer.currentTime = Math.max(0, this.videoPlayer.currentTime - 30);
+                // Check if we're viewing an image (no seeking for images)
+                const imageElement = this.videoModal.querySelector('.image-display');
+                const isImageViewing = imageElement && imageElement.style.display !== 'none';
+
+                if (!isImageViewing) {
+                    if (deltaX > 0) {
+                        // Swipe right -> seek forward 30 seconds
+                        this.videoPlayer.currentTime = Math.min(this.videoPlayer.duration, this.videoPlayer.currentTime + 30);
+                    } else {
+                        // Swipe left -> seek backward 30 seconds
+                        this.videoPlayer.currentTime = Math.max(0, this.videoPlayer.currentTime - 30);
+                    }
                 }
             }
         };
@@ -3347,6 +3925,12 @@ class VideoPlayerApp {
 
     // Method to save a video to browser storage (download and store)
     saveVideoToStorage(video) {
+        if (video.type === 'stored_video') {
+            // Video is already stored, just show message
+            this.showMessage(`"${video.name}" is already stored`);
+            return;
+        }
+
         if (video.type === 'local_file' && video.file) {
             // For local files that are streamed, convert to base64 and save
             const reader = new FileReader();
@@ -3392,14 +3976,14 @@ class VideoPlayerApp {
             // For URL videos, fetch and store
             // Show loading message
             this.showMessage(`Downloading "${video.name}"...`);
-            
+
             // Helper function to check if URL is a local address
             const isLocalAddress = (url) => {
                 try {
                     const urlObj = new URL(url);
                     const hostname = urlObj.hostname;
-                    return hostname === 'localhost' || 
-                           hostname === '127.0.0.1' || 
+                    return hostname === 'localhost' ||
+                           hostname === '127.0.0.1' ||
                            hostname === '0.0.0.0' ||
                            hostname === '::1' ||
                            hostname.startsWith('192.168.') ||
@@ -3410,7 +3994,7 @@ class VideoPlayerApp {
                     return false;
                 }
             };
-            
+
             // Helper function to normalize local addresses (convert 0.0.0.0 to localhost)
             const normalizeLocalAddress = (url) => {
                 try {
@@ -3425,7 +4009,7 @@ class VideoPlayerApp {
                 }
                 return url;
             };
-            
+
             // Try with CORS proxy if direct fetch fails (but not for local addresses)
             const tryDownload = (url, useProxy = false) => {
                 // Don't use proxy for local addresses
@@ -3437,11 +4021,11 @@ class VideoPlayerApp {
                     alert(errorMessage);
                     return;
                 }
-                
+
                 // Normalize local addresses (convert 0.0.0.0 to localhost)
                 let fetchUrl = isLocalAddress(url) ? normalizeLocalAddress(url) : url;
                 fetchUrl = useProxy ? `https://cors-anywhere.herokuapp.com/${fetchUrl}` : fetchUrl;
-                
+
                 fetch(fetchUrl)
                     .then(response => {
                         if (!response.ok) {
@@ -3496,7 +4080,7 @@ class VideoPlayerApp {
                     })
                     .catch(error => {
                         console.error('Error downloading video:', error);
-                        
+
                         if (!useProxy && !isLocalAddress(url)) {
                             // Try with CORS proxy (but not for local addresses)
                             console.log('Trying with CORS proxy...');
@@ -3509,7 +4093,7 @@ class VideoPlayerApp {
                                 const currentOrigin = window.location.origin;
                                 const urlObj = new URL(url);
                                 const urlOrigin = urlObj.origin;
-                                
+
                                 if (currentOrigin !== urlOrigin) {
                                     errorMessage = `Failed to download from local address "${url}".\n\n` +
                                                  `CORS Issue Detected:\n` +
@@ -3540,7 +4124,7 @@ class VideoPlayerApp {
                         }
                     });
             };
-            
+
             // Start download attempt
             tryDownload(video.src);
         } else if (video.src && video.src.startsWith('file://')) {
@@ -3550,8 +4134,8 @@ class VideoPlayerApp {
             // Video has no source
             alert(`Cannot save "${video.name}" to storage - no source available`);
         } else {
-            // For videos already in storage, just let user know
-            alert(`${video.name} is already in storage`);
+            // For videos already in storage, just let user know (without popup)
+            this.showMessage(`"${video.name}" is already in storage`);
         }
     }
 
@@ -3946,6 +4530,77 @@ class VideoPlayerApp {
             // Restore scrolling on body
             document.body.style.overflow = '';
         }
+    }
+
+    // Initialize filter controls
+    initFilterControls() {
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        filterButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const filter = e.target.getAttribute('data-filter');
+                this.setActiveFilter(filter);
+            });
+        });
+    }
+
+    // Set active filter and update UI
+    setActiveFilter(filter) {
+        // Update active button
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        const activeBtn = document.querySelector(`.filter-btn[data-filter="${filter}"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+        }
+
+        // Store current filter
+        this.currentFilter = filter;
+
+        // Re-render gallery with filter applied
+        this.renderGallery();
+    }
+
+    // Filter videos based on current filter
+    getFilteredVideos() {
+        if (!this.currentFilter || this.currentFilter === 'all') {
+            return this.videos;
+        }
+
+        return this.videos.filter(video => {
+            switch (this.currentFilter) {
+                case 'saved':
+                    return video.type === 'stored_video';
+                case 'streaming':
+                    return video.isStream || video.type === 'm3u' || video.type === 'local_m3u_path';
+                case 'images':
+                    return video.isImage;
+                case 'audio':
+                    return video.isAudio;
+                default:
+                    return true;
+            }
+        });
+    }
+
+    // Get index of current video in the filtered list
+    getCurrentVideoIndexInFilteredList() {
+        const filteredVideos = this.getFilteredVideos();
+        if (this.currentVideoIndex >= 0 && this.currentVideoIndex < this.videos.length) {
+            const currentVideo = this.videos[this.currentVideoIndex];
+            return filteredVideos.findIndex(video => video.id === currentVideo.id);
+        }
+        return -1;
+    }
+
+    // Get video by index in the filtered list
+    getVideoByFilteredListIndex(index) {
+        const filteredVideos = this.getFilteredVideos();
+        if (index >= 0 && index < filteredVideos.length) {
+            return filteredVideos[index];
+        }
+        return null;
     }
 }
 
