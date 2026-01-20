@@ -3728,11 +3728,25 @@ class VideoPlayerApp {
             }
 
             // Fetch the M3U playlist content
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            // Use a CORS proxy if direct fetch fails due to CORS policy
+            let m3uContent;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                m3uContent = await response.text();
+            } catch (fetchError) {
+                console.warn('Direct fetch failed, attempting CORS proxy:', fetchError);
+
+                // Try using a CORS proxy as fallback
+                const corsProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                const proxyResponse = await fetch(corsProxyUrl);
+                if (!proxyResponse.ok) {
+                    throw new Error(`CORS proxy request failed! status: ${proxyResponse.status}`);
+                }
+                m3uContent = await proxyResponse.text();
             }
-            const m3uContent = await response.text();
 
             // Parse the M3U playlist
             const playlistItems = this.parseM3U(m3uContent);
