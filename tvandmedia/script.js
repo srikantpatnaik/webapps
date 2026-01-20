@@ -9,23 +9,48 @@ class VideoPlayerApp {
         this.defaultLoop = true; // Single loop mode enabled by default
         this.isLoadingVideos = true; // Flag to track loading state
         this.playlistUrls = []; // Track loaded playlist URLs
-        this.useTextThumbnails = false; // Default to image thumbnails
+        this.useTextThumbnails = true; // Default to text thumbnails
         this.currentFilter = 'all'; // Default filter
         this.isLocked = false; // Track if media gallery is locked
         this.passkey = null; // Store the passkey
+        this.autoLockTimeout = null; // Timer for auto-lock
+        this.autoLockInterval = 30000; // 30 seconds in milliseconds
+        this.defaultPlaybackRate = 1; // Default playback rate
         this.initElements();
         this.initFilterControls(); // Initialize filter controls
         this.bindEvents();
         this.initLockOverlay();
         this.initializeVideoPlayer();
+        this.initActivityListeners(); // Initialize auto-lock functionality
         this.initializeVideoPlayerControls();
         this.initializeLoopState();
 
         // Load lock state early in the initialization process
         this.loadLockState();
 
+        // Load saved playback rate
+        const savedRate = this.loadPlaybackRate();
+        if (this.videoPlayer) {
+            this.videoPlayer.playbackRate = savedRate;
+            if (this.speedDisplay) {
+                this.speedDisplay.textContent = `${savedRate}x`;
+            }
+        }
+
         // Update the lock button to reflect the current state after initialization
         this.updateLockButton();
+
+        // If the app is locked initially, clear the auto-lock timer
+        if (this.isLocked) {
+            this.clearAutoLockTimer();
+            // If app is locked on startup, make sure video is paused
+            if (this.videoPlayer && !this.videoPlayer.paused) {
+                this.videoPlayer.pause();
+            }
+        } else {
+            // If the app is not locked, start the auto-lock timer
+            this.startAutoLockTimer();
+        }
 
         // Render the gallery immediately to show the loading state (considering lock state)
         this.renderGallery();
@@ -104,10 +129,13 @@ class VideoPlayerApp {
 
     initializeVideoPlayer() {
         // Set initial values for video player
-        this.videoPlayer.volume = 1;
+        this.videoPlayer.volume = 0; // Muted by default
         this.videoPlayer.playbackRate = 1;
         this.videoPlayer.loop = this.defaultLoop; // Set to default loop state
         this.videoPlayer.controls = false; // Hide native controls
+
+        // Update volume button to reflect muted state
+        this.updateVolumeButton();
 
         // Initialize panning variables
         this.isDragging = false;
@@ -338,6 +366,54 @@ class VideoPlayerApp {
         }
     }
 
+    // Start the auto-lock timer
+    startAutoLockTimer() {
+        // Clear any existing timer
+        this.clearAutoLockTimer();
+
+        // Set a new timer to lock the app after the specified interval
+        this.autoLockTimeout = setTimeout(() => {
+            if (!this.isLocked) {
+                this.lockGallery();
+            }
+        }, this.autoLockInterval);
+    }
+
+    // Clear the auto-lock timer
+    clearAutoLockTimer() {
+        if (this.autoLockTimeout) {
+            clearTimeout(this.autoLockTimeout);
+            this.autoLockTimeout = null;
+        }
+    }
+
+    // Reset the auto-lock timer on user activity
+    resetAutoLockTimer() {
+        if (!this.isLocked) {
+            this.startAutoLockTimer();
+        }
+    }
+
+    // Initialize activity listeners to reset the auto-lock timer
+    initActivityListeners() {
+        // List of events that constitute user activity
+        const activityEvents = [
+            'mousedown', 'mouseup', 'mousemove', 'keydown', 'keyup',
+            'touchstart', 'touchend', 'touchmove', 'scroll', 'wheel',
+            'focus', 'blur', 'resize'
+        ];
+
+        // Add event listeners for each activity event
+        activityEvents.forEach(eventType => {
+            document.addEventListener(eventType, () => {
+                this.resetAutoLockTimer();
+            }, { passive: true });
+        });
+
+        // Start the initial timer
+        this.startAutoLockTimer();
+    }
+
     setupHistoryStateManagement() {
         // Listen for popstate events (back/forward button)
         window.addEventListener('popstate', (event) => {
@@ -353,10 +429,15 @@ class VideoPlayerApp {
 
     openVideoModal() {
         if (this.isModalOpen) return;
-        
+
         this.videoModal.style.display = 'block';
         this.isModalOpen = true;
-        
+
+        // Apply saved zoom level when opening the modal
+        setTimeout(() => {
+            this.loadZoomLevel();
+        }, 100);
+
         // Push a state to the history stack when opening the modal
         history.pushState({ modalOpen: true }, '', window.location.pathname);
     }
@@ -371,8 +452,9 @@ class VideoPlayerApp {
         // Show cursor when modal is closed
         this.videoModal.style.cursor = 'default';
         this.isCursorHidden = false;
-        // Reset zoom when closing modal
-        this.resetZoom();
+        // Save current zoom level before closing modal (don't reset it)
+        const currentZoom = this.getZoomLevel();
+        this.saveZoomLevel(currentZoom);
         // Clean up any blob URLs
         this.cleanupVideoResources();
         // Ensure video player is visible when modal is closed
@@ -500,7 +582,33 @@ class VideoPlayerApp {
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            // Only handle keyboard shortcuts when video modal is open
+            // Handle global keyboard shortcuts (available even when modal is not open)
+            if (e.shiftKey && e.key.toLowerCase() === 'l') {
+                e.preventDefault();
+                // Only allow lock/unlock if not locked, or allow unlock if locked
+                if (!this.isLocked) {
+                    this.toggleLock();
+                } else {
+                    // If locked, show the unlock overlay
+                    this.showUnlockOverlay();
+                }
+                return;
+            }
+
+            // If the app is locked, prevent all other keyboard shortcuts
+            if (this.isLocked) {
+                // Allow keyboard events for lock overlay elements (password input, buttons)
+                if (e.target.closest('.lock-overlay')) {
+                    // Don't prevent the event for lock overlay elements
+                    return;
+                }
+
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+
+            // Only handle other keyboard shortcuts when video modal is open
             if (this.videoModal.style.display === 'block') {
                 this.handleKeyboardShortcuts(e);
             }
@@ -520,11 +628,16 @@ class VideoPlayerApp {
 
         // Handle thumbnail toggle switch
         if (this.thumbnailToggle) {
-            // Load saved preference
+            // Load saved preference, default to text thumbnails for new users
             const savedPreference = localStorage.getItem('useTextThumbnails');
             if (savedPreference !== null) {
                 this.useTextThumbnails = savedPreference === 'true';
                 this.thumbnailToggle.checked = this.useTextThumbnails;
+            } else {
+                // For new users, default to text thumbnails
+                this.useTextThumbnails = true;
+                this.thumbnailToggle.checked = true;
+                localStorage.setItem('useTextThumbnails', 'true');
             }
 
             this.thumbnailToggle.addEventListener('change', (e) => {
@@ -2157,11 +2270,9 @@ class VideoPlayerApp {
             // Set up image-specific controls and interactions using the same video player
             this.setupImageViewerControls(imageElement);
 
-            // Reset zoom and positioning after setting up the image
+            // Apply saved zoom level after setting up the image
             setTimeout(() => {
-                this.resetZoom();
-                this.panX = 0;
-                this.panY = 0;
+                this.loadZoomLevel(); // Apply saved zoom level instead of resetting
             }, 100);
         } else if (video.type === 'local_file' && video.file) {
             // For local files, create a blob URL from the stored file object
@@ -2181,11 +2292,9 @@ class VideoPlayerApp {
             // Load the video to ensure it displays properly
             this.videoPlayer.load();
 
-            // Reset zoom and positioning after setting up the video
+            // Apply saved zoom level after setting up the video
             setTimeout(() => {
-                this.resetZoom();
-                this.panX = 0;
-                this.panY = 0;
+                this.loadZoomLevel(); // Apply saved zoom level instead of resetting
             }, 100);
         } else if (video.type === 'local_file' && video.needsReUpload) {
             // This is a local file that was previously added but the file object was lost
@@ -2255,11 +2364,9 @@ class VideoPlayerApp {
             // Load the video to ensure it displays properly
             this.videoPlayer.load();
 
-            // Reset zoom and positioning after setting up the video
+            // Apply saved zoom level after setting up the video
             setTimeout(() => {
-                this.resetZoom();
-                this.panX = 0;
-                this.panY = 0;
+                this.loadZoomLevel(); // Apply saved zoom level instead of resetting
             }, 100);
         } else {
             // For regular videos, make sure the src is valid
@@ -2279,11 +2386,9 @@ class VideoPlayerApp {
             // Load the video to ensure it displays properly
             this.videoPlayer.load();
 
-            // Reset zoom and positioning after setting up the video
+            // Apply saved zoom level after setting up the video
             setTimeout(() => {
-                this.resetZoom();
-                this.panX = 0;
-                this.panY = 0;
+                this.loadZoomLevel(); // Apply saved zoom level instead of resetting
             }, 100);
         }
 
@@ -2298,11 +2403,16 @@ class VideoPlayerApp {
 
             this.updateTimeDisplay();
 
-            // Apply saved zoom level to the new video
+            // Apply saved zoom level and playback rate to the new video
             setTimeout(() => {
                 if (this.videoPlayer && this.videoPlayer.videoWidth && this.videoPlayer.videoHeight) {
                     // Load and apply the saved zoom level
                     this.loadZoomLevel();
+
+                    // Load and apply the saved playback rate
+                    const savedRate = this.loadPlaybackRate();
+                    this.videoPlayer.playbackRate = savedRate;
+                    this.speedDisplay.textContent = `${savedRate}x`;
                 }
             }, 100);
         };
@@ -2901,6 +3011,9 @@ class VideoPlayerApp {
         const nextIndex = (currentIndex + 1) % speeds.length;
         this.videoPlayer.playbackRate = speeds[nextIndex];
         this.speedDisplay.textContent = `${speeds[nextIndex]}x`;
+
+        // Save the new playback rate
+        this.savePlaybackRate(speeds[nextIndex]);
     }
 
     handleKeyboardShortcuts(e) {
@@ -3078,6 +3191,9 @@ class VideoPlayerApp {
         if (currentIndex < speeds.length - 1) {
             this.videoPlayer.playbackRate = speeds[currentIndex + 1];
             this.speedDisplay.textContent = `${speeds[currentIndex + 1]}x`;
+
+            // Save the new playback rate
+            this.savePlaybackRate(speeds[currentIndex + 1]);
         }
     }
 
@@ -3088,6 +3204,9 @@ class VideoPlayerApp {
         if (currentIndex > 0) {
             this.videoPlayer.playbackRate = speeds[currentIndex - 1];
             this.speedDisplay.textContent = `${speeds[currentIndex - 1]}x`;
+
+            // Save the new playback rate
+            this.savePlaybackRate(speeds[currentIndex - 1]);
         }
     }
 
@@ -4673,7 +4792,7 @@ class VideoPlayerApp {
             // Show the unlock overlay
             this.showUnlockOverlay();
         } else {
-            // Lock the gallery
+            // Lock the gallery immediately without confirmation
             if (this.passkey === null) {
                 // First time setting passkey
                 const newPasskey = prompt('Set a passkey to lock the gallery:');
@@ -4683,12 +4802,8 @@ class VideoPlayerApp {
                     this.lockGallery();
                 }
             } else {
-                // Ask for confirmation to lock
-                const confirmLock = confirm('Are you sure you want to lock the media gallery?');
-
-                if (confirmLock) {
-                    this.lockGallery();
-                }
+                // Lock immediately without confirmation
+                this.lockGallery();
             }
         }
     }
@@ -4701,12 +4816,23 @@ class VideoPlayerApp {
         this.renderGallery(); // Re-render to hide media
         this.showMessage('Gallery locked');
         this.showLockOverlay(); // Show the lock overlay
+
+        // Clear the auto-lock timer when locked (no need to auto-lock when already locked)
+        this.clearAutoLockTimer();
+
+        // Pause video if it's currently playing
+        if (this.videoPlayer && !this.videoPlayer.paused) {
+            this.videoPlayer.pause();
+        }
     }
 
     // Show the lock overlay to make the entire app unusable
     showLockOverlay() {
         if (this.lockOverlay) {
             this.lockOverlay.classList.remove('hidden');
+
+            // Remove any existing global password input listener
+            this.removeGlobalPasswordInput();
 
             // Disable all inputs and buttons in the main interface
             this.disableMainInterface();
@@ -4725,7 +4851,16 @@ class VideoPlayerApp {
             if (this.unlockPasskeyInput) {
                 this.unlockPasskeyInput.focus();
                 this.unlockPasskeyInput.select();
+
+                // Move cursor to end of text
+                this.unlockPasskeyInput.setSelectionRange(
+                    this.unlockPasskeyInput.value.length,
+                    this.unlockPasskeyInput.value.length
+                );
             }
+
+            // Add event listener to allow typing anywhere to enter password
+            this.setupGlobalPasswordInput();
 
             // Disable main interface
             this.disableMainInterface();
@@ -4751,10 +4886,17 @@ class VideoPlayerApp {
         this.clearUnlockErrorMessage();
         this.unlockPasskeyInput.value = '';
 
+        // Remove global password input listener when canceling unlock
+        this.removeGlobalPasswordInput();
+
         // Re-enable main interface if not locked
         if (!this.isLocked) {
             this.enableMainInterface();
         }
+
+        // When canceling unlock, the app remains locked, so ensure timer is cleared
+        // (the timer shouldn't be running when locked anyway)
+        this.clearAutoLockTimer();
     }
 
     // Unlock the gallery
@@ -4765,6 +4907,9 @@ class VideoPlayerApp {
         this.renderGallery(); // Re-render to show media
         this.showMessage('Gallery unlocked');
         this.hideLockOverlay(); // Hide the lock overlay
+
+        // Restart the auto-lock timer when unlocked
+        this.startAutoLockTimer();
     }
 
     // Hide the lock overlay
@@ -4773,6 +4918,9 @@ class VideoPlayerApp {
             this.lockOverlay.classList.add('hidden');
             this.clearUnlockErrorMessage();
             this.unlockPasskeyInput.value = '';
+
+            // Remove global password input listener
+            this.removeGlobalPasswordInput();
 
             // Enable main interface
             this.enableMainInterface();
@@ -4796,8 +4944,42 @@ class VideoPlayerApp {
             if (!element.closest('.lock-overlay')) { // Don't disable lock overlay elements
                 element.classList.add('disabled-by-lock');
                 element.setAttribute('aria-disabled', 'true');
+                element.style.pointerEvents = 'none'; // Prevent all pointer events
             }
         });
+
+        // Disable all event listeners that might bypass the lock
+        const eventTypes = ['click', 'mousedown', 'mouseup', 'mousemove', 'keydown', 'keyup',
+                          'touchstart', 'touchend', 'touchmove', 'focus', 'blur', 'input', 'change'];
+        eventTypes.forEach(eventType => {
+            document.addEventListener(eventType, this.preventEventDuringLock, true); // Use capture phase
+        });
+
+        // If video modal is open, make sure it's also disabled
+        if (this.videoModal && this.videoModal.style.display === 'block') {
+            // Disable video player controls specifically
+            const videoControls = this.videoModal.querySelector('.video-controls');
+            if (videoControls) {
+                videoControls.style.pointerEvents = 'none';
+                videoControls.style.opacity = '0';
+                videoControls.style.visibility = 'hidden';
+            }
+
+            // Disable the video player itself and make it invisible
+            if (this.videoPlayer) {
+                this.videoPlayer.style.pointerEvents = 'none';
+                this.videoPlayer.style.visibility = 'hidden';
+                this.videoPlayer.style.opacity = '0';
+            }
+
+            // Also hide any image display if present
+            const imageElement = this.videoModal.querySelector('.image-display');
+            if (imageElement) {
+                imageElement.style.pointerEvents = 'none';
+                imageElement.style.visibility = 'hidden';
+                imageElement.style.opacity = '0';
+            }
+        }
 
         // Disable drag and drop
         document.addEventListener('dragover', this.preventDragDuringLock);
@@ -4818,7 +5000,41 @@ class VideoPlayerApp {
         clickableElements.forEach(element => {
             element.classList.remove('disabled-by-lock');
             element.removeAttribute('aria-disabled');
+            element.style.pointerEvents = ''; // Restore pointer events
         });
+
+        // Re-enable all event listeners
+        const eventTypes = ['click', 'mousedown', 'mouseup', 'mousemove', 'keydown', 'keyup',
+                          'touchstart', 'touchend', 'touchmove', 'focus', 'blur', 'input', 'change'];
+        eventTypes.forEach(eventType => {
+            document.removeEventListener(eventType, this.preventEventDuringLock, true); // Use capture phase
+        });
+
+        // Re-enable video modal controls if modal is open
+        if (this.videoModal && this.videoModal.style.display === 'block') {
+            // Re-enable video player controls
+            const videoControls = this.videoModal.querySelector('.video-controls');
+            if (videoControls) {
+                videoControls.style.pointerEvents = '';
+                // Restore controls to their normal state (they might be hidden for other reasons)
+                // Don't force visibility here as it might be controlled by other logic
+            }
+
+            // Re-enable the video player
+            if (this.videoPlayer) {
+                this.videoPlayer.style.pointerEvents = '';
+                this.videoPlayer.style.visibility = '';
+                this.videoPlayer.style.opacity = '';
+            }
+
+            // Also restore any image display if present
+            const imageElement = this.videoModal.querySelector('.image-display');
+            if (imageElement) {
+                imageElement.style.pointerEvents = '';
+                imageElement.style.visibility = '';
+                imageElement.style.opacity = '';
+            }
+        }
 
         // Re-enable drag and drop
         document.removeEventListener('dragover', this.preventDragDuringLock);
@@ -4830,6 +5046,172 @@ class VideoPlayerApp {
         e.preventDefault();
         e.stopPropagation();
         return false;
+    }
+
+    // Save playback rate to localStorage
+    savePlaybackRate(rate) {
+        try {
+            localStorage.setItem('videoPlaybackRate', rate.toString());
+        } catch (e) {
+            console.error('Error saving playback rate:', e);
+        }
+    }
+
+    // Load playback rate from localStorage
+    loadPlaybackRate() {
+        try {
+            const savedRate = localStorage.getItem('videoPlaybackRate');
+            if (savedRate) {
+                const rate = parseFloat(savedRate);
+                if (!isNaN(rate) && rate >= 0.25 && rate <= 2) {
+                    return rate;
+                }
+            }
+        } catch (e) {
+            console.error('Error loading playback rate:', e);
+        }
+        return 1; // Default rate if none saved or invalid
+    }
+
+    // Setup global password input when unlock overlay is shown
+    setupGlobalPasswordInput() {
+        // Remove any existing global password listeners
+        this.removeGlobalPasswordInput();
+
+        // Add a keydown listener to capture all keystrokes when unlock overlay is visible
+        document.addEventListener('keydown', this.handleGlobalPasswordInput, true);
+    }
+
+    // Remove global password input listener
+    removeGlobalPasswordInput() {
+        document.removeEventListener('keydown', this.handleGlobalPasswordInput, true);
+    }
+
+    // Handle global password input when unlock overlay is shown
+    handleGlobalPasswordInput = (e) => {
+        // Only handle if the unlock overlay is visible and the event is not from the password input itself
+        if (this.lockOverlay && !this.lockOverlay.classList.contains('hidden') &&
+            !e.target.closest('#unlockPasskeyInput')) {
+
+            // Only process printable characters
+            if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                e.preventDefault();
+
+                // Add the character to the password input
+                const input = this.unlockPasskeyInput;
+                if (input) {
+                    const start = input.selectionStart;
+                    const end = input.selectionEnd;
+                    const currentValue = input.value;
+
+                    // Insert the character at the cursor position
+                    input.value = currentValue.substring(0, start) + e.key + currentValue.substring(end);
+
+                    // Move cursor to after the inserted character
+                    input.setSelectionRange(start + 1, start + 1);
+
+                    // Focus the input to ensure it stays focused
+                    input.focus();
+                }
+            }
+            // Handle Enter key to submit
+            else if (e.key === 'Enter') {
+                e.preventDefault();
+                this.submitUnlock();
+            }
+            // Handle Backspace
+            else if (e.key === 'Backspace') {
+                e.preventDefault();
+
+                const input = this.unlockPasskeyInput;
+                if (input) {
+                    const start = input.selectionStart;
+                    const end = input.selectionEnd;
+                    const currentValue = input.value;
+
+                    if (start === end && start > 0) {
+                        // Delete character before cursor
+                        input.value = currentValue.substring(0, start - 1) + currentValue.substring(end);
+                        input.setSelectionRange(start - 1, start - 1);
+                    } else if (start !== end) {
+                        // Delete selected text
+                        input.value = currentValue.substring(0, start) + currentValue.substring(end);
+                        input.setSelectionRange(start, start);
+                    }
+
+                    // Focus the input to ensure it stays focused
+                    input.focus();
+                }
+            }
+            // Handle Delete
+            else if (e.key === 'Delete') {
+                e.preventDefault();
+
+                const input = this.unlockPasskeyInput;
+                if (input) {
+                    const start = input.selectionStart;
+                    const end = input.selectionEnd;
+                    const currentValue = input.value;
+
+                    if (start === end && start < currentValue.length) {
+                        // Delete character after cursor
+                        input.value = currentValue.substring(0, start) + currentValue.substring(end + 1);
+                        input.setSelectionRange(start, start);
+                    } else if (start !== end) {
+                        // Delete selected text
+                        input.value = currentValue.substring(0, start) + currentValue.substring(end);
+                        input.setSelectionRange(start, start);
+                    }
+
+                    // Focus the input to ensure it stays focused
+                    input.focus();
+                }
+            }
+            // Handle Arrow keys for navigation
+            else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+
+                const input = this.unlockPasskeyInput;
+                if (input) {
+                    const start = input.selectionStart;
+                    const newPos = Math.max(0, start - 1);
+                    input.setSelectionRange(newPos, newPos);
+                    input.focus();
+                }
+            }
+            else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+
+                const input = this.unlockPasskeyInput;
+                if (input) {
+                    const start = input.selectionStart;
+                    const newPos = Math.min(input.value.length, start + 1);
+                    input.setSelectionRange(newPos, newPos);
+                    input.focus();
+                }
+            }
+            // Handle Tab to cycle between unlock buttons
+            else if (e.key === 'Tab') {
+                e.preventDefault();
+
+                // Focus the submit button if currently on input, otherwise cycle
+                if (document.activeElement === input) {
+                    this.unlockSubmitBtn.focus();
+                } else {
+                    input.focus();
+                }
+            }
+        }
+    }
+
+    // Prevent events during lock (used in capture phase to intercept events before they reach targets)
+    preventEventDuringLock = (e) => {
+        // Only prevent events that are not coming from the lock overlay
+        if (!e.target.closest('.lock-overlay')) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
     }
 
     // Show error message for unlock
@@ -4858,6 +5240,13 @@ class VideoPlayerApp {
             this.showLockOverlay();
         } else {
             this.hideLockOverlay();
+        }
+
+        // Manage auto-lock timer based on lock state
+        if (this.isLocked) {
+            this.clearAutoLockTimer();
+        } else {
+            this.startAutoLockTimer();
         }
     }
 
