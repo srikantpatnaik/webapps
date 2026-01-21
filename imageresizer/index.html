@@ -277,6 +277,37 @@
             min-width: 120px;
         }
 
+        /* Slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: var(--input-bg);
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
         /* Responsive adjustments for larger screens */
         @media (min-width: 600px) {
             body {
@@ -373,12 +404,15 @@
                 <div id="imageLayout" class="image-layout">
                     <div class="original-image-container" id="originalContainer" style="display: none;">
                         <h3>Original Image</h3>
-                        <div class="image-container">
+                        <div class="image-container" style="position: relative;">
                             <img id="originalImage" src="" alt="Original image">
                             <div class="resolution-info" id="originalResolution">Resolution: --</div>
+
+                            <!-- Canvas overlay for cropping -->
+                            <canvas id="cropCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none; display: none; cursor: crosshair;"></canvas>
                         </div>
                     </div>
-                    
+
                     <div class="resized-image-container" id="resizedContainer" style="display: none;">
                         <h3>Resized Image</h3>
                         <div class="image-container">
@@ -388,15 +422,25 @@
                     </div>
                 </div>
                 
-                <div id="resizeFactors" class="resize-factors" style="display: none;">
-                    <button class="resize-btn" data-factor="0.3">0.3×</button>
-                    <button class="resize-btn" data-factor="0.6">0.6×</button>
-                    <button class="resize-btn" data-factor="0.8">0.8×</button>
-                    <button class="resize-btn" data-factor="1.0">1.0×</button>
-                    <button class="resize-btn" data-factor="1.3">1.3×</button>
-                    <button class="resize-btn" data-factor="1.5">1.5×</button>
+                <!-- Removed default scale buttons - only using continuous slider -->
+
+                <!-- Slider for continuous resolution scaling -->
+                <div id="resolutionSliderSection" style="display: none; margin-top: 20px;">
+                    <label for="resolutionSlider" style="display: block; margin-bottom: 10px; text-align: center;">Scale Image (Continuous):</label>
+                    <input type="range" id="resolutionSlider" min="0.1" max="2.0" step="0.01" value="0.6" style="width: 100%; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary);">
+                        <span id="minResolutionLabel">10%</span>
+                        <span id="currentScaleValue">60%</span>
+                        <span id="maxResolutionLabel">200%</span>
+                    </div>
                 </div>
                 
+                <!-- Crop functionality - now automatic -->
+                <div id="cropControls" class="input-group" style="display: none; margin-top: 20px;">
+                    <button id="resetCropBtn" class="resize-btn">Reset Crop</button>
+                    <button id="applyCropBtn" class="resize-btn">Apply Crop</button>
+                </div>
+
                 <div id="actionButtons" class="action-buttons" style="display: none;">
                     <!-- Removed download and copy buttons as requested -->
                 </div>
@@ -424,7 +468,12 @@
 
         let originalImageData = null;
         let currentResizeFactor = 0.6; // Changed default to 0.6x
-        
+
+        // Resolution range for the slider (min and max factors)
+        const minFactor = 0.1;  // 10% of original size
+        const maxFactor = 2.0;  // 200% of original size
+        const defaultFactor = 0.6;  // Default at 60%
+
         // Set up paste listener on the entire page
         document.addEventListener('paste', handlePaste);
         
@@ -469,20 +518,26 @@
             }
         });
         
-        // Add event listeners to resize buttons
-        const resizeBtns = document.querySelectorAll('.resize-btn');
-        resizeBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                // Remove active class from all buttons
-                resizeBtns.forEach(b => b.classList.remove('active'));
-                // Add active class to clicked button
-                btn.classList.add('active');
-                // Get factor from data attribute
-                const factor = parseFloat(btn.dataset.factor);
-                currentResizeFactor = factor;
-                // Resize the image
-                resizeImage(factor);
-            });
+        // Skip resize buttons since we're only using the continuous slider
+
+        // Add event listener for the continuous resolution slider
+        const resolutionSlider = document.getElementById('resolutionSlider');
+        const currentScaleValue = document.getElementById('currentScaleValue');
+
+        resolutionSlider.addEventListener('input', function() {
+            const factor = parseFloat(this.value);
+
+            // Update the displayed scale percentage
+            currentScaleValue.textContent = Math.round(factor * 100) + '%';
+
+            // Update the current resize factor and resize the image
+            currentResizeFactor = factor;
+
+            // Remove active class from all manual resize buttons
+            resizeBtns.forEach(b => b.classList.remove('active'));
+
+            // Resize the image with the calculated factor
+            resizeImage(factor);
         });
         
         
@@ -556,6 +611,7 @@
                 ctx.drawImage(img, 0, 0);
 
                 originalImageData = canvas.toDataURL('image/jpeg', 0.9);
+                originalImageDataBeforeCrop = canvas.toDataURL('image/jpeg', 0.9); // Store original image data
 
                 // Display original image
                 originalImage.src = originalImageData;
@@ -566,15 +622,29 @@
                 originalResolution.textContent = `Resolution: ${width} × ${height}px`;
                 imageInfo.textContent = `Image loaded: ${width} × ${height}px`;
 
-                // Set default resize factor to 0.6 (now the default) and activate the button
-                setCurrentFactor(0.6);
+                // Store original dimensions
+                originalImageDimensions = { width, height };
 
-                // Show the resize factors and hide action buttons
-                resizeFactors.style.display = 'flex';
+                // Set default resize factor to 0.6 and update the slider
+                currentResizeFactor = 0.6;
+                resolutionSlider.value = 0.6;
+                currentScaleValue.textContent = '60%';
+
+                // Show the resolution slider section
+                document.getElementById('resolutionSliderSection').style.display = 'block';
+                // Show crop controls
+                cropControls.style.display = 'flex';
                 actionButtons.style.display = 'none'; // Hide action buttons as requested
 
+                // Setup and show the crop canvas automatically
+                setupCropCanvas();
+                cropCanvas.style.display = 'block';
+                cropCanvas.style.pointerEvents = 'auto';
+
+                // Add event listeners for drawing the rectangle
+                addCropEventListeners();
+
                 // Initially show resized image at 0.6x
-                resizeImage(0.6);
             };
 
             img.onerror = function() {
@@ -589,6 +659,7 @@
 
             reader.onload = function(e) {
                 originalImageData = e.target.result;
+                originalImageDataBeforeCrop = e.target.result; // Store original image data
 
                 // Display original image
                 originalImage.src = originalImageData;
@@ -601,12 +672,27 @@
                     originalResolution.textContent = `Resolution: ${width} × ${height}px`;
                     imageInfo.textContent = `Image loaded: ${width} × ${height}px`;
 
-                    // Set default resize factor to 0.6 and activate the button
-                    setCurrentFactor(0.6);
+                    // Store original dimensions
+                    originalImageDimensions = { width, height };
 
-                    // Show the resize factors and hide action buttons
-                    resizeFactors.style.display = 'flex';
+                    // Set default resize factor to 0.6 and update the slider
+                    currentResizeFactor = 0.6;
+                    resolutionSlider.value = 0.6;
+                    currentScaleValue.textContent = '60%';
+
+                    // Show the resolution slider section
+                    document.getElementById('resolutionSliderSection').style.display = 'block';
+                    // Show crop controls
+                    cropControls.style.display = 'flex';
                     actionButtons.style.display = 'none'; // Hide action buttons as requested
+
+                    // Setup and show the crop canvas automatically
+                    setupCropCanvas();
+                    cropCanvas.style.display = 'block';
+                    cropCanvas.style.pointerEvents = 'auto';
+
+                    // Add event listeners for drawing the rectangle
+                    addCropEventListeners();
 
                     // Initially show resized image at 0.6x
                     resizeImage(0.6);
@@ -621,21 +707,13 @@
         }
         
         function setCurrentFactor(factor) {
-            // Remove active class from all buttons
-            resizeBtns.forEach(btn => btn.classList.remove('active'));
-            
-            // Find and activate the corresponding button
-            const targetBtn = Array.from(resizeBtns).find(btn => 
-                parseFloat(btn.dataset.factor) === factor
-            );
-            
-            if (targetBtn) {
-                targetBtn.classList.add('active');
-            }
-            
+            // Update the scale value display but don't change the slider position
+            // to maintain smooth continuous scaling
+            currentScaleValue.textContent = Math.round(factor * 100) + '%';
+
             currentResizeFactor = factor;
         }
-        
+
         function resizeImage(factor) {
             if (!originalImageData) return;
 
@@ -667,6 +745,10 @@
 
                 // Update current factor
                 currentResizeFactor = factor;
+
+                // Update the scale value display but don't change the slider position
+                // to maintain smooth continuous scaling
+                currentScaleValue.textContent = Math.round(factor * 100) + '%';
 
                 // Automatically copy the resized image to clipboard
                 copyResizedImageToClipboard(resizedImageData);
@@ -719,6 +801,331 @@
                 });
         }
         
+        // Crop functionality variables - now automatic
+        let isCropping = true; // Always in crop mode when image is loaded
+        let isDrawing = false;
+        let startX, startY, endX, endY;
+        let originalImageDataBeforeCrop = null; // Store original image data before any cropping
+        let originalImageDimensions = { width: 0, height: 0 }; // Store original dimensions
+        let cropCanvas = document.getElementById('cropCanvas');
+        let cropCtx = cropCanvas.getContext('2d');
+        let resetCropBtn = document.getElementById('resetCropBtn');
+        let applyCropBtn = document.getElementById('applyCropBtn');
+        let cropControls = document.getElementById('cropControls');
+
+        // Initialize crop functionality - now automatic
+        function initCropFunctionality() {
+            // Reset crop button
+            resetCropBtn.addEventListener('click', () => {
+                // Clear the crop rectangle
+                startX = startY = endX = endY = null;
+                redrawCropOverlay();
+
+                // If we're in crop mode, keep the canvas visible
+                if (isCropping) {
+                    setupCropCanvas(); // Refresh the canvas in case image changed
+                }
+            });
+
+            // Apply crop button
+            applyCropBtn.addEventListener('click', () => {
+                if (startX !== undefined && startY !== undefined &&
+                    endX !== undefined && endY !== undefined) {
+                    performCrop();
+                } else {
+                    showError('Please select a rectangle to crop');
+                }
+            });
+        }
+
+        // Setup the crop canvas dimensions to match the image
+        function setupCropCanvas() {
+            const img = originalImage;
+            if (!img.complete) {
+                img.onload = () => setupCropCanvas();
+                return;
+            }
+
+            // Position the canvas to match the image
+            const rect = img.getBoundingClientRect();
+            const imageContainer = img.parentElement;
+
+            // Set canvas dimensions to match the image display size
+            cropCanvas.width = img.clientWidth;
+            cropCanvas.height = img.clientHeight;
+
+            // Position canvas absolutely over the image
+            cropCanvas.style.width = img.clientWidth + 'px';
+            cropCanvas.style.height = img.clientHeight + 'px';
+
+            // Reset crop points
+            cropPoints = [];
+            redrawCropOverlay();
+        }
+
+        // Add event listeners for crop functionality - always active
+        function addCropEventListeners() {
+            cropCanvas.addEventListener('mousedown', handleCropMouseDown);
+            cropCanvas.addEventListener('mousemove', handleCropMouseMove);
+            cropCanvas.addEventListener('mouseup', handleCropMouseUp);
+
+            // Also add a click listener on the document to reset when clicking outside
+            document.addEventListener('click', handleDocumentClick);
+        }
+
+        // Handle mouse down for starting rectangle drawing
+        function handleCropMouseDown(e) {
+            // Always allow drawing when crop canvas is visible
+            const rect = cropCanvas.getBoundingClientRect();
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+
+            isDrawing = true;
+        }
+
+        // Handle mouse move for drawing rectangle
+        function handleCropMouseMove(e) {
+            if (!isDrawing) return;
+
+            const rect = cropCanvas.getBoundingClientRect();
+            endX = e.clientX - rect.left;
+            endY = e.clientY - rect.top;
+
+            redrawCropOverlay();
+        }
+
+        // Handle mouse up for finishing rectangle
+        function handleCropMouseUp(e) {
+            if (!isDrawing) return;
+
+            const rect = cropCanvas.getBoundingClientRect();
+            endX = e.clientX - rect.left;
+            endY = e.clientY - rect.top;
+
+            isDrawing = false;
+
+            redrawCropOverlay();
+        }
+
+        // Handle clicks outside the image area to reset crop
+        function handleDocumentClick(e) {
+            // Check if the click is outside both the original and resized image containers
+            const originalContainer = document.getElementById('originalContainer');
+            const resizedContainer = document.getElementById('resizedContainer');
+
+            const isClickOnOriginal = originalContainer.contains(e.target);
+            const isClickOnResized = resizedContainer.contains(e.target);
+
+            if (!isClickOnOriginal && !isClickOnResized) {
+                // Reset crop selection but keep crop mode active
+                startX = startY = endX = endY = null;
+                redrawCropOverlay();
+
+                // Restore the original image and apply the current scale factor
+                if (originalImageDataBeforeCrop) {
+                    // Reset to the original image before any crops
+                    originalImage.src = originalImageDataBeforeCrop;
+                    originalImageData = originalImageDataBeforeCrop; // Reset the stored image data
+                    // Update resolution info for the original image display
+                    const img = new Image();
+                    img.onload = function() {
+                        const width = img.naturalWidth;
+                        const height = img.naturalHeight;
+                        originalResolution.textContent = `Resolution: ${width} × ${height}px`;
+                        imageInfo.textContent = `Image loaded: ${width} × ${height}px`;
+                        originalImageDimensions = { width, height }; // Update stored dimensions
+                        // Apply the current scale factor
+                        resizeImage(currentResizeFactor);
+                    };
+                    img.src = originalImageDataBeforeCrop;
+                } else if (originalImageData) {
+                    // If we don't have the original before crop, at least reset the current image
+                    const img = new Image();
+                    img.onload = function() {
+                        const width = img.naturalWidth;
+                        const height = img.naturalHeight;
+                        originalResolution.textContent = `Resolution: ${width} × ${height}px`;
+                        imageInfo.textContent = `Image loaded: ${width} × ${height}px`;
+                        originalImageDimensions = { width, height }; // Update stored dimensions
+                        // Apply the current scale factor
+                        resizeImage(currentResizeFactor);
+                    };
+                    img.src = originalImageData;
+                }
+            }
+        }
+
+        // Redraw the crop overlay
+        function redrawCropOverlay() {
+            // Clear the canvas
+            cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+
+            // Draw the rectangle if we have start and end points
+            if (startX !== undefined && startY !== undefined &&
+                endX !== undefined && endY !== undefined) {
+
+                const rectX = Math.min(startX, endX);
+                const rectY = Math.min(startY, endY);
+                const rectWidth = Math.abs(endX - startX);
+                const rectHeight = Math.abs(endY - startY);
+
+                // Draw the rectangle
+                cropCtx.beginPath();
+                cropCtx.rect(rectX, rectY, rectWidth, rectHeight);
+                cropCtx.lineWidth = 2;
+                cropCtx.strokeStyle = '#474787';
+                cropCtx.stroke();
+
+                // Draw corner markers
+                const markerSize = 6;
+
+                // Top-left corner
+                cropCtx.fillStyle = '#ff4757';
+                cropCtx.fillRect(rectX - markerSize/2, rectY - markerSize/2, markerSize, markerSize);
+
+                // Top-right corner
+                cropCtx.fillRect(rectX + rectWidth - markerSize/2, rectY - markerSize/2, markerSize, markerSize);
+
+                // Bottom-left corner
+                cropCtx.fillRect(rectX - markerSize/2, rectY + rectHeight - markerSize/2, markerSize, markerSize);
+
+                // Bottom-right corner
+                cropCtx.fillRect(rectX + rectWidth - markerSize/2, rectY + rectHeight - markerSize/2, markerSize, markerSize);
+            }
+
+            // If currently drawing, show the current rectangle
+            if (isDrawing) {
+                const rectX = Math.min(startX, endX);
+                const rectY = Math.min(startY, endY);
+                const rectWidth = Math.abs(endX - startX);
+                const rectHeight = Math.abs(endY - startY);
+
+                // Draw the current rectangle with a different style
+                cropCtx.beginPath();
+                cropCtx.rect(rectX, rectY, rectWidth, rectHeight);
+                cropCtx.lineWidth = 2;
+                cropCtx.strokeStyle = '#4CAF50'; // Green while drawing
+                cropCtx.setLineDash([5, 3]); // Dashed line while drawing
+                cropCtx.stroke();
+                cropCtx.setLineDash([]); // Reset line dash
+            }
+        }
+
+        // Perform the actual crop operation with rectangle
+        async function performCrop() {
+            if (typeof startX === 'undefined' || typeof startY === 'undefined' ||
+                typeof endX === 'undefined' || typeof endY === 'undefined') {
+                showError('Please select a rectangle to crop');
+                return;
+            }
+
+            // Calculate the crop rectangle coordinates
+            const cropX = Math.min(startX, endX);
+            const cropY = Math.min(startY, endY);
+            const cropWidth = Math.abs(endX - startX);
+            const cropHeight = Math.abs(endY - startY);
+
+            // Validate crop selection
+            if (cropWidth <= 0 || cropHeight <= 0) {
+                showError('Please select a valid crop area (more than a point)');
+                return;
+            }
+
+            // Create a temporary image to work with
+            const img = new Image();
+            img.crossOrigin = "Anonymous"; // Handle potential CORS issues
+
+            try {
+                // Load the original image data
+                img.src = originalImageData;
+
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = () => {
+                        reject(new Error('Failed to load image for cropping'));
+                    };
+                });
+
+                // Get the display dimensions of the original image element
+                const displayWidth = originalImage.clientWidth || originalImage.offsetWidth;
+                const displayHeight = originalImage.clientHeight || originalImage.offsetHeight;
+
+                // Calculate scale ratios between display and natural sizes
+                const scaleX = img.naturalWidth / displayWidth;
+                const scaleY = img.naturalHeight / displayHeight;
+
+                // Calculate the actual crop coordinates in natural image space
+                const actualCropX = Math.max(0, Math.round(cropX * scaleX));
+                const actualCropY = Math.max(0, Math.round(cropY * scaleY));
+                const actualCropWidth = Math.max(1, Math.round(cropWidth * scaleX));
+                const actualCropHeight = Math.max(1, Math.round(cropHeight * scaleY));
+
+                // Ensure crop doesn't exceed image bounds
+                const boundedCropX = Math.min(actualCropX, img.naturalWidth - 1);
+                const boundedCropY = Math.min(actualCropY, img.naturalHeight - 1);
+                const boundedCropWidth = Math.min(actualCropWidth, img.naturalWidth - boundedCropX);
+                const boundedCropHeight = Math.min(actualCropHeight, img.naturalHeight - boundedCropY);
+
+                // Create a canvas for the cropped image
+                const cropCanvas = document.createElement('canvas');
+                cropCanvas.width = boundedCropWidth;
+                cropCanvas.height = boundedCropHeight;
+                const cropCtx = cropCanvas.getContext('2d');
+
+                // Draw the cropped portion of the image
+                cropCtx.drawImage(
+                    img,
+                    boundedCropX, boundedCropY, boundedCropWidth, boundedCropHeight,
+                    0, 0, boundedCropWidth, boundedCropHeight
+                );
+
+                // Get the data URL of the cropped image
+                const croppedImageData = cropCanvas.toDataURL('image/jpeg', 0.9);
+
+                // Store the original image data before crop for reset functionality
+                if (!originalImageDataBeforeCrop) {
+                    originalImageDataBeforeCrop = originalImageData;
+                }
+
+                // Update the original image data to the cropped image so it can be further processed
+                originalImageData = croppedImageData;
+
+                // Update the original image display to show the cropped version
+                originalImage.src = croppedImageData;
+
+                // Update resolution info for the original image display
+                const width = boundedCropWidth;
+                const height = boundedCropHeight;
+                originalResolution.textContent = `Resolution: ${width} × ${height}px`;
+                imageInfo.textContent = `Cropped image: ${width} × ${height}px`;
+
+                // Update original image dimensions
+                originalImageDimensions = { width, height };
+
+                // Keep crop canvas visible for continued cropping
+                document.getElementById('cropCanvas').style.display = 'block';
+                document.getElementById('cropCanvas').style.pointerEvents = 'auto';
+
+                // Show the slider again for the cropped image
+                document.getElementById('resolutionSliderSection').style.display = 'block';
+
+                // Make sure the resized container is visible
+                resizedContainer.style.display = 'block';
+
+                // Apply the current resize factor to the cropped image
+                // Wait a bit for the image to load before resizing
+                setTimeout(() => {
+                    resizeImage(currentResizeFactor);
+                }, 50);
+
+            } catch (error) {
+                console.error('Crop error:', error);
+                showError(`Crop failed: ${error.message}`);
+            }
+        }
+
+        // No longer needed since we're doing simple rectangle cropping
+
         // Initialize the app
         window.addEventListener('load', () => {
             console.log('Image Resizer loaded. Ready to paste images!');
@@ -728,6 +1135,15 @@
             if (defaultBtn) {
                 defaultBtn.classList.add('active');
             }
+
+            // Set the default slider value
+            if (resolutionSlider) {
+                resolutionSlider.value = defaultFactor;
+                currentScaleValue.textContent = Math.round(defaultFactor * 100) + '%';
+            }
+
+            // Initialize crop functionality
+            initCropFunctionality();
         });
     </script>
 </body>
