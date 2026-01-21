@@ -371,20 +371,55 @@
 <body>
     <div class="container">
         <header>
-            <h1>Image Resizer</h1>
+            <h1>Image Resizer <button id="infoButton" title="Information" style="background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-secondary); cursor: pointer; font-size: 0.8rem; width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-left: 8px; padding: 0; vertical-align: middle;" onclick="showInfo()">i</button></h1>
             <div class="subtitle">Paste an image and resize it to your preferred dimensions</div>
         </header>
 
-        <div class="instructions">
-            <p><strong>How to use:</strong></p>
-            <ol>
-                <li>Paste an image using Ctrl+V (or Cmd+V on Mac) anywhere on the page</li>
-                <li>Alternatively, drag and drop an image file or click the upload area</li>
-                <li>Or paste an image URL in the text box and click "Load Image"</li>
-                <li>Use the continuous slider to select your desired resize factor (10% to 200%)</li>
-                <li>Select a rectangular area on the image and click "Apply Crop" to crop</li>
-            </ol>
+        <!-- Information Modal -->
+        <div id="infoModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+            <div class="modal-content" style="background-color: var(--card-bg); margin: 10% auto; padding: 20px; border: 1px solid var(--border); border-radius: var(--border-radius); width: 80%; max-width: 600px; color: var(--text); position: relative;">
+                <span class="close" onclick="hideInfo()" style="color: var(--text); float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+                <h2 style="margin-top: 0;">About Image Resizer</h2>
+                <div id="infoContent">
+                    <h3>Features</h3>
+                    <ul>
+                        <li>Paste images directly from clipboard (Ctrl+V)</li>
+                        <li>Drag and drop image files</li>
+                        <li>Click to upload image files</li>
+                        <li>Continuous resize slider (10% to 200%)</li>
+                        <li>Real-time crop preview</li>
+                        <li>Real-time display of original and resized image</li>
+                        <li>Shows exact resolution of both original and resized images</li>
+                    </ul>
+                    <h3>How to Use</h3>
+                    <ol>
+                        <li>Open the application in a web browser</li>
+                        <li>Either:
+                            <ul>
+                                <li>Press Ctrl+V (Cmd+V on Mac) anywhere on the page to paste an image from clipboard</li>
+                                <li>Drag and drop an image file onto the upload area</li>
+                                <li>Click the upload area to select an image file</li>
+                                <li>Or paste an image URL in the text box and click "Load Image"</li>
+                            </ul>
+                        </li>
+                        <li>Use the continuous slider to select your desired resize factor (10% to 200%)</li>
+                        <li>Select a rectangular area on the image to see the crop preview in the output</li>
+                        <li>The output image will show the cropped and scaled result</li>
+                    </ol>
+                    <h3>Technical Details</h3>
+                    <ul>
+                        <li>Pure HTML, CSS, and JavaScript (no external dependencies)</li>
+                        <li>Uses Canvas API for image processing</li>
+                        <li>Preserves aspect ratio during resizing</li>
+                        <li>Client-side only - no image uploads to servers</li>
+                        <li>Responsive design works on desktop and mobile</li>
+                    </ul>
+                    <h3>Browser Compatibility</h3>
+                    <p>Modern browsers (Chrome, Firefox, Safari, Edge)</p>
+                </div>
+            </div>
         </div>
+
 
         <main>
             <div class="card">
@@ -435,10 +470,9 @@
                     </div>
                 </div>
                 
-                <!-- Crop functionality - now automatic -->
+                <!-- Crop functionality - now automatic (no buttons needed) -->
                 <div id="cropControls" class="input-group" style="display: none; margin-top: 20px;">
-                    <button id="resetCropBtn" class="resize-btn">Reset Crop</button>
-                    <button id="applyCropBtn" class="resize-btn">Apply Crop</button>
+                    <!-- Removed crop buttons as they are not needed -->
                 </div>
 
                 <div id="actionButtons" class="action-buttons" style="display: none;">
@@ -530,14 +564,23 @@
             // Update the displayed scale percentage
             currentScaleValue.textContent = Math.round(factor * 100) + '%';
 
-            // Update the current resize factor and resize the image
+            // Update the current resize factor
             currentResizeFactor = factor;
 
-            // Remove active class from all manual resize buttons
-            resizeBtns.forEach(b => b.classList.remove('active'));
+            // Remove active class from all manual resize buttons (though they don't exist anymore)
+            if (resizeBtns) {
+                resizeBtns.forEach(b => b.classList.remove('active'));
+            }
 
-            // Resize the image with the calculated factor
-            resizeImage(factor);
+            // If there's an active crop selection, update the crop preview
+            if (typeof startX !== 'undefined' && typeof startY !== 'undefined' &&
+                typeof endX !== 'undefined' && typeof endY !== 'undefined' &&
+                startX !== null && startY !== null && endX !== null && endY !== null) {
+                updateCropPreview();
+            } else {
+                // Otherwise, resize the original image
+                resizeImage(factor);
+            }
         });
         
         
@@ -809,33 +852,11 @@
         let originalImageDimensions = { width: 0, height: 0 }; // Store original dimensions
         let cropCanvas = document.getElementById('cropCanvas');
         let cropCtx = cropCanvas.getContext('2d');
-        let resetCropBtn = document.getElementById('resetCropBtn');
-        let applyCropBtn = document.getElementById('applyCropBtn');
         let cropControls = document.getElementById('cropControls');
 
         // Initialize crop functionality - now automatic
         function initCropFunctionality() {
-            // Reset crop button
-            resetCropBtn.addEventListener('click', () => {
-                // Clear the crop rectangle
-                startX = startY = endX = endY = null;
-                redrawCropOverlay();
-
-                // If we're in crop mode, keep the canvas visible
-                if (isCropping) {
-                    setupCropCanvas(); // Refresh the canvas in case image changed
-                }
-            });
-
-            // Apply crop button
-            applyCropBtn.addEventListener('click', () => {
-                if (startX !== undefined && startY !== undefined &&
-                    endX !== undefined && endY !== undefined) {
-                    performCrop();
-                } else {
-                    showError('Please select a rectangle to crop');
-                }
-            });
+            // No buttons needed - crop preview happens automatically
         }
 
         // Setup the crop canvas dimensions to match the image
@@ -1000,7 +1021,7 @@
             img.src = originalImageData;
         }
 
-        // Handle clicks outside the image area to reset crop
+        // Handle clicks outside the image area
         function handleDocumentClick(e) {
             // Check if the click is outside both the original and resized image containers
             const originalContainer = document.getElementById('originalContainer');
@@ -1010,11 +1031,11 @@
             const isClickOnResized = resizedContainer.contains(e.target);
 
             if (!isClickOnOriginal && !isClickOnResized) {
-                // Reset crop selection but keep crop mode active
+                // Clear crop selection but keep the original image unchanged
                 startX = startY = endX = endY = null;
                 redrawCropOverlay();
 
-                // Reset the output image to show the original scaled version
+                // Update the output image to show the full scaled image
                 resizeImage(currentResizeFactor);
             }
         }
@@ -1075,69 +1096,7 @@
             }
         }
 
-        // Perform the actual crop operation with rectangle - applies the current preview as permanent
-        async function performCrop() {
-            if (typeof startX === 'undefined' || typeof startY === 'undefined' ||
-                typeof endX === 'undefined' || typeof endY === 'undefined') {
-                showError('Please select a rectangle to crop');
-                return;
-            }
-
-            // Calculate the crop rectangle coordinates
-            const cropX = Math.min(startX, endX);
-            const cropY = Math.min(startY, endY);
-            const cropWidth = Math.abs(endX - startX);
-            const cropHeight = Math.abs(endY - startY);
-
-            // Validate crop selection
-            if (cropWidth <= 0 || cropHeight <= 0) {
-                showError('Please select a valid crop area (more than a point)');
-                return;
-            }
-
-            // Since we already have the preview in the output, now make it permanent
-            // Get the current output image (which is already the cropped version)
-            const newOriginalImageData = resizedImage.src;
-
-            // Store the original image data before crop for reset functionality
-            if (!originalImageDataBeforeCrop) {
-                originalImageDataBeforeCrop = originalImageData;
-            }
-
-            // Update the original image data to the cropped image so it becomes the new base
-            originalImageData = newOriginalImageData;
-
-            // Update the original image display to show the cropped version
-            originalImage.src = newOriginalImageData;
-
-            // Update resolution info for the original image display
-            // We need to get the dimensions from the image
-            const img = new Image();
-            img.onload = function() {
-                const width = img.naturalWidth;
-                const height = img.naturalHeight;
-                originalResolution.textContent = `Resolution: ${width} × ${height}px`;
-                imageInfo.textContent = `Cropped image: ${width} × ${height}px`;
-
-                // Update original image dimensions
-                originalImageDimensions = { width, height };
-
-                // Keep crop canvas visible for continued cropping
-                document.getElementById('cropCanvas').style.display = 'block';
-                document.getElementById('cropCanvas').style.pointerEvents = 'auto';
-
-                // Show the slider again for the cropped image
-                document.getElementById('resolutionSliderSection').style.display = 'block';
-
-                // Make sure the resized container is visible
-                resizedContainer.style.display = 'block';
-
-                // The output is already showing the correctly cropped and scaled image
-                // So we just need to make sure the current scale is applied
-                resizeImage(currentResizeFactor);
-            };
-            img.src = newOriginalImageData;
-        }
+        // No longer needed since we're only showing previews
 
         // No longer needed since we're doing simple rectangle cropping
 
@@ -1160,6 +1119,23 @@
             // Initialize crop functionality
             initCropFunctionality();
         });
+
+        // Functions for info modal
+        function showInfo() {
+            document.getElementById('infoModal').style.display = 'block';
+        }
+
+        function hideInfo() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside of it
+        window.onclick = function(event) {
+            const modal = document.getElementById('infoModal');
+            if (event.target === modal) {
+                hideInfo();
+            }
+        }
     </script>
 </body>
 </html>
