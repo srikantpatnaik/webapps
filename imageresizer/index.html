@@ -381,8 +381,8 @@
                 <li>Paste an image using Ctrl+V (or Cmd+V on Mac) anywhere on the page</li>
                 <li>Alternatively, drag and drop an image file or click the upload area</li>
                 <li>Or paste an image URL in the text box and click "Load Image"</li>
-                <li>By default, resized image will be 0.6x of original size</li>
-                <li>Optionally select another resize factor from the buttons (0.3x, 0.6x, 0.8x, 1.3x, 1.5x)</li>
+                <li>Use the continuous slider to select your desired resize factor (10% to 200%)</li>
+                <li>Select a rectangular area on the image and click "Apply Crop" to crop</li>
             </ol>
         </div>
 
@@ -905,6 +905,99 @@
             isDrawing = false;
 
             redrawCropOverlay();
+
+            // Update the output image with the cropped preview
+            updateCropPreview();
+        }
+
+        // Update the output image with the cropped preview
+        function updateCropPreview() {
+            if (startX === undefined || startY === undefined ||
+                endX === undefined || endY === undefined) {
+                return;
+            }
+
+            // Calculate the crop rectangle coordinates
+            const cropX = Math.min(startX, endX);
+            const cropY = Math.min(startY, endY);
+            const cropWidth = Math.abs(endX - startX);
+            const cropHeight = Math.abs(endY - startY);
+
+            // Validate crop selection
+            if (cropWidth <= 0 || cropHeight <= 0) {
+                return;
+            }
+
+            // Create a temporary image to work with the original image data
+            const img = new Image();
+            img.onload = function() {
+                // Get the display dimensions of the original image element
+                const displayWidth = originalImage.clientWidth || originalImage.offsetWidth;
+                const displayHeight = originalImage.clientHeight || originalImage.offsetHeight;
+
+                // Calculate scale ratios between display and natural sizes
+                const scaleX = img.naturalWidth / displayWidth;
+                const scaleY = img.naturalHeight / displayHeight;
+
+                // Calculate the actual crop coordinates in natural image space
+                const actualCropX = Math.max(0, Math.round(cropX * scaleX));
+                const actualCropY = Math.max(0, Math.round(cropY * scaleY));
+                const actualCropWidth = Math.max(1, Math.round(cropWidth * scaleX));
+                const actualCropHeight = Math.max(1, Math.round(cropHeight * scaleY));
+
+                // Ensure crop doesn't exceed image bounds
+                const boundedCropX = Math.min(actualCropX, img.naturalWidth - 1);
+                const boundedCropY = Math.min(actualCropY, img.naturalHeight - 1);
+                const boundedCropWidth = Math.min(actualCropWidth, img.naturalWidth - boundedCropX);
+                const boundedCropHeight = Math.min(actualCropHeight, img.naturalHeight - boundedCropY);
+
+                // Create a canvas for the cropped image
+                const cropCanvas = document.createElement('canvas');
+                cropCanvas.width = boundedCropWidth;
+                cropCanvas.height = boundedCropHeight;
+                const cropCtx = cropCanvas.getContext('2d');
+
+                // Draw the cropped portion of the image
+                cropCtx.drawImage(
+                    img,
+                    boundedCropX, boundedCropY, boundedCropWidth, boundedCropHeight,
+                    0, 0, boundedCropWidth, boundedCropHeight
+                );
+
+                // Get the data URL of the cropped image
+                const croppedImageData = cropCanvas.toDataURL('image/jpeg', 0.9);
+
+                // Update the output image with the cropped preview
+                resizedImage.src = croppedImageData;
+                resizedContainer.style.display = 'block';
+
+                // Update resolution info for the output image
+                const width = boundedCropWidth;
+                const height = boundedCropHeight;
+                resizedResolution.textContent = `Resolution: ${width} × ${height}px`;
+
+                // Apply the current resize factor to the cropped preview
+                const tempImg = new Image();
+                tempImg.onload = function() {
+                    // Create resized version based on current scale factor
+                    const newWidth = Math.floor(tempImg.width * currentResizeFactor);
+                    const newHeight = Math.floor(tempImg.height * currentResizeFactor);
+
+                    const resizeCanvas = document.createElement('canvas');
+                    resizeCanvas.width = newWidth;
+                    resizeCanvas.height = newHeight;
+                    const resizeCtx = resizeCanvas.getContext('2d');
+
+                    resizeCtx.drawImage(tempImg, 0, 0, newWidth, newHeight);
+
+                    const resizedData = resizeCanvas.toDataURL('image/jpeg', 0.9);
+                    resizedImage.src = resizedData;
+                    resizedResolution.textContent = `Resolution: ${newWidth} × ${newHeight}px`;
+                };
+                tempImg.src = croppedImageData;
+            };
+
+            img.src = originalImageData;
         }
 
         // Handle clicks outside the image area to reset crop
@@ -921,37 +1014,8 @@
                 startX = startY = endX = endY = null;
                 redrawCropOverlay();
 
-                // Restore the original image and apply the current scale factor
-                if (originalImageDataBeforeCrop) {
-                    // Reset to the original image before any crops
-                    originalImage.src = originalImageDataBeforeCrop;
-                    originalImageData = originalImageDataBeforeCrop; // Reset the stored image data
-                    // Update resolution info for the original image display
-                    const img = new Image();
-                    img.onload = function() {
-                        const width = img.naturalWidth;
-                        const height = img.naturalHeight;
-                        originalResolution.textContent = `Resolution: ${width} × ${height}px`;
-                        imageInfo.textContent = `Image loaded: ${width} × ${height}px`;
-                        originalImageDimensions = { width, height }; // Update stored dimensions
-                        // Apply the current scale factor
-                        resizeImage(currentResizeFactor);
-                    };
-                    img.src = originalImageDataBeforeCrop;
-                } else if (originalImageData) {
-                    // If we don't have the original before crop, at least reset the current image
-                    const img = new Image();
-                    img.onload = function() {
-                        const width = img.naturalWidth;
-                        const height = img.naturalHeight;
-                        originalResolution.textContent = `Resolution: ${width} × ${height}px`;
-                        imageInfo.textContent = `Image loaded: ${width} × ${height}px`;
-                        originalImageDimensions = { width, height }; // Update stored dimensions
-                        // Apply the current scale factor
-                        resizeImage(currentResizeFactor);
-                    };
-                    img.src = originalImageData;
-                }
+                // Reset the output image to show the original scaled version
+                resizeImage(currentResizeFactor);
             }
         }
 
@@ -1011,7 +1075,7 @@
             }
         }
 
-        // Perform the actual crop operation with rectangle
+        // Perform the actual crop operation with rectangle - applies the current preview as permanent
         async function performCrop() {
             if (typeof startX === 'undefined' || typeof startY === 'undefined' ||
                 typeof endX === 'undefined' || typeof endY === 'undefined') {
@@ -1031,71 +1095,27 @@
                 return;
             }
 
-            // Create a temporary image to work with
+            // Since we already have the preview in the output, now make it permanent
+            // Get the current output image (which is already the cropped version)
+            const newOriginalImageData = resizedImage.src;
+
+            // Store the original image data before crop for reset functionality
+            if (!originalImageDataBeforeCrop) {
+                originalImageDataBeforeCrop = originalImageData;
+            }
+
+            // Update the original image data to the cropped image so it becomes the new base
+            originalImageData = newOriginalImageData;
+
+            // Update the original image display to show the cropped version
+            originalImage.src = newOriginalImageData;
+
+            // Update resolution info for the original image display
+            // We need to get the dimensions from the image
             const img = new Image();
-            img.crossOrigin = "Anonymous"; // Handle potential CORS issues
-
-            try {
-                // Load the original image data
-                img.src = originalImageData;
-
-                await new Promise((resolve, reject) => {
-                    img.onload = resolve;
-                    img.onerror = () => {
-                        reject(new Error('Failed to load image for cropping'));
-                    };
-                });
-
-                // Get the display dimensions of the original image element
-                const displayWidth = originalImage.clientWidth || originalImage.offsetWidth;
-                const displayHeight = originalImage.clientHeight || originalImage.offsetHeight;
-
-                // Calculate scale ratios between display and natural sizes
-                const scaleX = img.naturalWidth / displayWidth;
-                const scaleY = img.naturalHeight / displayHeight;
-
-                // Calculate the actual crop coordinates in natural image space
-                const actualCropX = Math.max(0, Math.round(cropX * scaleX));
-                const actualCropY = Math.max(0, Math.round(cropY * scaleY));
-                const actualCropWidth = Math.max(1, Math.round(cropWidth * scaleX));
-                const actualCropHeight = Math.max(1, Math.round(cropHeight * scaleY));
-
-                // Ensure crop doesn't exceed image bounds
-                const boundedCropX = Math.min(actualCropX, img.naturalWidth - 1);
-                const boundedCropY = Math.min(actualCropY, img.naturalHeight - 1);
-                const boundedCropWidth = Math.min(actualCropWidth, img.naturalWidth - boundedCropX);
-                const boundedCropHeight = Math.min(actualCropHeight, img.naturalHeight - boundedCropY);
-
-                // Create a canvas for the cropped image
-                const cropCanvas = document.createElement('canvas');
-                cropCanvas.width = boundedCropWidth;
-                cropCanvas.height = boundedCropHeight;
-                const cropCtx = cropCanvas.getContext('2d');
-
-                // Draw the cropped portion of the image
-                cropCtx.drawImage(
-                    img,
-                    boundedCropX, boundedCropY, boundedCropWidth, boundedCropHeight,
-                    0, 0, boundedCropWidth, boundedCropHeight
-                );
-
-                // Get the data URL of the cropped image
-                const croppedImageData = cropCanvas.toDataURL('image/jpeg', 0.9);
-
-                // Store the original image data before crop for reset functionality
-                if (!originalImageDataBeforeCrop) {
-                    originalImageDataBeforeCrop = originalImageData;
-                }
-
-                // Update the original image data to the cropped image so it can be further processed
-                originalImageData = croppedImageData;
-
-                // Update the original image display to show the cropped version
-                originalImage.src = croppedImageData;
-
-                // Update resolution info for the original image display
-                const width = boundedCropWidth;
-                const height = boundedCropHeight;
+            img.onload = function() {
+                const width = img.naturalWidth;
+                const height = img.naturalHeight;
                 originalResolution.textContent = `Resolution: ${width} × ${height}px`;
                 imageInfo.textContent = `Cropped image: ${width} × ${height}px`;
 
@@ -1112,16 +1132,11 @@
                 // Make sure the resized container is visible
                 resizedContainer.style.display = 'block';
 
-                // Apply the current resize factor to the cropped image
-                // Wait a bit for the image to load before resizing
-                setTimeout(() => {
-                    resizeImage(currentResizeFactor);
-                }, 50);
-
-            } catch (error) {
-                console.error('Crop error:', error);
-                showError(`Crop failed: ${error.message}`);
-            }
+                // The output is already showing the correctly cropped and scaled image
+                // So we just need to make sure the current scale is applied
+                resizeImage(currentResizeFactor);
+            };
+            img.src = newOriginalImageData;
         }
 
         // No longer needed since we're doing simple rectangle cropping
