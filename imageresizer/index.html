@@ -380,42 +380,26 @@
             <div class="modal-content" style="background-color: var(--card-bg); margin: 10% auto; padding: 20px; border: 1px solid var(--border); border-radius: var(--border-radius); width: 80%; max-width: 600px; color: var(--text); position: relative;">
                 <span class="close" onclick="hideInfo()" style="color: var(--text); float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
                 <h2 style="margin-top: 0;">About Image Resizer</h2>
-                <div id="infoContent">
-                    <h3>Features</h3>
-                    <ul>
+                <div id="infoContent" style="line-height: 1.6; font-size: 1rem;">
+                    <h3 style="color: var(--primary); margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 8px;">Features</h3>
+                    <ul style="padding-left: 20px;">
                         <li>Paste images directly from clipboard (Ctrl+V)</li>
-                        <li>Drag and drop image files</li>
-                        <li>Click to upload image files</li>
+                        <li>Drag and drop image files anywhere on the page</li>
+                        <li>Enter image URLs in the input field</li>
                         <li>Continuous resize slider (10% to 200%)</li>
-                        <li>Real-time crop preview</li>
-                        <li>Real-time display of original and resized image</li>
-                        <li>Shows exact resolution of both original and resized images</li>
+                        <li>Real-time crop preview with rectangle selection</li>
+                        <li>See exact resolution of both original and resized images</li>
                     </ul>
-                    <h3>How to Use</h3>
-                    <ol>
-                        <li>Open the application in a web browser</li>
-                        <li>Either:
-                            <ul>
-                                <li>Press Ctrl+V (Cmd+V on Mac) anywhere on the page to paste an image from clipboard</li>
-                                <li>Drag and drop an image file onto the upload area</li>
-                                <li>Click the upload area to select an image file</li>
-                                <li>Or paste an image URL in the text box and click "Load Image"</li>
-                            </ul>
-                        </li>
-                        <li>Use the continuous slider to select your desired resize factor (10% to 200%)</li>
-                        <li>Select a rectangular area on the image to see the crop preview in the output</li>
-                        <li>The output image will show the cropped and scaled result</li>
+                    <h3 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 8px;">How to Use</h3>
+                    <ol style="padding-left: 20px;">
+                        <li>Open the application in your browser</li>
+                        <li>Paste an image with Ctrl+V (or Cmd+V on Mac) anywhere on the page</li>
+                        <li>Or drag and drop an image file anywhere on the page</li>
+                        <li>Or enter an image URL in the text field and click "Load Image"</li>
+                        <li>Adjust the slider to set your desired resize factor (10% to 200%)</li>
+                        <li>Select a rectangular area on the image to crop</li>
+                        <li>See the cropped and resized result in real-time</li>
                     </ol>
-                    <h3>Technical Details</h3>
-                    <ul>
-                        <li>Pure HTML, CSS, and JavaScript (no external dependencies)</li>
-                        <li>Uses Canvas API for image processing</li>
-                        <li>Preserves aspect ratio during resizing</li>
-                        <li>Client-side only - no image uploads to servers</li>
-                        <li>Responsive design works on desktop and mobile</li>
-                    </ul>
-                    <h3>Browser Compatibility</h3>
-                    <p>Modern browsers (Chrome, Firefox, Safari, Edge)</p>
                 </div>
             </div>
         </div>
@@ -857,17 +841,21 @@
                 return;
             }
 
-            // Position the canvas to match the image
+            // Get the actual rendered size and position of the image
             const rect = img.getBoundingClientRect();
-            const imageContainer = img.parentElement;
+            const computedStyle = getComputedStyle(img);
+
+            // Calculate the actual rendered size considering CSS transformations
+            const displayWidth = rect.width;
+            const displayHeight = rect.height;
 
             // Set canvas dimensions to match the image display size
-            cropCanvas.width = img.clientWidth;
-            cropCanvas.height = img.clientHeight;
+            cropCanvas.width = displayWidth;
+            cropCanvas.height = displayHeight;
 
-            // Position canvas absolutely over the image
-            cropCanvas.style.width = img.clientWidth + 'px';
-            cropCanvas.style.height = img.clientHeight + 'px';
+            // Position canvas to exactly overlay the image
+            cropCanvas.style.width = displayWidth + 'px';
+            cropCanvas.style.height = displayHeight + 'px';
 
             // Reset crop points
             cropPoints = [];
@@ -942,9 +930,10 @@
             // Create a temporary image to work with the original image data
             const img = new Image();
             img.onload = function() {
-                // Get the display dimensions of the original image element
-                const displayWidth = originalImage.clientWidth || originalImage.offsetWidth;
-                const displayHeight = originalImage.clientHeight || originalImage.offsetHeight;
+                // Get the actual rendered size of the original image element
+                const rect = originalImage.getBoundingClientRect();
+                const displayWidth = rect.width;
+                const displayHeight = rect.height;
 
                 // Calculate scale ratios between display and natural sizes
                 const scaleX = img.naturalWidth / displayWidth;
