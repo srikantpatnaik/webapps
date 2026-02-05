@@ -52,8 +52,10 @@ class VideoPlayerApp {
                 this.videoPlayer.pause();
             }
         } else {
-            // If the app is not locked, start the auto-lock timer
-            this.startAutoLockTimer();
+            // Only start the auto-lock timer if the app is not locked and a passkey has been set
+            if (this.passkey) {
+                this.startAutoLockTimer();
+            }
         }
 
         // Render the gallery immediately to show the loading state (considering lock state)
@@ -151,6 +153,9 @@ class VideoPlayerApp {
             if (this.videoGallery) {
                 this.renderGallery();
             }
+
+            // Update the lock button and manage auto-lock timer based on loaded state
+            this.updateLockButton();
         } catch (e) {
             console.error('Error loading lock state:', e);
         }
@@ -401,8 +406,8 @@ class VideoPlayerApp {
         // Clear any existing timer
         this.clearAutoLockTimer();
 
-        // Only start the timer if lock feature is enabled
-        if (!this.isLockFeatureEnabled()) {
+        // Only start the timer if lock feature is enabled AND a passkey has been set
+        if (!this.isLockFeatureEnabled() || !this.passkey) {
             return;
         }
 
@@ -424,7 +429,7 @@ class VideoPlayerApp {
 
     // Reset the auto-lock timer on user activity
     resetAutoLockTimer() {
-        if (!this.isLocked) {
+        if (!this.isLocked && this.passkey) {
             this.startAutoLockTimer();
         }
     }
@@ -445,8 +450,10 @@ class VideoPlayerApp {
             }, { passive: true });
         });
 
-        // Start the initial timer
-        this.startAutoLockTimer();
+        // Only start the initial timer if a passkey has been set
+        if (this.passkey) {
+            this.startAutoLockTimer();
+        }
     }
 
     setupHistoryStateManagement() {
@@ -727,7 +734,13 @@ class VideoPlayerApp {
                     this.saveLockState();
                     this.updateLockButton();
                     this.renderGallery();
+                    this.clearAutoLockTimer(); // Clear timer when disabling lock feature
+                } else if (isEnabled && !this.isLocked && this.passkey) {
+                    // If enabling the lock feature and not currently locked, start the auto-lock timer if a passkey is set
                     this.startAutoLockTimer();
+                } else if (!isEnabled) {
+                    // If disabling the lock feature, clear the auto-lock timer
+                    this.clearAutoLockTimer();
                 }
             });
         }
@@ -4101,7 +4114,7 @@ class VideoPlayerApp {
             }
 
             // Fetch the M3U playlist content
-            // Use a CORS proxy if direct fetch fails due to CORS policy
+            // Use multiple CORS proxies as fallbacks if direct fetch fails due to CORS policy
             let m3uContent;
             try {
                 const response = await fetch(url);
@@ -4110,15 +4123,45 @@ class VideoPlayerApp {
                 }
                 m3uContent = await response.text();
             } catch (fetchError) {
-                console.warn('Direct fetch failed, attempting CORS proxy:', fetchError);
+                console.warn('Direct fetch failed, attempting CORS proxies:', fetchError);
 
-                // Try using a CORS proxy as fallback
-                const corsProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-                const proxyResponse = await fetch(corsProxyUrl);
-                if (!proxyResponse.ok) {
-                    throw new Error(`CORS proxy request failed! status: ${proxyResponse.status}`);
+                // Define multiple CORS proxy options as fallbacks
+                const corsProxies = [
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                    `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(url)}`,
+                    `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(url)}`,
+                    `https://cors-anywhere.herokuapp.com/${url}`
+                ];
+
+                let success = false;
+
+                for (const proxyUrl of corsProxies) {
+                    try {
+                        console.log(`Trying CORS proxy: ${proxyUrl}`);
+                        const proxyResponse = await fetch(proxyUrl);
+
+                        if (proxyResponse.ok) {
+                            m3uContent = await proxyResponse.text();
+
+                            // Verify that we got actual content (not an error page)
+                            if (m3uContent && m3uContent.length > 0 && !m3uContent.includes('error') && !m3uContent.includes('Error')) {
+                                console.log('Successfully retrieved M3U content using CORS proxy');
+                                success = true;
+                                break;
+                            } else {
+                                console.warn('CORS proxy returned empty or error content, trying next proxy...');
+                            }
+                        } else {
+                            console.warn(`CORS proxy failed with status: ${proxyResponse.status}`);
+                        }
+                    } catch (proxyError) {
+                        console.warn(`CORS proxy failed:`, proxyError.message);
+                    }
                 }
-                m3uContent = await proxyResponse.text();
+
+                if (!success) {
+                    throw new Error('All CORS proxy attempts failed. The M3U playlist may be hosted on a server that blocks cross-origin requests.');
+                }
             }
 
             // Parse the M3U playlist
@@ -4951,13 +4994,16 @@ class VideoPlayerApp {
             this.showUnlockOverlay();
         } else {
             // Lock the gallery immediately without confirmation
-            if (this.passkey === null) {
+            if (this.passkey === null || this.passkey === '') {
                 // First time setting passkey
                 const newPasskey = prompt('Set a passkey to lock the gallery:');
 
                 if (newPasskey && newPasskey.trim() !== '') {
                     this.passkey = newPasskey.trim();
                     this.lockGallery();
+
+                    // Save the passkey to localStorage
+                    this.saveLockState();
                 }
             } else {
                 // Lock immediately without confirmation
@@ -5093,8 +5139,10 @@ class VideoPlayerApp {
         this.showMessage('Gallery unlocked');
         this.hideLockOverlay(); // Hide the lock overlay
 
-        // Restart the auto-lock timer when unlocked
-        this.startAutoLockTimer();
+        // Only restart the auto-lock timer if a passkey has been set
+        if (this.passkey) {
+            this.startAutoLockTimer();
+        }
 
         // Restore video modal and controls if they were visible before locking
         if (this.videoModal && this.videoModal.style.display === 'block') {
@@ -5540,14 +5588,14 @@ class VideoPlayerApp {
             this.hideLockOverlay();
         }
 
-        // Manage auto-lock timer based on lock state and feature enabled status
+        // Manage auto-lock timer based on lock state, feature enabled status, and passkey presence
         if (this.isLocked && this.isLockFeatureEnabled()) {
             this.clearAutoLockTimer();
-        } else if (this.isLockFeatureEnabled() && !this.isLocked) {
-            // Only start auto-lock timer if lock feature is enabled AND we're not currently locked
+        } else if (this.isLockFeatureEnabled() && !this.isLocked && this.passkey) {
+            // Only start auto-lock timer if lock feature is enabled, we're not currently locked, AND a passkey is set
             this.startAutoLockTimer();
         } else {
-            // If lock feature is disabled, ensure timer is cleared
+            // If lock feature is disabled or no passkey is set, ensure timer is cleared
             this.clearAutoLockTimer();
         }
     }
