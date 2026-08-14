@@ -68,6 +68,9 @@
             padding: 15px;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            position: sticky;
+            top: 8px;
+            z-index: 20;
         }
 
         .form-group {
@@ -163,7 +166,7 @@
             letter-spacing: 0.5px;
         }
 
-        /* Special styling for debit columns (Taxes and Expns/y) */
+        /* Special styling for debit columns (Taxes and expenses) */
         th:nth-child(4), /* Taxes column */
         th:nth-child(5) { /* Expns/y column */
             color: var(--danger-color);
@@ -228,6 +231,23 @@
 
         .results-table {
             margin-top: 15px;
+            max-height: min(68vh, 720px);
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 12px;
+        }
+
+        .results-table table {
+            min-width: 720px;
+            margin-top: 0;
+        }
+
+        #fireResultsTable tr.first-decade td {
+            background: rgba(88, 166, 255, 0.14);
+        }
+
+        #fireResultsTable tr.first-decade:hover td {
+            background: rgba(88, 166, 255, 0.23);
         }
 
         .summary-card {
@@ -265,6 +285,30 @@
             font-weight: 600;
         }
 
+        .calculation-note {
+            background: rgba(88, 166, 255, 0.08);
+            border: 1px solid rgba(88, 166, 255, 0.35);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .calculation-note strong {
+            color: var(--accent-light);
+        }
+
+        .tax-model {
+            min-height: 45px;
+            padding: 10px 12px;
+            background: linear-gradient(145deg, var(--bg-primary), #0c1015);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--accent-light);
+            font-size: 0.85rem;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 8px;
@@ -276,9 +320,11 @@
             }
 
             .form-grid {
-                grid-template-columns: repeat(3, 1fr); /* Keep 3 columns on all screens */
+                grid-template-columns: repeat(2, minmax(0, 1fr));
                 gap: 8px; /* Smaller gap */
                 padding: 12px;
+                max-height: 48vh;
+                overflow-y: auto;
             }
 
             label {
@@ -310,9 +356,10 @@
 
         @media (max-width: 480px) {
             .form-grid {
-                grid-template-columns: repeat(2, 1fr); /* 2 columns for very small screens */
+                grid-template-columns: 1fr;
                 gap: 6px; /* Even smaller gap */
                 padding: 10px;
+                max-height: 52vh;
             }
 
             label {
@@ -336,10 +383,16 @@
             .summary-card {
                 padding: 12px;
             }
+
+            .results-table {
+                max-height: 52vh;
+            }
         }
     </style>
+    <link rel="stylesheet" href="../responsive.css">
 </head>
 <body>
+    <a href="../index.html" style="display:block;max-width:1200px;margin:0 auto 12px;color:#56c7ff;font:600 13px 'Segoe UI',system-ui,sans-serif;text-decoration:none;">← Back to dashboard</a>
     <div class="container">
         <h1>FIRE Calculator</h1>
         
@@ -351,7 +404,7 @@
             
             <div class="form-group">
                 <label for="inflation">Inflation (%):</label>
-                <input type="number" id="inflation" placeholder="Inflation rate" step="1" value="0">
+                <input type="number" id="inflation" placeholder="Inflation rate" min="-100" step="1" value="0">
             </div>
             
             <div class="form-group">
@@ -360,13 +413,13 @@
             </div>
             
             <div class="form-group">
-                <label for="incomeTax">Tax Rate (%):</label>
-                <input type="number" id="incomeTax" placeholder="Income tax rate" step="1" value="0">
+                <label>Tax model:</label>
+                <div class="tax-model">India new regime<br><small>Business / interest income</small></div>
             </div>
             
             <div class="form-group">
                 <label for="monthlyReturns">Retn/m (%):</label>
-                <input type="number" id="monthlyReturns" placeholder="Monthly returns" step="0.1" value="0.0">
+                <input type="number" id="monthlyReturns" placeholder="Monthly returns" min="-100" step="0.1" value="0.0">
             </div>
             
             <div class="form-group">
@@ -382,7 +435,7 @@
                         <tr>
                             <th>Age</th>
                             <th>Capital</th>
-                            <th>Gain</th>
+                            <th>Gross gain</th>
                             <th>Taxes</th>
                             <th>Expns/y</th>
                         </tr>
@@ -401,7 +454,7 @@
                         <tr>
                             <th>Year</th>
                             <th>Withdrawals</th>
-                            <th>Gain (Year)</th>
+                            <th>Net gain (Year)</th>
                             <th>Balance</th>
                         </tr>
                     </thead>
@@ -410,15 +463,19 @@
                 </table>
             </div>
         </div>
+            <div class="calculation-note">
+                <strong>Calculation check:</strong>
+                FIRE now calculates annual tax automatically from the India new-regime slabs, rebate, surcharge, and 4% cess. Investment gains are treated as normal business/interest income for a resident individual; no ₹75,000 salary standard deduction is applied. Tax is removed at each year end. The percentage beside each tax value is effective tax divided by gross gain; inflation is already included in Expns/y. Blue rows show the first 10 years.
+            </div>
     </div>
 
+    <script src="../it/tax_formula.js"></script>
     <script>
         // Save and restore form values
         function saveFormValues() {
             const formValues = {
                 currentAge: document.getElementById('currentAge').value,
                 currentCorpus: document.getElementById('currentCorpus').value,
-                incomeTax: document.getElementById('incomeTax').value,
                 monthlyReturns: document.getElementById('monthlyReturns').value,
                 pensionDrawn: document.getElementById('pensionDrawn').value,
                 inflation: document.getElementById('inflation').value
@@ -427,10 +484,14 @@
         }
 
         function restoreFormValues() {
-            const savedValues = JSON.parse(localStorage.getItem('fireCalculatorFormValues')) || {};
+            let savedValues = {};
+            try {
+                savedValues = JSON.parse(localStorage.getItem('fireCalculatorFormValues')) || {};
+            } catch (error) {
+                savedValues = {};
+            }
             if (savedValues.currentAge) document.getElementById('currentAge').value = savedValues.currentAge;
             if (savedValues.currentCorpus) document.getElementById('currentCorpus').value = savedValues.currentCorpus;
-            if (savedValues.incomeTax) document.getElementById('incomeTax').value = savedValues.incomeTax;
             if (savedValues.monthlyReturns) document.getElementById('monthlyReturns').value = savedValues.monthlyReturns;
             if (savedValues.pensionDrawn) document.getElementById('pensionDrawn').value = savedValues.pensionDrawn;
             if (savedValues.inflation) document.getElementById('inflation').value = savedValues.inflation;
@@ -439,7 +500,6 @@
         // Add event listeners to save form values when they change
         document.getElementById('currentAge').addEventListener('input', saveFormValues);
         document.getElementById('currentCorpus').addEventListener('input', saveFormValues);
-        document.getElementById('incomeTax').addEventListener('input', saveFormValues);
         document.getElementById('monthlyReturns').addEventListener('input', saveFormValues);
         document.getElementById('pensionDrawn').addEventListener('input', saveFormValues);
         document.getElementById('inflation').addEventListener('input', saveFormValues);
@@ -447,7 +507,6 @@
         // Add event listeners to trigger calculation on input changes
         document.getElementById('currentAge').addEventListener('input', calculateFIRE);
         document.getElementById('currentCorpus').addEventListener('input', calculateFIRE);
-        document.getElementById('incomeTax').addEventListener('input', calculateFIRE);
         document.getElementById('monthlyReturns').addEventListener('input', calculateFIRE);
         document.getElementById('pensionDrawn').addEventListener('input', calculateFIRE);
         document.getElementById('inflation').addEventListener('input', calculateFIRE);
@@ -497,52 +556,33 @@
             const currentCorpusInput = document.getElementById('currentCorpus').value;
             const currentAge = parseInt(currentAgeInput);
             const currentCorpus = parseFloat(currentCorpusInput);
-            const incomeTaxRate = parseFloat(document.getElementById('incomeTax').value) / 100 || 0;
             const monthlyReturnsRate = parseFloat(document.getElementById('monthlyReturns').value) / 100 || 0;
             const monthlyExpenses = parseFloat(document.getElementById('pensionDrawn').value) || 0;
             const inflationRate = parseFloat(document.getElementById('inflation').value) / 100 || 0;
 
             // Only calculate if all required fields have appropriate values
             if (currentAgeInput === '' || isNaN(currentAge) || currentAge < 18 || currentAge > 100 ||
-                currentCorpusInput === '' || isNaN(currentCorpus) || currentCorpus < 0) {
+                currentCorpusInput === '' || isNaN(currentCorpus) || currentCorpus < 0 ||
+                monthlyReturnsRate < -1 ||
+                inflationRate < -1 || monthlyExpenses < 0) {
                 // Hide results section if inputs are invalid
                 document.getElementById('resultsSection').style.display = 'none';
                 return;
             }
 
-            // Generate results for specific ages: first row empty with age and capital only,
-            // then next 2 years, then nearest multiples of 10, and finally age 100
-            const targetAges = [];
-
-            // First row: current age with only age and capital (other values zeroed out for display)
-            targetAges.push({age: currentAge, showOnlyBase: true});
-
-            // Next two years
-            if (currentAge + 1 <= 100) {
-                targetAges.push({age: currentAge + 1});
-            }
-            if (currentAge + 2 <= 100) {
-                targetAges.push({age: currentAge + 2});
+            // Show the current age, each of the next 10 years, then decade checkpoints.
+            // For example, age 40 produces 40–50, then 60, 70, 80, 90, and 100.
+            const targetAges = [{age: currentAge, showCurrentDetails: true}];
+            for (let offset = 1; offset <= 10 && currentAge + offset <= 100; offset++) {
+                targetAges.push({age: currentAge + offset});
             }
 
-            // Add nearest multiples of 10 after the next two years (but not 100 yet)
-            // Calculate the next multiple of 10 after currentAge + 2
-            const nextMultipleOf10 = Math.ceil((currentAge + 2) / 10) * 10;
-
-            // Add up to 2 nearest multiples of 10 that are greater than currentAge + 2 and < 100
-            if (nextMultipleOf10 > currentAge + 2 && nextMultipleOf10 < 100) {
-                targetAges.push({age: nextMultipleOf10});
-
-                // Add the next multiple of 10 after that if it's within bounds
-                const nextNextMultipleOf10 = nextMultipleOf10 + 10;
-                if (nextNextMultipleOf10 < 100) {
-                    targetAges.push({age: nextNextMultipleOf10});
+            let decadeAge = Math.ceil((currentAge + 10) / 10) * 10;
+            while (decadeAge <= 100) {
+                if (decadeAge > currentAge + 10) {
+                    targetAges.push({age: decadeAge});
                 }
-            }
-
-            // Always add age 100 if it's greater than currentAge + 2
-            if (currentAge + 2 < 100) {
-                targetAges.push({age: 100});
+                decadeAge += 10;
             }
 
             // Calculate results for each target age
@@ -559,14 +599,30 @@
             for (let targetObj of targetAges) {
                 const age = targetObj.age;
 
-                // Handle the first row specially - only show age and capital, others empty
-                if (targetObj.showOnlyBase) {
+                // Show a current-year run-rate for the starting age while keeping
+                // the capital value at today's corpus.
+                if (targetObj.showCurrentDetails) {
+                    let currentYearCapital = corpusInRupees;
+                    let currentYearGrossInterest = 0;
+                    let currentYearTaxPaid = 0;
+                    for (let month = 0; month < 12; month++) {
+                        const monthlyGain = currentYearCapital * monthlyReturnsRate;
+                        currentYearGrossInterest += monthlyGain;
+                        currentYearCapital += monthlyGain - monthlyExpensesInRupees;
+                    }
+                    currentYearTaxPaid = calculateIndiaNewRegimeTax({
+                        salary: 0,
+                        otherIncome: Math.max(0, currentYearGrossInterest),
+                        deductions: 0,
+                        resident: true,
+                        salaried: false
+                    }).annualTax;
                     results.push({
                         age: age,
-                        capital: corpusInRupees, // Use original capital for current age
-                        yearInterest: 0, // Zero for display in first row
-                        annualExpenses: 0, // Zero for display in first row
-                        showOnlyBase: true
+                        capital: corpusInRupees,
+                        grossInterest: currentYearGrossInterest,
+                        taxPaid: currentYearTaxPaid,
+                        annualExpenses: monthlyExpensesInRupees * 12,
                     });
                     continue; // Move to next age
                 }
@@ -580,6 +636,8 @@
                 // Track total interest earned over time for display purposes
                 let totalInterestEarned = 0;
                 let lastYearInterest = 0; // Track the interest from the last year
+                let lastYearGrossInterest = 0;
+                let lastYearTaxPaid = 0;
 
                 // Array to store yearly data for debugging
                 const yearlyData = [];
@@ -587,35 +645,46 @@
                 for (let yr = 0; yr < yearsToTarget; yr++) {
                     // Store starting capital for this year to calculate interest
                     const startOfYearCapital = simulatedCapital;
-                    let yearlyInterest = 0; // Track interest earned during this year
+                    let yearlyInterest = 0; // Track net gain after annual tax
+                    let yearlyGrossInterest = 0;
+                    let yearlyTaxPaid = 0;
 
                     // Calculate month-by-month for this year with monthly withdrawals
                     for (let month = 0; month < 12; month++) {
                         // Apply monthly return to current balance
                         const monthlyGain = simulatedCapital * monthlyReturnsRate;
 
-                        // Calculate tax on the monthly gain
-                        const taxOnGain = monthlyGain * incomeTaxRate;
-                        const netGain = monthlyGain - taxOnGain;
-
-                        // Add net gain to capital
-                        simulatedCapital += netGain;
-
-                        // Add to yearly interest
-                        yearlyInterest += netGain;
+                        // Accrue gross returns during the year. Progressive tax is
+                        // calculated once from the year's total gain below.
+                        simulatedCapital += monthlyGain;
+                        yearlyGrossInterest += monthlyGain;
 
                         // Subtract monthly expenses from capital
                         simulatedCapital -= currentMonthlyExpenses;
                     }
 
+                    yearlyTaxPaid = calculateIndiaNewRegimeTax({
+                        salary: 0,
+                        otherIncome: Math.max(0, yearlyGrossInterest),
+                        deductions: 0,
+                        resident: true,
+                        salaried: false
+                    }).annualTax;
+                    simulatedCapital -= yearlyTaxPaid;
+                    yearlyInterest = yearlyGrossInterest - yearlyTaxPaid;
+
                     totalInterestEarned += yearlyInterest;
                     lastYearInterest = yearlyInterest; // Store the interest from the last processed year
+                    lastYearGrossInterest = yearlyGrossInterest;
+                    lastYearTaxPaid = yearlyTaxPaid;
 
                     // Store yearly data for debugging
                     yearlyData.push({
                         year: currentAge + yr, // Calendar year for this iteration
                         withdrawals: currentMonthlyExpenses * 12, // Amount withdrawn for expenses
                         interest: yearlyInterest, // Interest earned during the year
+                        grossInterest: yearlyGrossInterest,
+                        taxPaid: yearlyTaxPaid,
                         accruedInterest: totalInterestEarned, // Total interest accumulated to date
                         balance: simulatedCapital // Balance at the end of the year
                     });
@@ -626,7 +695,7 @@
 
                 // Calculate annual expenses adjusted for inflation at this age for display purposes
                 let annualExpensesAtAge = monthlyExpensesInRupees * 12;
-                if (inflationRate > 0 && yearsToTarget > 0) {
+                if (inflationRate !== 0 && yearsToTarget > 0) {
                     annualExpensesAtAge = monthlyExpensesInRupees * 12 * Math.pow(1 + inflationRate, yearsToTarget);
                 }
 
@@ -634,6 +703,8 @@
                     age: age,
                     capital: simulatedCapital,
                     yearInterest: lastYearInterest, // Interest for the last year of the period
+                    grossInterest: lastYearGrossInterest,
+                    taxPaid: lastYearTaxPaid,
                     annualExpenses: annualExpensesAtAge
                 });
 
@@ -644,8 +715,8 @@
             // Populate debug table if debug mode is enabled (only for the last target age calculated)
             if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE && results.length > 0) {
                 // Get the yearly data for the last calculated target age
-                const lastTargetAge = targetAges[targetAges.length - 1];
-                const finalYearlyData = allYearlyData[lastTargetAge];
+                const lastTargetAge = targetAges[targetAges.length - 1].age;
+                const finalYearlyData = allYearlyData[lastTargetAge] || [];
                 populateDebugTable(finalYearlyData);
             } else {
                 // Hide debug section if debug mode is not enabled
@@ -658,31 +729,20 @@
 
             results.forEach(result => {
                 const row = document.createElement('tr');
+                if (result.age - currentAge <= 10) {
+                    row.classList.add('first-decade');
+                }
 
                 // Apply negative class to capital if it's negative
                 const capitalClass = result.capital < 0 ? ' class="negative-value"' : '';
 
-                // Calculate the tax paid on gains for this year
-                const taxPaid = result.yearInterest * (parseFloat(document.getElementById('incomeTax').value) / 100 || 0);
-
-                // For the first row (showOnlyBase), only show age and capital, others empty
-                if (result.showOnlyBase) {
-                    row.innerHTML = `
-                        <td>${result.age}</td>
-                        <td${capitalClass}>${formatCurrency(result.capital)}</td>
-                        <td${capitalClass}></td>
-                        <td${capitalClass}></td>
-                        <td></td>
-                    `;
-                } else {
-                    row.innerHTML = `
-                        <td>${result.age}</td>
-                        <td${capitalClass}>${formatCurrency(result.capital)}</td>
-                        <td${capitalClass}>${formatCurrencyInLakhs(result.yearInterest)}</td>
-                        <td class="debit-value"${capitalClass}>${formatCurrencyInLakhs(taxPaid)}</td>
-                        <td class="debit-value">${formatCurrencyInLakhs(result.annualExpenses)}</td>
-                    `;
-                }
+                row.innerHTML = `
+                    <td>${result.age}</td>
+                    <td${capitalClass}>${formatCurrency(result.capital)}</td>
+                    <td>${formatCurrencyInLakhs(result.grossInterest)}</td>
+                    <td class="debit-value">${formatTaxWithPercentage(result.taxPaid, result.grossInterest)}</td>
+                    <td class="debit-value">${formatCurrencyInLakhs(result.annualExpenses)}</td>
+                `;
 
                 tbody.appendChild(row);
             });
@@ -737,6 +797,11 @@
         function formatCurrencyInLakhs(amount) {
             // Pass the raw amount to the main formatter which handles the thresholds
             return formatCurrency(amount);
+        }
+
+        function formatTaxWithPercentage(taxPaid, grossInterest) {
+            const effectiveRate = grossInterest > 0 ? (taxPaid / grossInterest) * 100 : 0;
+            return `${formatCurrencyInLakhs(taxPaid)} (${effectiveRate.toFixed(0)}%)`;
         }
 
         // Initialize calculator when page loads

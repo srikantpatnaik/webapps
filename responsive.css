@@ -1,0 +1,153 @@
+/* Shared responsive guardrails for the static apps. */
+html {
+    width: 100%;
+    overflow-x: hidden;
+}
+
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+img,
+video,
+canvas,
+svg,
+iframe {
+    max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+    min-width: 0;
+    max-width: 100%;
+}
+
+table {
+    max-width: 100%;
+}
+
+@media (max-width: 700px) {
+    body {
+        padding: 12px !important;
+    }
+
+    .container,
+    .shell {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    header,
+    .card,
+    .panel,
+    .form-container,
+    .current-day,
+    .archived-section,
+    .stats-section,
+    .upload-section,
+    .filter-section,
+    .single-input-section,
+    .url-input-section,
+    .m3u-playlist-section {
+        max-width: 100%;
+    }
+
+    .header-title-row,
+    .header-main-controls,
+    .header-secondary-controls,
+    .filter-controls,
+    .control-buttons,
+    .input-row,
+    .stats-tabs {
+        flex-wrap: wrap;
+    }
+
+    .input-row input,
+    .input-row button {
+        width: 100% !important;
+    }
+
+    .header-secondary-controls > *,
+    .filter-controls > * {
+        max-width: 100%;
+    }
+
+    .quick-search-input,
+    .quick-search-input:focus {
+        width: min(100%, 260px);
+    }
+
+    .video-player {
+        width: 100%;
+        height: auto;
+        max-height: 65vh;
+    }
+
+    .video-controls,
+    .control-buttons {
+        gap: 6px;
+    }
+
+    .control-buttons button {
+        flex: 1 1 42px;
+    }
+
+    .shortcut-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .gallery {
+        column-count: 2 !important;
+        column-gap: 10px !important;
+    }
+
+    .current-day,
+    .archived-content,
+    .expense-table,
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    #current-tasks,
+    .archived-table {
+        min-width: 560px;
+    }
+
+    .modal-content,
+    .info-modal-content {
+        width: calc(100% - 24px) !important;
+        max-width: none !important;
+    }
+}
+
+@media (max-width: 420px) {
+    body {
+        padding: 8px !important;
+    }
+
+    h1,
+    header h1 {
+        font-size: clamp(1.25rem, 8vw, 1.8rem) !important;
+    }
+
+    .card,
+    .panel,
+    .form-container,
+    .current-day,
+    .archived-section,
+    .stats-section,
+    .upload-section,
+    .filter-section {
+        padding: 12px !important;
+    }
+
+    .gallery {
+        column-count: 1 !important;
+    }
+}

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>India Income Tax Dashboard · New Regime 2026</title>
+    <style>
+        :root {
+            --bg: #09111f;
+            --panel: #111d2e;
+            --panel-light: #17263a;
+            --border: #263b54;
+            --text: #eef6ff;
+            --muted: #91a5ba;
+            --accent: #56c7ff;
+            --accent-2: #9a7cff;
+            --good: #59d18c;
+            --warn: #f5c76a;
+            --danger: #ff7c7c;
+            --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--text);
+            background: radial-gradient(circle at 15% 0%, #15304d 0, transparent 38%), var(--bg);
+            font: 15px/1.55 "Segoe UI", system-ui, -apple-system, sans-serif;
+        }
+
+        .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 42px; }
+
+        .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+        .eyebrow { color: var(--accent); text-transform: uppercase; letter-spacing: .12em; font-size: .72rem; font-weight: 700; }
+        h1 { margin: 5px 0 6px; font-size: clamp(1.7rem, 4vw, 2.8rem); line-height: 1.1; }
+        h2 { margin: 0 0 16px; font-size: 1.05rem; }
+        .subtitle, .muted { color: var(--muted); }
+        .subtitle { margin: 0; max-width: 710px; }
+        .home-link { color: var(--accent); text-decoration: none; white-space: nowrap; }
+        .home-link:hover { text-decoration: underline; }
+
+        .layout { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 18px; align-items: start; }
+        .panel { background: linear-gradient(145deg, rgba(23, 38, 58, .96), rgba(13, 25, 42, .96)); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding: 20px; }
+        .form-panel { position: sticky; top: 16px; }
+        .field { margin-bottom: 15px; }
+        label { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-weight: 600; font-size: .82rem; margin-bottom: 6px; }
+        input, select { width: 100%; border: 1px solid var(--border); border-radius: 9px; background: #0a1422; color: var(--text); padding: 11px 12px; font: inherit; }
+        input:focus, select:focus { outline: 2px solid rgba(86, 199, 255, .35); border-color: var(--accent); }
+        input[type="range"] { height: 8px; padding: 0; border: 0; border-radius: 999px; accent-color: var(--accent); cursor: pointer; }
+        .hint { color: var(--muted); font-size: .76rem; margin-top: 5px; }
+        .switch-row { display: flex; gap: 10px; align-items: center; margin: 4px 0 16px; color: var(--text); }
+        .switch-row input { width: auto; accent-color: var(--accent); }
+        .reset { width: 100%; border: 1px solid var(--border); border-radius: 9px; background: transparent; color: var(--muted); padding: 10px; cursor: pointer; }
+        .reset:hover { border-color: var(--accent); color: var(--text); }
+
+        .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+        .metric { background: var(--panel); border: 1px solid var(--border); border-radius: 13px; padding: 15px; min-height: 104px; }
+        .metric-label { color: var(--muted); font-size: .78rem; }
+        .metric-value { margin-top: 7px; font-size: clamp(1.15rem, 3vw, 1.65rem); font-weight: 750; color: var(--accent); }
+        .metric.good .metric-value { color: var(--good); }
+        .metric.warn .metric-value { color: var(--warn); }
+
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .breakdown { display: grid; gap: 8px; }
+        .line { display: flex; justify-content: space-between; gap: 14px; padding-bottom: 8px; border-bottom: 1px solid rgba(145, 165, 186, .14); }
+        .line:last-child { border-bottom: 0; padding-bottom: 0; }
+        .line span:first-child { color: var(--muted); }
+        .line strong { text-align: right; }
+        .highlight { color: var(--good); }
+        .tax-table { width: 100%; border-collapse: collapse; }
+        .tax-table th, .tax-table td { text-align: left; padding: 9px 8px; border-bottom: 1px solid rgba(145, 165, 186, .14); }
+        .tax-table th { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+        .tax-table td:last-child, .tax-table th:last-child { text-align: right; }
+        .tax-table tr.active { background: rgba(86, 199, 255, .11); color: var(--accent); }
+
+        .note { margin-top: 18px; padding: 14px 16px; border: 1px solid rgba(245, 199, 106, .3); border-radius: 12px; background: rgba(245, 199, 106, .07); color: var(--muted); font-size: .82rem; }
+        .note strong { color: var(--warn); }
+        .sources { margin-top: 20px; color: var(--muted); font-size: .77rem; }
+        .sources a { color: var(--accent); }
+        .empty { color: var(--muted); }
+
+        @media (max-width: 900px) {
+            .layout { grid-template-columns: 1fr; }
+            .form-panel { position: static; }
+        }
+
+        @media (max-width: 650px) {
+            .shell { width: min(100% - 20px, 1180px); padding-top: 18px; }
+            .topbar { display: block; }
+            .home-link { display: inline-block; margin-top: 10px; }
+            .metrics { grid-template-columns: repeat(2, 1fr); }
+            .detail-grid { grid-template-columns: 1fr; }
+            .panel { padding: 15px; }
+        }
+    </style>
+    <link rel="stylesheet" href="../responsive.css">
+</head>
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <div class="eyebrow">India · New tax regime · 2026</div>
+                <h1>Income tax dashboard</h1>
+                <p class="subtitle">Estimate annual tax, monthly TDS, rebate and effective rate for normal slab-rate income.</p>
+            </div>
+            <a class="home-link" href="../index.html">← Back to dashboard</a>
+        </header>
+
+        <div class="layout">
+            <section class="panel form-panel" aria-labelledby="inputs-title">
+                <h2 id="inputs-title">Your inputs</h2>
+                <div class="field">
+                    <label for="salary">Annual income <span id="salaryValue">₹18,00,000</span></label>
+                    <input id="salary" type="range" min="200000" max="10000000" step="10000" value="1800000">
+                    <div class="hint">Slide from ₹2 lakh to ₹1 crore.</div>
+                    <div class="hint" id="incomeHint">Gross annual salary or pension before the standard deduction.</div>
+                </div>
+                <div class="field">
+                    <label for="otherIncome">Other normal income <span>₹</span></label>
+                    <input id="otherIncome" type="number" min="0" step="1000" value="0" inputmode="decimal">
+                    <div class="hint">Interest, rent and other income taxed at normal slab rates.</div>
+                </div>
+                <div class="field">
+                    <label for="deductions">Other eligible deductions <span>₹</span></label>
+                    <input id="deductions" type="number" min="0" step="1000" value="0" inputmode="decimal">
+                    <div class="hint">Use only deductions permitted under the new regime, such as eligible employer NPS contribution or professional tax.</div>
+                </div>
+                <div class="field">
+                    <label for="residency">Residential status</label>
+                    <select id="residency">
+                        <option value="resident">Resident individual</option>
+                        <option value="nonresident">Non-resident individual</option>
+                    </select>
+                    <div class="hint">Section 87A rebate is available only to resident individuals.</div>
+                </div>
+                <div class="field">
+                    <label for="incomeType">Income type</label>
+                    <select id="incomeType">
+                        <option value="salary">Salary / pension</option>
+                        <option value="business">Business / self-employed</option>
+                    </select>
+                    <div class="hint">Salary/pension gets the ₹75,000 standard deduction. Business/self-employed gets no salary standard deduction.</div>
+                </div>
+                <button class="reset" id="resetInputs" type="button">Reset example</button>
+            </section>
+
+            <section aria-live="polite">
+                <div class="metrics">
+                    <article class="metric good"><div class="metric-label">Annual tax payable</div><div class="metric-value" id="annualTax">—</div></article>
+                    <article class="metric"><div class="metric-label">Monthly TDS equivalent</div><div class="metric-value" id="monthlyTax">—</div></article>
+                    <article class="metric warn"><div class="metric-label">Effective tax rate</div><div class="metric-value" id="effectiveRate">—</div></article>
+                    <article class="metric"><div class="metric-label">Annual income after tax</div><div class="metric-value" id="afterTax">—</div></article>
+                </div>
+
+                <div class="detail-grid">
+                    <section class="panel">
+                        <h2>Calculation summary</h2>
+                        <div class="breakdown">
+                            <div class="line"><span>Gross income</span><strong id="grossIncome">—</strong></div>
+                            <div class="line"><span>Standard deduction</span><strong id="standardDeduction">—</strong></div>
+                            <div class="line"><span>Other deductions</span><strong id="otherDeductions">—</strong></div>
+                            <div class="line"><span>Taxable income</span><strong id="taxableIncome">—</strong></div>
+                            <div class="line"><span>Tax before rebate</span><strong id="taxBeforeRebate">—</strong></div>
+                            <div class="line"><span>Section 87A rebate / relief</span><strong class="highlight" id="rebate">—</strong></div>
+                            <div class="line"><span>Surcharge</span><strong id="surcharge">—</strong></div>
+                            <div class="line"><span>Health & education cess (4%)</span><strong id="cess">—</strong></div>
+                        </div>
+                    </section>
+
+                    <section class="panel">
+                        <h2>2026 slab breakdown</h2>
+                        <table class="tax-table">
+                            <thead><tr><th>Taxable income band</th><th>Rate</th><th>Tax</th></tr></thead>
+                            <tbody id="slabRows"></tbody>
+                        </table>
+                    </section>
+                </div>
+
+                <div class="note"><strong>Scope:</strong> This is an estimate for normal slab-rate income under the new regime. Capital gains, lottery/winnings, special-rate income, advance-tax interest, employer payroll rounding and employer-specific TDS are not included. The new regime is the default; this page does not compare the old regime.</div>
+                <div class="sources">Rules checked against the <a href="https://www.incometaxindia.gov.in/w/computation-of-tax-for-individual-1" target="_blank" rel="noopener">Income Tax Department slab guidance</a>, <a href="https://www.incometaxindia.gov.in/w/section-156-88" target="_blank" rel="noopener">Section 156 rebate provision</a> and the Department’s <a href="https://incometaxindia.gov.in/Documents/Budget/budget-2025/faqs-budget-2025.pdf" target="_blank" rel="noopener">Budget 2025 FAQ</a>. Displayed model: AY 2026–27 / 2026 filing season.</div>
+            </section>
+        </div>
+    </main>
+
+    <script src="tax_formula.js"></script>
+    <script>
+
+        const money = value => new Intl.NumberFormat('en-IN', {
+            style: 'currency', currency: 'INR', maximumFractionDigits: 0
+        }).format(Math.max(0, value || 0));
+
+        function readInputs() {
+            const number = id => Math.max(0, parseFloat(document.getElementById(id).value) || 0);
+            return {
+                salary: number('salary'),
+                otherIncome: number('otherIncome'),
+                deductions: number('deductions'),
+                resident: document.getElementById('residency').value === 'resident',
+                salaried: document.getElementById('incomeType').value === 'salary'
+            };
+        }
+
+        function saveInputs() {
+            localStorage.setItem('indiaTaxDashboardInputs', JSON.stringify({
+                salary: document.getElementById('salary').value,
+                otherIncome: document.getElementById('otherIncome').value,
+                deductions: document.getElementById('deductions').value,
+                residency: document.getElementById('residency').value,
+                incomeType: document.getElementById('incomeType').value
+            }));
+        }
+
+        function restoreInputs() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('indiaTaxDashboardInputs'));
+                if (!saved) return;
+                ['salary', 'otherIncome', 'deductions', 'residency'].forEach(id => {
+                    if (saved[id] !== undefined) document.getElementById(id).value = saved[id];
+                });
+                if (saved.incomeType !== undefined) document.getElementById('incomeType').value = saved.incomeType;
+            } catch (error) { /* Ignore malformed browser storage. */ }
+        }
+
+        function render() {
+            const result = calculateIndiaNewRegimeTax(readInputs());
+            const inputs = readInputs();
+            document.getElementById('salaryValue').textContent = money(inputs.salary);
+            document.getElementById('incomeHint').textContent = inputs.salaried
+                ? 'Gross annual salary or pension before the standard deduction.'
+                : 'Gross annual business or self-employed income before eligible deductions.';
+            document.getElementById('annualTax').textContent = money(result.annualTax);
+            document.getElementById('monthlyTax').textContent = money(result.annualTax / 12);
+            document.getElementById('effectiveRate').textContent = result.grossIncome ? `${(result.annualTax / result.grossIncome * 100).toFixed(2)}%` : '0.00%';
+            document.getElementById('afterTax').textContent = money(result.grossIncome - result.annualTax);
+
+            const values = {
+                grossIncome: result.grossIncome,
+                standardDeduction: result.standardDeduction,
+                otherDeductions: readInputs().deductions,
+                taxableIncome: result.taxableIncome,
+                taxBeforeRebate: result.slab.total,
+                rebate: result.rebate,
+                surcharge: result.surcharge,
+                cess: result.cess
+            };
+            Object.entries(values).forEach(([id, value]) => document.getElementById(id).textContent = money(value));
+
+            const slabRows = document.getElementById('slabRows');
+            slabRows.innerHTML = '';
+            result.slab.rows.forEach(row => {
+                if (row.amount === 0 && result.taxableIncome === 0) return;
+                const tr = document.createElement('tr');
+                if (row.amount > 0) tr.className = 'active';
+                tr.innerHTML = `<td>${row.label}</td><td>${row.rate * 100}%</td><td>${money(row.tax)}</td>`;
+                slabRows.appendChild(tr);
+            });
+            saveInputs();
+        }
+
+        document.querySelectorAll('input, select').forEach(input => input.addEventListener('input', render));
+        document.getElementById('resetInputs').addEventListener('click', () => {
+            document.getElementById('salary').value = 1800000;
+            document.getElementById('otherIncome').value = 0;
+            document.getElementById('deductions').value = 0;
+            document.getElementById('residency').value = 'resident';
+            document.getElementById('incomeType').value = 'salary';
+            render();
+        });
+        restoreInputs();
+        render();
+
+    </script>
+</body>
+</html>
