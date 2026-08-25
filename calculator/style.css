@@ -171,6 +171,308 @@ h1 span {
     box-shadow: var(--shadow);
 }
 
+.tool-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+    margin-bottom: 18px;
+    padding: 7px;
+    border: 1px solid var(--line);
+    border-radius: 17px;
+    background: rgba(18, 29, 49, 0.76);
+}
+
+.tab-button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 11px 12px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    color: var(--muted);
+    background: transparent;
+    text-align: left;
+    transition: 160ms ease;
+}
+
+.tab-button:hover {
+    color: var(--ink);
+    background: rgba(140, 168, 255, 0.06);
+}
+
+.tab-button.is-active {
+    border-color: rgba(140, 168, 255, 0.24);
+    color: #e9efff;
+    background: linear-gradient(135deg, rgba(103, 137, 255, 0.18), rgba(103, 137, 255, 0.07));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.tab-number {
+    display: inline-grid;
+    width: 27px;
+    height: 27px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+}
+
+.tab-button > span:last-child {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.tab-button b {
+    overflow: hidden;
+    color: inherit;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tab-button small {
+    overflow: hidden;
+    color: var(--subtle);
+    font-size: 0.59rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.is-active {
+    display: block;
+}
+
+.basic-calculator-layout,
+.scientific-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 272px;
+    gap: 28px;
+    padding: 30px 34px 34px;
+}
+
+.calculator-core {
+    min-width: 0;
+    max-width: 690px;
+}
+
+.calculator-display {
+    overflow: hidden;
+    min-height: 139px;
+    padding: 19px 20px 16px;
+    border: 1px solid rgba(140, 168, 255, 0.22);
+    border-radius: 15px;
+    background: linear-gradient(145deg, rgba(7, 15, 30, 0.76), rgba(14, 26, 49, 0.72));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.display-label {
+    display: block;
+    color: var(--subtle);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.display-expression {
+    display: block;
+    min-height: 20px;
+    margin-top: 8px;
+    overflow: hidden;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.calculator-output {
+    display: block;
+    min-height: 0;
+    margin-top: 3px;
+    overflow: hidden;
+    padding: 0;
+    border: 0;
+    color: #f3f6ff;
+    background: transparent;
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 500;
+    letter-spacing: -0.08em;
+    line-height: 1.15;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.calculator-keypad {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 9px;
+    margin-top: 14px;
+}
+
+.scientific-keypad {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.calc-key {
+    min-height: 54px;
+    padding: 0 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: 11px;
+    color: #dce5f8;
+    background: rgba(19, 32, 55, 0.82);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: 150ms ease;
+}
+
+.calc-key:hover {
+    border-color: rgba(140, 168, 255, 0.54);
+    color: #fff;
+    background: rgba(42, 61, 98, 0.92);
+    transform: translateY(-1px);
+}
+
+.calc-key:active {
+    transform: translateY(1px);
+}
+
+.calc-key.utility {
+    color: var(--orange);
+    background: rgba(255, 186, 106, 0.08);
+}
+
+.calc-key.operator {
+    color: var(--accent);
+    background: rgba(103, 137, 255, 0.11);
+}
+
+.calc-key.scientific-function {
+    min-height: 44px;
+    color: var(--purple);
+    background: rgba(190, 156, 255, 0.08);
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.calc-key.equals {
+    border-color: rgba(140, 168, 255, 0.35);
+    color: #0d1730;
+    background: linear-gradient(135deg, #adc0ff, #7695ff);
+    font-family: 'Manrope', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.calc-key.wide {
+    grid-column: span 2;
+}
+
+.scientific-keypad .equals {
+    grid-column: span 6;
+}
+
+.calculator-aside {
+    align-self: stretch;
+    padding: 23px 22px;
+    border: 1px solid var(--line);
+    border-radius: 15px;
+    background: rgba(8, 16, 31, 0.28);
+}
+
+.aside-icon {
+    display: grid;
+    width: 37px;
+    height: 37px;
+    margin-bottom: 21px;
+    place-items: center;
+    border: 1px solid rgba(140, 168, 255, 0.26);
+    border-radius: 11px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    font-size: 1.1rem;
+}
+
+.scientific-aside .aside-icon {
+    color: var(--orange);
+    background: rgba(255, 186, 106, 0.08);
+}
+
+.calculator-aside h3 {
+    margin-bottom: 8px;
+    color: #eaf0fb;
+    font-size: 0.95rem;
+}
+
+.calculator-aside p {
+    margin-bottom: 22px;
+    color: var(--muted);
+    font-size: 0.74rem;
+    line-height: 1.7;
+}
+
+.shortcut-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    color: var(--subtle);
+    font-size: 0.66rem;
+}
+
+.shortcut-list span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+kbd {
+    display: inline-grid;
+    min-width: 21px;
+    height: 20px;
+    place-items: center;
+    padding: 0 5px;
+    border: 1px solid var(--line-strong);
+    border-radius: 5px;
+    color: var(--accent);
+    background: rgba(140, 168, 255, 0.08);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+}
+
+.angle-toggle {
+    flex: 0 0 auto;
+    min-width: 54px;
+    padding: 8px 11px;
+    border: 1px solid rgba(255, 186, 106, 0.3);
+    border-radius: 9px;
+    color: var(--orange);
+    background: rgba(255, 186, 106, 0.08);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 500;
+}
+
+.angle-toggle:hover {
+    border-color: rgba(255, 186, 106, 0.64);
+    background: rgba(255, 186, 106, 0.14);
+}
+
 .section-heading {
     display: flex;
     align-items: flex-start;
@@ -697,7 +999,7 @@ tbody tr:hover td {
 }
 
 .converter-card {
-    margin-top: 25px;
+    margin-top: 0;
 }
 
 .converter-heading {
@@ -1020,6 +1322,11 @@ tbody tr:hover td {
         grid-template-columns: 1fr;
     }
 
+    .basic-calculator-layout,
+    .scientific-layout {
+        grid-template-columns: minmax(0, 1fr) 230px;
+    }
+
     .calculator-form {
         border-right: 0;
         border-bottom: 1px solid var(--line);
@@ -1052,13 +1359,35 @@ tbody tr:hover td {
     .results-panel,
     .breakdown-section,
     .converter-toolbar,
-    .converter-workspace {
+    .converter-workspace,
+    .basic-calculator-layout,
+    .scientific-layout {
         padding-right: 20px;
         padding-left: 20px;
     }
 
     .calculator-form {
         padding-top: 25px;
+    }
+
+    .basic-calculator-layout,
+    .scientific-layout {
+        grid-template-columns: 1fr;
+        gap: 18px;
+        padding-top: 25px;
+    }
+
+    .calculator-aside {
+        padding: 18px 20px;
+    }
+
+    .aside-icon {
+        display: none;
+    }
+
+    .shortcut-list {
+        flex-direction: row;
+        flex-wrap: wrap;
     }
 
     .converter-layout {
@@ -1088,6 +1417,18 @@ tbody tr:hover td {
 }
 
 @media (max-width: 500px) {
+    .tool-tabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .tab-button {
+        padding: 10px 9px;
+    }
+
+    .tab-button small {
+        display: none;
+    }
+
     .section-heading {
         flex-direction: column;
     }
@@ -1099,6 +1440,14 @@ tbody tr:hover td {
     .two-columns,
     .result-grid {
         grid-template-columns: 1fr;
+    }
+
+    .scientific-keypad {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .scientific-keypad .equals {
+        grid-column: span 4;
     }
 
     .results-panel {

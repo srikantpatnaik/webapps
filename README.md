@@ -48,12 +48,14 @@ Financial Independence, Retire Early calculator to help plan your financial futu
 - **Visual Charts**: Interactive charts showing your financial journey
 
 ### Calculators & Converters
-A currency-neutral compound interest calculator paired with a broad set of everyday unit converters.
+A tabbed calculator workspace with regular arithmetic, scientific functions, a currency-neutral compound interest calculator, and a broad set of everyday unit converters.
 
 #### Features
 
 - **Compound Interest Projection**: Model starting amounts, rates, time, compounding, and recurring additions
 - **Growth Chart**: See the projected balance visually with a year-by-year breakdown
+- **Regular Calculator**: Keyboard-friendly arithmetic with chained expressions
+- **Scientific Calculator**: Trigonometry, logarithms, powers, constants, factorials, and degree/radian mode
 - **Unit Converters**: Length, area, mass, volume, temperature, speed, acceleration, time, data, energy, power, pressure, force, fuel economy, angle, cooking volume, and density
 - **Quick Search**: Filter converter categories and switch between common conversion pairs
 

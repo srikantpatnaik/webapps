@@ -1,6 +1,426 @@
 document.addEventListener('DOMContentLoaded', () => {
     const $ = (selector) => document.querySelector(selector);
 
+    const tabButtons = [...document.querySelectorAll('[data-tab-target]')];
+    const tabPanels = [...document.querySelectorAll('.tab-panel')];
+
+    function setActiveTab(targetId, focusTab = false) {
+        tabButtons.forEach((button) => {
+            const isActive = button.dataset.tabTarget === targetId;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', String(isActive));
+            if (isActive && focusTab) button.focus();
+        });
+        tabPanels.forEach((panel) => panel.classList.toggle('is-active', panel.id === targetId));
+        if (targetId === 'compound-panel' && typeof drawChart === 'function' && typeof calculateProjection === 'function') {
+            window.requestAnimationFrame(() => drawChart(calculateProjection(getProjectionInputs()).snapshots));
+        }
+    }
+
+    tabButtons.forEach((button, index) => {
+        button.addEventListener('click', () => setActiveTab(button.dataset.tabTarget));
+        button.addEventListener('keydown', (event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const nextIndex = event.key === 'Home' ? 0
+                : event.key === 'End' ? tabButtons.length - 1
+                    : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabButtons.length) % tabButtons.length;
+            setActiveTab(tabButtons[nextIndex].dataset.tabTarget, true);
+        });
+    });
+
+    const regularDisplay = $('#regular-display');
+    const regularExpressionOutput = $('#regular-expression');
+    let regularExpression = '';
+    let regularPreviousExpression = '';
+    let regularJustEvaluated = false;
+    let regularError = false;
+
+    const calculatorNumberFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 12 });
+
+    function formatCalculatorValue(value) {
+        if (!Number.isFinite(value)) return 'Error';
+        const absoluteValue = Math.abs(value);
+        if (absoluteValue !== 0 && (absoluteValue >= 1e12 || absoluteValue < 1e-8)) {
+            return value.toExponential(8).replace(/\.0+e/, 'e').replace(/(\.\d*?[1-9])0+e/, '$1e');
+        }
+        return calculatorNumberFormatter.format(value);
+    }
+
+    function tokenizeRegularExpression(expression) {
+        const tokens = [];
+        let index = 0;
+        while (index < expression.length) {
+            const character = expression[index];
+            if (/\s/.test(character)) {
+                index += 1;
+                continue;
+            }
+            if (/\d|\./.test(character)) {
+                const start = index;
+                let dots = 0;
+                while (index < expression.length && /[\d.]/.test(expression[index])) {
+                    if (expression[index] === '.') dots += 1;
+                    index += 1;
+                }
+                const numberText = expression.slice(start, index);
+                if (dots > 1 || numberText === '.') throw new Error('Invalid number');
+                tokens.push(Number(numberText));
+                continue;
+            }
+            if ('+-*/'.includes(character)) {
+                tokens.push(character);
+                index += 1;
+                continue;
+            }
+            throw new Error('Invalid character');
+        }
+        return tokens;
+    }
+
+    function evaluateRegularExpression(expression) {
+        const tokens = tokenizeRegularExpression(expression);
+        let index = 0;
+
+        function parsePrimary() {
+            const token = tokens[index];
+            if (token === '+' || token === '-') {
+                index += 1;
+                const value = parsePrimary();
+                return token === '-' ? -value : value;
+            }
+            if (typeof token !== 'number') throw new Error('Expected number');
+            index += 1;
+            return token;
+        }
+
+        function parseMultiplication() {
+            let value = parsePrimary();
+            while (tokens[index] === '*' || tokens[index] === '/') {
+                const operator = tokens[index];
+                index += 1;
+                const nextValue = parsePrimary();
+                value = operator === '*' ? value * nextValue : value / nextValue;
+            }
+            return value;
+        }
+
+        function parseAddition() {
+            let value = parseMultiplication();
+            while (tokens[index] === '+' || tokens[index] === '-') {
+                const operator = tokens[index];
+                index += 1;
+                const nextValue = parseMultiplication();
+                value = operator === '+' ? value + nextValue : value - nextValue;
+            }
+            return value;
+        }
+
+        if (!tokens.length) throw new Error('Empty expression');
+        const result = parseAddition();
+        if (index !== tokens.length || !Number.isFinite(result)) throw new Error('Invalid expression');
+        return result;
+    }
+
+    function renderRegularCalculator() {
+        regularDisplay.textContent = regularError ? 'Error' : regularJustEvaluated ? formatCalculatorValue(Number(regularExpression)) : regularExpression || '0';
+        regularExpressionOutput.textContent = regularError ? 'Try again' : regularJustEvaluated ? `${regularPreviousExpression} =` : regularExpression || 'Ready';
+    }
+
+    function resetRegularCalculator() {
+        regularExpression = '';
+        regularPreviousExpression = '';
+        regularJustEvaluated = false;
+        regularError = false;
+        renderRegularCalculator();
+    }
+
+    function appendRegularValue(value) {
+        if (regularError || regularJustEvaluated) {
+            regularExpression = '';
+            regularJustEvaluated = false;
+            regularError = false;
+        }
+        if (/\d/.test(value) && regularExpression.endsWith(')')) regularExpression += '*';
+        regularExpression += value;
+        renderRegularCalculator();
+    }
+
+    function appendRegularDecimal() {
+        if (regularError || regularJustEvaluated) {
+            regularExpression = '';
+            regularJustEvaluated = false;
+            regularError = false;
+        }
+        const lastOperator = Math.max(regularExpression.lastIndexOf('+'), regularExpression.lastIndexOf('-'), regularExpression.lastIndexOf('*'), regularExpression.lastIndexOf('/'));
+        const currentNumber = regularExpression.slice(lastOperator + 1);
+        if (currentNumber.includes('.')) return;
+        regularExpression += currentNumber ? '.' : '0.';
+        renderRegularCalculator();
+    }
+
+    function appendRegularOperator(operator) {
+        if (regularError) resetRegularCalculator();
+        if (regularJustEvaluated) regularJustEvaluated = false;
+        if (!regularExpression && operator !== '-') {
+            regularExpression = '0' + operator;
+        } else if (!regularExpression && operator === '-') {
+            regularExpression = '-';
+        } else if (/[+\-*/]$/.test(regularExpression)) {
+            regularExpression = regularExpression.slice(0, -1) + operator;
+        } else {
+            regularExpression += operator;
+        }
+        renderRegularCalculator();
+    }
+
+    function applyRegularPercent() {
+        if (!regularExpression || regularError) return;
+        const match = regularExpression.match(/(\d*\.?\d+)$/);
+        if (!match) return;
+        const start = match.index;
+        regularExpression = `${regularExpression.slice(0, start)}${Number(match[1]) / 100}`;
+        regularJustEvaluated = false;
+        renderRegularCalculator();
+    }
+
+    function calculateRegular() {
+        if (!regularExpression) return;
+        try {
+            regularPreviousExpression = regularExpression;
+            regularExpression = String(evaluateRegularExpression(regularExpression));
+            regularJustEvaluated = true;
+            regularError = false;
+        } catch {
+            regularError = true;
+            regularJustEvaluated = false;
+        }
+        renderRegularCalculator();
+    }
+
+    function handleRegularAction(action) {
+        if (action === 'clear') resetRegularCalculator();
+        if (action === 'backspace') {
+            if (regularJustEvaluated || regularError) return resetRegularCalculator();
+            regularExpression = regularExpression.slice(0, -1);
+            renderRegularCalculator();
+        }
+        if (action === 'percent') applyRegularPercent();
+        if (action === 'equals') calculateRegular();
+    }
+
+    document.querySelectorAll('[data-regular-key]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const value = button.dataset.regularKey;
+            if (value === '.') appendRegularDecimal();
+            else if ('+-*/'.includes(value)) appendRegularOperator(value);
+            else appendRegularValue(value);
+        });
+    });
+    document.querySelectorAll('[data-regular-action]').forEach((button) => button.addEventListener('click', () => handleRegularAction(button.dataset.regularAction)));
+
+    const scientificDisplay = $('#scientific-display');
+    const scientificExpressionOutput = $('#scientific-expression');
+    let scientificExpression = '';
+    let scientificPreviousExpression = '';
+    let scientificJustEvaluated = false;
+    let scientificError = false;
+    let scientificDegrees = true;
+
+    const scientificFunctionNames = new Set(['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'log', 'ln', 'sqrt', 'abs', 'fact', 'e']);
+
+    function factorial(value) {
+        if (value < 0 || !Number.isInteger(value) || value > 170) throw new Error('Factorial is limited to whole numbers up to 170');
+        let result = 1;
+        for (let index = 2; index <= value; index += 1) result *= index;
+        return result;
+    }
+
+    function evaluateScientificExpression(expression) {
+        const names = expression.match(/[A-Za-z]+/g) || [];
+        if (names.some((name) => !scientificFunctionNames.has(name))) throw new Error('Unknown function');
+        if (/[^0-9A-Za-z+\-*/().,^π%!\s]/.test(expression)) throw new Error('Invalid character');
+        const javascriptExpression = expression
+            .replace(/(\d+(?:\.\d+)?)%/g, '($1 / 100)')
+            .replace(/(\d+(?:\.\d+)?)!/g, 'fact($1)')
+            .replace(/π/g, 'PI')
+            .replace(/\be\b/g, 'E')
+            .replace(/\^/g, '**');
+        const radians = (value) => scientificDegrees ? value * Math.PI / 180 : value;
+        const fromRadians = (value) => scientificDegrees ? value * 180 / Math.PI : value;
+        const evaluator = new Function('sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'log', 'ln', 'sqrt', 'abs', 'fact', 'PI', 'E', `"use strict"; return (${javascriptExpression});`);
+        const result = evaluator(
+            (value) => Math.sin(radians(value)),
+            (value) => Math.cos(radians(value)),
+            (value) => Math.tan(radians(value)),
+            (value) => fromRadians(Math.asin(value)),
+            (value) => fromRadians(Math.acos(value)),
+            (value) => fromRadians(Math.atan(value)),
+            (value) => Math.log10(value),
+            (value) => Math.log(value),
+            (value) => Math.sqrt(value),
+            (value) => Math.abs(value),
+            factorial,
+            Math.PI,
+            Math.E
+        );
+        if (!Number.isFinite(result)) throw new Error('Result is not finite');
+        return result;
+    }
+
+    function renderScientificCalculator() {
+        scientificDisplay.textContent = scientificError ? 'Error' : scientificJustEvaluated ? formatCalculatorValue(Number(scientificExpression)) : scientificExpression || '0';
+        scientificExpressionOutput.textContent = scientificError ? 'Try again' : scientificJustEvaluated ? `${scientificPreviousExpression} =` : scientificExpression || 'Ready';
+    }
+
+    function resetScientificCalculator() {
+        scientificExpression = '';
+        scientificPreviousExpression = '';
+        scientificJustEvaluated = false;
+        scientificError = false;
+        renderScientificCalculator();
+    }
+
+    function scientificImplicitMultiply() {
+        return /[\dπe)]$/.test(scientificExpression) ? '*' : '';
+    }
+
+    function appendScientificValue(value) {
+        if (scientificError || scientificJustEvaluated) {
+            scientificExpression = '';
+            scientificJustEvaluated = false;
+            scientificError = false;
+        }
+        if (value === 'π' || value === 'e') scientificExpression += scientificImplicitMultiply();
+        if (/\d/.test(value) && /[πe)]$/.test(scientificExpression)) scientificExpression += '*';
+        scientificExpression += value;
+        renderScientificCalculator();
+    }
+
+    function appendScientificFunction(functionName) {
+        if (scientificError) resetScientificCalculator();
+        scientificJustEvaluated = false;
+        if (functionName === 'square') {
+            if (scientificExpression) scientificExpression += '^2';
+        } else if (functionName === 'fact') {
+            if (scientificExpression) scientificExpression += '!';
+        } else {
+            scientificExpression += scientificImplicitMultiply() + `${functionName}(`;
+        }
+        renderScientificCalculator();
+    }
+
+    function appendScientificDecimal() {
+        if (scientificError || scientificJustEvaluated) {
+            scientificExpression = '';
+            scientificJustEvaluated = false;
+            scientificError = false;
+        }
+        const lastOperator = Math.max(scientificExpression.lastIndexOf('+'), scientificExpression.lastIndexOf('-'), scientificExpression.lastIndexOf('*'), scientificExpression.lastIndexOf('/'), scientificExpression.lastIndexOf('^'), scientificExpression.lastIndexOf('('));
+        const currentNumber = scientificExpression.slice(lastOperator + 1);
+        if (currentNumber.includes('.')) return;
+        scientificExpression += currentNumber ? '.' : '0.';
+        renderScientificCalculator();
+    }
+
+    function appendScientificOperator(operator) {
+        if (scientificError) resetScientificCalculator();
+        scientificJustEvaluated = false;
+        if (!scientificExpression && operator === '-') scientificExpression = '-';
+        else if (!scientificExpression) scientificExpression = `0${operator}`;
+        else if (/[+\-*/^]$/.test(scientificExpression)) scientificExpression = scientificExpression.slice(0, -1) + operator;
+        else scientificExpression += operator;
+        renderScientificCalculator();
+    }
+
+    function appendScientificParenthesis(parenthesis) {
+        if (scientificError) resetScientificCalculator();
+        scientificJustEvaluated = false;
+        if (parenthesis === '(') scientificExpression += scientificImplicitMultiply() + '(';
+        else if ((scientificExpression.match(/\(/g) || []).length > (scientificExpression.match(/\)/g) || []).length && /[\dπe)]$/.test(scientificExpression)) scientificExpression += ')';
+        renderScientificCalculator();
+    }
+
+    function calculateScientific() {
+        if (!scientificExpression) return;
+        try {
+            scientificPreviousExpression = scientificExpression;
+            scientificExpression = String(evaluateScientificExpression(scientificExpression));
+            scientificJustEvaluated = true;
+            scientificError = false;
+        } catch {
+            scientificError = true;
+            scientificJustEvaluated = false;
+        }
+        renderScientificCalculator();
+    }
+
+    function handleScientificAction(action) {
+        if (action === 'clear') resetScientificCalculator();
+        if (action === 'backspace') {
+            if (scientificJustEvaluated || scientificError) return resetScientificCalculator();
+            scientificExpression = scientificExpression.slice(0, -1);
+            renderScientificCalculator();
+        }
+        if (action === 'equals') calculateScientific();
+    }
+
+    document.querySelectorAll('[data-scientific-value]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const value = button.dataset.scientificValue;
+            if (/^\d$/.test(value)) appendScientificValue(value);
+            else if (value === '.') appendScientificDecimal();
+            else if ('+-*/^%'.includes(value)) value === '%' ? appendScientificValue('%') : appendScientificOperator(value);
+            else if (value === '(' || value === ')') appendScientificParenthesis(value);
+            else if (value === 'pi') appendScientificValue('π');
+            else if (value === 'e') appendScientificValue('e');
+            else appendScientificFunction(value);
+        });
+    });
+    document.querySelectorAll('[data-scientific-action]').forEach((button) => button.addEventListener('click', () => handleScientificAction(button.dataset.scientificAction)));
+    $('#scientific-angle').addEventListener('click', () => {
+        scientificDegrees = !scientificDegrees;
+        $('#scientific-angle').textContent = scientificDegrees ? 'DEG' : 'RAD';
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.target.matches('input, select, textarea')) return;
+        const activePanel = document.querySelector('.tab-panel.is-active')?.id;
+        const isScientific = activePanel === 'scientific-panel';
+        const key = event.key;
+        if (!isScientific && /^[0-9]$/.test(key)) {
+            event.preventDefault();
+            appendRegularValue(key);
+        } else if (!isScientific && '+-*/'.includes(key)) {
+            event.preventDefault();
+            appendRegularOperator(key);
+        } else if (!isScientific && key === '.') {
+            event.preventDefault();
+            appendRegularDecimal();
+        } else if (isScientific && /^[0-9]$/.test(key)) {
+            event.preventDefault();
+            appendScientificValue(key);
+        } else if (isScientific && '+-*/^%'.includes(key)) {
+            event.preventDefault();
+            key === '%' ? appendScientificValue('%') : appendScientificOperator(key);
+        } else if (isScientific && key === '.') {
+            event.preventDefault();
+            appendScientificDecimal();
+        } else if (key === 'Enter' || key === '=') {
+            event.preventDefault();
+            isScientific ? calculateScientific() : calculateRegular();
+        } else if (key === 'Escape') {
+            event.preventDefault();
+            isScientific ? resetScientificCalculator() : resetRegularCalculator();
+        } else if (key === 'Backspace') {
+            event.preventDefault();
+            isScientific ? handleScientificAction('backspace') : handleRegularAction('backspace');
+        }
+    });
+
+    renderRegularCalculator();
+    renderScientificCalculator();
+
     const compoundForm = $('#compound-form');
     const principalInput = $('#principal');
     const rateInput = $('#rate');

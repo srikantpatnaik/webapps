@@ -31,7 +31,145 @@
         </header>
 
         <main>
-            <section class="tool-card calculator-card" aria-labelledby="compound-title">
+            <div class="tool-tabs" role="tablist" aria-label="Calculator tools">
+                <button class="tab-button is-active" id="regular-tab" type="button" role="tab" aria-selected="true" aria-controls="regular-panel" data-tab-target="regular-panel">
+                    <span class="tab-number">01</span>
+                    <span><b>Regular</b><small>Everyday arithmetic</small></span>
+                </button>
+                <button class="tab-button" id="scientific-tab" type="button" role="tab" aria-selected="false" aria-controls="scientific-panel" data-tab-target="scientific-panel">
+                    <span class="tab-number">02</span>
+                    <span><b>Scientific</b><small>Functions &amp; powers</small></span>
+                </button>
+                <button class="tab-button" id="compound-tab" type="button" role="tab" aria-selected="false" aria-controls="compound-panel" data-tab-target="compound-panel">
+                    <span class="tab-number">03</span>
+                    <span><b>Compound interest</b><small>Growth projections</small></span>
+                </button>
+                <button class="tab-button" id="converter-tab" type="button" role="tab" aria-selected="false" aria-controls="converter-panel" data-tab-target="converter-panel">
+                    <span class="tab-number">04</span>
+                    <span><b>Conversions</b><small>113 units ready</small></span>
+                </button>
+            </div>
+
+            <section id="regular-panel" class="tool-card calculator-card tab-panel is-active" role="tabpanel" aria-labelledby="regular-tab">
+                <div class="section-heading">
+                    <div>
+                        <div class="section-kicker"><span class="status-dot purple"></span> Everyday math</div>
+                        <h2>Regular calculator</h2>
+                        <p>Fast arithmetic for the numbers you use most often.</p>
+                    </div>
+                    <span class="neutral-badge">Keyboard friendly</span>
+                </div>
+                <div class="basic-calculator-layout">
+                    <div class="calculator-core">
+                        <div class="calculator-display" aria-live="polite">
+                            <span class="display-label">Expression</span>
+                            <span id="regular-expression" class="display-expression">Ready</span>
+                            <output id="regular-display" class="calculator-output">0</output>
+                        </div>
+                        <div class="calculator-keypad regular-keypad" aria-label="Regular calculator keypad">
+                            <button class="calc-key utility" type="button" data-regular-action="clear">AC</button>
+                            <button class="calc-key utility" type="button" data-regular-action="backspace" aria-label="Backspace">⌫</button>
+                            <button class="calc-key utility" type="button" data-regular-action="percent">%</button>
+                            <button class="calc-key operator" type="button" data-regular-key="/">÷</button>
+                            <button class="calc-key" type="button" data-regular-key="7">7</button>
+                            <button class="calc-key" type="button" data-regular-key="8">8</button>
+                            <button class="calc-key" type="button" data-regular-key="9">9</button>
+                            <button class="calc-key operator" type="button" data-regular-key="*">×</button>
+                            <button class="calc-key" type="button" data-regular-key="4">4</button>
+                            <button class="calc-key" type="button" data-regular-key="5">5</button>
+                            <button class="calc-key" type="button" data-regular-key="6">6</button>
+                            <button class="calc-key operator" type="button" data-regular-key="-">−</button>
+                            <button class="calc-key" type="button" data-regular-key="1">1</button>
+                            <button class="calc-key" type="button" data-regular-key="2">2</button>
+                            <button class="calc-key" type="button" data-regular-key="3">3</button>
+                            <button class="calc-key operator" type="button" data-regular-key="+">+</button>
+                            <button class="calc-key wide" type="button" data-regular-key="0">0</button>
+                            <button class="calc-key" type="button" data-regular-key=".">.</button>
+                            <button class="calc-key equals" type="button" data-regular-action="equals">=</button>
+                        </div>
+                    </div>
+                    <aside class="calculator-aside">
+                        <span class="aside-icon" aria-hidden="true">＋</span>
+                        <h3>Keep it simple</h3>
+                        <p>Use the keypad or your keyboard. Expressions can be chained together before you press equals.</p>
+                        <div class="shortcut-list">
+                            <span><kbd>+</kbd><kbd>−</kbd><kbd>×</kbd><kbd>÷</kbd> operators</span>
+                            <span><kbd>Enter</kbd> calculate</span>
+                            <span><kbd>Esc</kbd> clear</span>
+                        </div>
+                    </aside>
+                </div>
+            </section>
+
+            <section id="scientific-panel" class="tool-card calculator-card tab-panel" role="tabpanel" aria-labelledby="scientific-tab">
+                <div class="section-heading">
+                    <div>
+                        <div class="section-kicker"><span class="status-dot orange"></span> Explore the numbers</div>
+                        <h2>Scientific calculator</h2>
+                        <p>Trigonometry, logarithms, powers, constants, and more in one focused workspace.</p>
+                    </div>
+                    <button class="angle-toggle" id="scientific-angle" type="button">DEG</button>
+                </div>
+                <div class="scientific-layout">
+                    <div class="calculator-core">
+                        <div class="calculator-display" aria-live="polite">
+                            <span class="display-label">Expression</span>
+                            <span id="scientific-expression" class="display-expression">Ready</span>
+                            <output id="scientific-display" class="calculator-output">0</output>
+                        </div>
+                        <div class="calculator-keypad scientific-keypad" aria-label="Scientific calculator keypad">
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="sin">sin</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="cos">cos</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="tan">tan</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="log">log</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="ln">ln</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="sqrt">√</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="asin">sin⁻¹</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="acos">cos⁻¹</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="atan">tan⁻¹</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="fact">n!</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="abs">abs</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="square">x²</button>
+                            <button class="calc-key utility" type="button" data-scientific-action="clear">AC</button>
+                            <button class="calc-key utility" type="button" data-scientific-action="backspace" aria-label="Backspace">⌫</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="pi">π</button>
+                            <button class="calc-key scientific-function" type="button" data-scientific-value="e">e</button>
+                            <button class="calc-key operator" type="button" data-scientific-value="^">xʸ</button>
+                            <button class="calc-key operator" type="button" data-scientific-value="%">%</button>
+                            <button class="calc-key" type="button" data-scientific-value="(">(</button>
+                            <button class="calc-key" type="button" data-scientific-value=")">)</button>
+                            <button class="calc-key" type="button" data-scientific-value="7">7</button>
+                            <button class="calc-key" type="button" data-scientific-value="8">8</button>
+                            <button class="calc-key" type="button" data-scientific-value="9">9</button>
+                            <button class="calc-key operator" type="button" data-scientific-value="/">÷</button>
+                            <button class="calc-key" type="button" data-scientific-value="4">4</button>
+                            <button class="calc-key" type="button" data-scientific-value="5">5</button>
+                            <button class="calc-key" type="button" data-scientific-value="6">6</button>
+                            <button class="calc-key operator" type="button" data-scientific-value="*">×</button>
+                            <button class="calc-key" type="button" data-scientific-value="1">1</button>
+                            <button class="calc-key" type="button" data-scientific-value="2">2</button>
+                            <button class="calc-key" type="button" data-scientific-value="3">3</button>
+                            <button class="calc-key operator" type="button" data-scientific-value="-">−</button>
+                            <button class="calc-key wide" type="button" data-scientific-value="0">0</button>
+                            <button class="calc-key" type="button" data-scientific-value=".">.</button>
+                            <button class="calc-key operator" type="button" data-scientific-value="+">+</button>
+                            <button class="calc-key equals" type="button" data-scientific-action="equals">=</button>
+                        </div>
+                    </div>
+                    <aside class="calculator-aside scientific-aside">
+                        <span class="aside-icon" aria-hidden="true">∑</span>
+                        <h3>Built for curiosity</h3>
+                        <p>Functions open a parenthesis automatically. Press <strong>DEG</strong> to switch to radians for trigonometry.</p>
+                        <div class="shortcut-list">
+                            <span><kbd>π</kbd> circle constant</span>
+                            <span><kbd>e</kbd> Euler's number</span>
+                            <span><kbd>^</kbd> powers</span>
+                        </div>
+                    </aside>
+                </div>
+            </section>
+
+            <section id="compound-panel" class="tool-card calculator-card tab-panel" role="tabpanel" aria-labelledby="compound-tab">
                 <div class="section-heading">
                     <div>
                         <div class="section-kicker"><span class="status-dot"></span> Finance</div>
@@ -217,7 +355,7 @@
                 <p class="formula-note"><strong>How it works:</strong> compound interest is calculated on the starting amount plus previously earned interest. Recurring additions are applied at the chosen cadence and timing.</p>
             </section>
 
-            <section class="tool-card converter-card" aria-labelledby="converter-title">
+            <section id="converter-panel" class="tool-card converter-card tab-panel" role="tabpanel" aria-labelledby="converter-tab">
                 <div class="section-heading converter-heading">
                     <div>
                         <div class="section-kicker"><span class="status-dot orange"></span> Everyday tools</div>
