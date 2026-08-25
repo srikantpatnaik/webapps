@@ -47,6 +47,16 @@ Financial Independence, Retire Early calculator to help plan your financial futu
 - **Timeline Projection**: Shows how long until you reach financial independence
 - **Visual Charts**: Interactive charts showing your financial journey
 
+### Calculators & Converters
+A currency-neutral compound interest calculator paired with a broad set of everyday unit converters.
+
+#### Features
+
+- **Compound Interest Projection**: Model starting amounts, rates, time, compounding, and recurring additions
+- **Growth Chart**: See the projected balance visually with a year-by-year breakdown
+- **Unit Converters**: Length, area, mass, volume, temperature, speed, acceleration, time, data, energy, power, pressure, force, fuel economy, angle, cooking volume, and density
+- **Quick Search**: Filter converter categories and switch between common conversion pairs
+
 ### Image Organizer
 A simple, dark-themed web application for organizing images with tags. Users can upload images from their device or paste them directly from the clipboard, add tags for organization, and view all images in a Pinterest-like grid layout.
 
@@ -123,6 +133,7 @@ An HTML5 video player that allows you to upload, store, and play videos directly
 - `/weather/` - Contains the Weather Dashboard application
 - `/expenses/` - Contains the Expense Logger application
 - `/fire/` - Contains the FIRE Calculator application
+- `/calculator/` - Contains the Calculators & Converters application
 - `/imageorganizer/` - Contains the Image Organizer application
 - `/imageresizer/` - Contains the Image Resizer application
 - `/planner/` - Contains the Day Planner application

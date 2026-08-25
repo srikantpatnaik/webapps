@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0b1120">
+    <title>Calculators &amp; Converters</title>
+    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="../responsive.css">
+    <script defer src="./script.js"></script>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="site-header">
+            <a class="back-link" href="../index.html" aria-label="Back to Web Apps Dashboard">
+                <span aria-hidden="true">←</span>
+                <span>Web Apps Dashboard</span>
+            </a>
+            <div class="header-content">
+                <div>
+                    <p class="eyebrow">A small toolkit for big plans</p>
+                    <h1>Calculators <span>&amp;</span> converters</h1>
+                    <p class="header-copy">Model how your money can grow, then convert the units you use every day.</p>
+                </div>
+                <div class="header-mark" aria-hidden="true">
+                    <span>+</span>
+                    <span>×</span>
+                    <span>÷</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <section class="tool-card calculator-card" aria-labelledby="compound-title">
+                <div class="section-heading">
+                    <div>
+                        <div class="section-kicker"><span class="status-dot"></span> Finance</div>
+                        <h2 id="compound-title">Compound interest calculator</h2>
+                        <p>See the effect of time, compounding, and regular additions on a starting amount.</p>
+                    </div>
+                    <span class="neutral-badge">Currency neutral</span>
+                </div>
+
+                <div class="calculator-layout">
+                    <form id="compound-form" class="calculator-form">
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <span class="step-number">01</span>
+                                <div>
+                                    <h3>Starting point</h3>
+                                    <p>The amount you begin with and the expected rate.</p>
+                                </div>
+                            </div>
+                            <div class="field-grid two-columns">
+                                <label class="field">
+                                    <span>Initial amount</span>
+                                    <div class="input-with-suffix">
+                                        <input id="principal" type="number" min="0" step="any" value="5000" inputmode="decimal">
+                                        <span>units</span>
+                                    </div>
+                                </label>
+                                <label class="field">
+                                    <span>Annual interest rate</span>
+                                    <div class="input-with-suffix">
+                                        <input id="rate" type="number" min="-100" step="0.01" value="5" inputmode="decimal">
+                                        <span>%</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <span class="step-number">02</span>
+                                <div>
+                                    <h3>Time &amp; compounding</h3>
+                                    <p>Choose how long the amount stays invested.</p>
+                                </div>
+                            </div>
+                            <div class="field-grid two-columns">
+                                <label class="field">
+                                    <span>Years</span>
+                                    <input id="years" type="number" min="0" max="1000" step="1" value="10" inputmode="numeric">
+                                </label>
+                                <label class="field">
+                                    <span>Extra months</span>
+                                    <input id="months" type="number" min="0" max="11" step="1" value="0" inputmode="numeric">
+                                </label>
+                            </div>
+                            <label class="field full-field">
+                                <span>Compounding frequency</span>
+                                <select id="frequency">
+                                    <option value="1">Annually</option>
+                                    <option value="2">Semi-annually</option>
+                                    <option value="4">Quarterly</option>
+                                    <option value="12" selected>Monthly</option>
+                                    <option value="52">Weekly</option>
+                                    <option value="365">Daily</option>
+                                    <option value="custom">Custom periods per year</option>
+                                </select>
+                            </label>
+                            <label class="field full-field hidden-field" id="custom-frequency-field">
+                                <span>Periods per year</span>
+                                <input id="custom-frequency" type="number" min="1" max="3650" step="1" value="12" inputmode="numeric">
+                            </label>
+                        </div>
+
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <span class="step-number">03</span>
+                                <div>
+                                    <h3>Regular additions <span class="optional-label">optional</span></h3>
+                                    <p>Add a recurring amount to model a steady habit.</p>
+                                </div>
+                            </div>
+                            <div class="field-grid two-columns">
+                                <label class="field">
+                                    <span>Contribution amount</span>
+                                    <div class="input-with-suffix">
+                                        <input id="contribution" type="number" min="0" step="any" value="100" inputmode="decimal">
+                                        <span>units</span>
+                                    </div>
+                                </label>
+                                <label class="field">
+                                    <span>Contribution cadence</span>
+                                    <select id="contribution-frequency">
+                                        <option value="52">Weekly</option>
+                                        <option value="26">Every 2 weeks</option>
+                                        <option value="12" selected>Monthly</option>
+                                        <option value="4">Quarterly</option>
+                                        <option value="1">Yearly</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div class="choice-row" role="group" aria-label="Contribution timing">
+                                <span class="choice-label">Add contributions at the</span>
+                                <label class="radio-choice">
+                                    <input type="radio" name="contribution-timing" value="end" checked>
+                                    <span>End of period</span>
+                                </label>
+                                <label class="radio-choice">
+                                    <input type="radio" name="contribution-timing" value="beginning">
+                                    <span>Beginning of period</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button class="primary-button" type="submit">
+                            <span>Calculate growth</span>
+                            <span aria-hidden="true">↗</span>
+                        </button>
+                        <p class="form-note">For illustration only. Actual returns can vary.</p>
+                    </form>
+
+                    <div class="results-panel" aria-live="polite">
+                        <div class="results-topline">
+                            <span>Your projection</span>
+                            <span id="results-period">10 years</span>
+                        </div>
+                        <div class="primary-result">
+                            <span class="result-label">Future balance</span>
+                            <strong id="future-balance">9.5K</strong>
+                            <span class="result-caption">units at the end of the period</span>
+                            <span class="notation-key"><b>K</b> thousand&nbsp;&nbsp; <b>L</b> lakh</span>
+                        </div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <span>Interest earned</span>
+                                <strong id="interest-earned">3.5K</strong>
+                            </div>
+                            <div class="result-item">
+                                <span>Total added</span>
+                                <strong id="total-added">1K</strong>
+                            </div>
+                            <div class="result-item">
+                                <span>Effective annual rate</span>
+                                <strong id="effective-rate">5.12%</strong>
+                            </div>
+                            <div class="result-item">
+                                <span>Time to double*</span>
+                                <strong id="doubling-time">13 yr 11 mo</strong>
+                            </div>
+                        </div>
+                        <div class="chart-wrap">
+                            <div class="chart-heading">
+                                <span>Balance over time</span>
+                                <span class="chart-legend"><i></i> projected balance</span>
+                            </div>
+                            <canvas id="growth-chart" height="190" aria-label="Projected balance over time chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="breakdown-section">
+                    <div class="breakdown-heading">
+                        <div>
+                            <h3>Year-by-year breakdown</h3>
+                            <p>Follow the balance, additions, and interest as the projection compounds.</p>
+                        </div>
+                        <button class="text-button" id="reset-calculator" type="button">Reset defaults</button>
+                    </div>
+                    <div class="table-shell">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Year</th>
+                                    <th scope="col">Added</th>
+                                    <th scope="col">Interest</th>
+                                    <th scope="col">Total added</th>
+                                    <th scope="col">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="breakdown-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <p class="formula-note"><strong>How it works:</strong> compound interest is calculated on the starting amount plus previously earned interest. Recurring additions are applied at the chosen cadence and timing.</p>
+            </section>
+
+            <section class="tool-card converter-card" aria-labelledby="converter-title">
+                <div class="section-heading converter-heading">
+                    <div>
+                        <div class="section-kicker"><span class="status-dot orange"></span> Everyday tools</div>
+                        <h2 id="converter-title">Unit converters</h2>
+                        <p>Quick conversions for length, weight, data, cooking, and more.</p>
+                    </div>
+                    <div class="converter-count"><strong id="unit-count">0</strong><span>units ready</span></div>
+                </div>
+
+                <div class="converter-toolbar">
+                    <label class="search-field">
+                        <span aria-hidden="true">⌕</span>
+                        <input id="category-search" type="search" placeholder="Search a converter, e.g. length or pressure" autocomplete="off">
+                    </label>
+                    <button class="text-button" id="clear-search" type="button">Clear</button>
+                </div>
+
+                <div class="converter-layout">
+                    <aside class="category-panel" aria-label="Converter categories">
+                        <p class="panel-label">Categories</p>
+                        <div id="category-list" class="category-list"></div>
+                    </aside>
+
+                    <div class="converter-workspace">
+                        <div class="converter-workspace-head">
+                            <div>
+                                <span class="section-kicker"><span class="status-dot purple"></span> Convert instantly</span>
+                                <h3 id="active-category-title">Length &amp; distance</h3>
+                            </div>
+                            <button class="swap-button" id="swap-units" type="button" aria-label="Swap units">⇄ <span>Swap</span></button>
+                        </div>
+                        <div class="conversion-fields">
+                            <label class="field converter-field">
+                                <span>From</span>
+                                <div class="converter-input-row">
+                                    <input id="convert-input" type="number" step="any" value="1" inputmode="decimal">
+                                    <select id="from-unit" aria-label="From unit"></select>
+                                </div>
+                            </label>
+                            <div class="conversion-arrow" aria-hidden="true">→</div>
+                            <label class="field converter-field">
+                                <span>To</span>
+                                <div class="converter-input-row result-input-row">
+                                    <output id="convert-output" for="convert-input">0.001</output>
+                                    <select id="to-unit" aria-label="To unit"></select>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="conversion-summary">
+                            <span id="conversion-summary">1 Meter = 0.001 Kilometer</span>
+                            <button class="copy-button" id="copy-result" type="button">Copy result</button>
+                        </div>
+                        <div class="popular-conversions">
+                            <p class="panel-label">Popular in this category</p>
+                            <div id="popular-list" class="popular-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tip-strip">
+                <div class="tip-icon" aria-hidden="true">✦</div>
+                <div>
+                    <strong>Small inputs, long horizons.</strong>
+                    <p>Try changing the contribution cadence or compounding frequency to see which assumption matters most.</p>
+                </div>
+            </section>
+        </main>
+
+        <footer class="page-footer">
+            <span>Built for quick, clear decisions.</span>
+            <a href="../index.html">Return to dashboard</a>
+        </footer>
+    </div>
+</body>
+</html>
