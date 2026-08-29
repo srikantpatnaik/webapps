@@ -431,8 +431,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const customFrequencyInput = $('#custom-frequency');
     const contributionInput = $('#contribution');
     const contributionFrequencyInput = $('#contribution-frequency');
+    const principalWordsOutput = $('#principal-words');
     const breakdownBody = $('#breakdown-body');
     const chart = $('#growth-chart');
+
+    const smallNumberWords = [
+        'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+        'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
+        'seventeen', 'eighteen', 'nineteen'
+    ];
+    const tensNumberWords = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
 
     const numberFormatter = new Intl.NumberFormat(undefined, {
         maximumFractionDigits: 2,
@@ -444,9 +452,73 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const toNumber = (input, fallback = 0) => {
-        const parsed = Number.parseFloat(input?.value ?? input);
+        const rawValue = input?.value ?? input;
+        const parsed = Number.parseFloat(String(rawValue).replace(/,/g, '').trim());
         return Number.isFinite(parsed) ? parsed : fallback;
     };
+
+    function underThousandToWords(value) {
+        const words = [];
+        if (value >= 100) {
+            words.push(`${smallNumberWords[Math.floor(value / 100)]} hundred`);
+            value %= 100;
+        }
+        if (value >= 20) {
+            words.push(tensNumberWords[Math.floor(value / 10)]);
+            value %= 10;
+        }
+        if (value > 0) words.push(smallNumberWords[value]);
+        return words.join(' ');
+    }
+
+    function integerToWords(value) {
+        if (value === 0) return smallNumberWords[0];
+        if (value < 1000) return underThousandToWords(value);
+        if (value < 100000) {
+            return `${integerToWords(Math.floor(value / 1000))} thousand${value % 1000 ? ` ${integerToWords(value % 1000)}` : ''}`;
+        }
+        if (value < 10000000) {
+            return `${integerToWords(Math.floor(value / 100000))} lakh${value % 100000 ? ` ${integerToWords(value % 100000)}` : ''}`;
+        }
+        return `${integerToWords(Math.floor(value / 10000000))} crore${value % 10000000 ? ` ${integerToWords(value % 10000000)}` : ''}`;
+    }
+
+    function amountToWords(rawValue) {
+        const normalized = String(rawValue).replace(/,/g, '').trim();
+        if (!normalized) return 'Enter an amount';
+
+        const numericValue = Number(normalized);
+        if (!Number.isFinite(numericValue) || numericValue < 0) return 'Enter a valid amount';
+
+        const [integerPart = '0', decimalPart] = normalized.split('.');
+        const integerValue = Number(integerPart || 0);
+        if (!Number.isSafeInteger(integerValue)) return 'Amount is too large to spell out';
+
+        let words = integerToWords(integerValue);
+        if (decimalPart && /[1-9]/.test(decimalPart)) {
+            words += ` point ${decimalPart.split('').map((digit) => smallNumberWords[Number(digit)]).join(' ')}`;
+        }
+        return `${words.charAt(0).toUpperCase()}${words.slice(1)} units`;
+    }
+
+    function formatPrincipalInput() {
+        const normalized = principalInput.value.replace(/,/g, '').trim();
+        if (!normalized) return;
+
+        const match = normalized.match(/^([+-]?)(\d*)(?:\.(\d+))?$/);
+        if (!match) return;
+
+        const [, sign, integerPart, decimalPart] = match;
+        const integerValue = Number(integerPart || 0);
+        if (!Number.isFinite(integerValue)) return;
+
+        const groupedInteger = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(integerValue);
+        principalInput.value = `${sign}${groupedInteger}${decimalPart !== undefined ? `.${decimalPart}` : ''}`;
+    }
+
+    function renderPrincipalWords() {
+        principalWordsOutput.textContent = amountToWords(principalInput.value);
+    }
 
     const formatExactAmount = (value) => numberFormatter.format(Number.isFinite(value) ? value : 0);
     const formatAmount = (value) => {
@@ -515,12 +587,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const stepCount = Math.max(1, Math.ceil(totalYears * stepsPerYear));
         const periodRateBase = Math.max(0, 1 + annualRate / frequency);
         const stepRate = Math.pow(periodRateBase, frequency / stepsPerYear) - 1;
-        const contributionStep = stepsPerYear / contributionFrequency;
+        // Contribution dates are tracked in years, so the interval must also
+        // be expressed in years (for example, monthly = 1 / 12 year).
+        const contributionInterval = 1 / contributionFrequency;
         const epsilon = 0.00000001;
         let balance = principal;
         let totalAdded = 0;
         let totalInterest = 0;
-        let nextContribution = contributionTiming === 'beginning' ? 0 : contributionStep;
+        let nextContribution = contributionTiming === 'beginning' ? 0 : contributionInterval;
         let nextYear = 1;
         let yearAdded = 0;
         let yearInterest = 0;
@@ -534,7 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     balance += contribution;
                     totalAdded += contribution;
                     yearAdded += contribution;
-                    nextContribution += contributionStep;
+                    nextContribution += contributionInterval;
                 }
             }
 
@@ -549,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     balance += contribution;
                     totalAdded += contribution;
                     yearAdded += contribution;
-                    nextContribution += contributionStep;
+                    nextContribution += contributionInterval;
                 }
             }
 
@@ -693,6 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function calculateAndRender(event) {
         event?.preventDefault();
+        renderPrincipalWords();
         const inputs = getProjectionInputs();
         const result = calculateProjection(inputs);
         $('#future-balance').textContent = formatAmount(result.balance);
@@ -715,8 +790,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.querySelectorAll('input[name="contribution-timing"]').forEach((input) => input.addEventListener('change', calculateAndRender));
     compoundForm.addEventListener('submit', calculateAndRender);
+    principalInput.addEventListener('focus', () => {
+        principalInput.value = principalInput.value.replace(/,/g, '');
+    });
+    principalInput.addEventListener('blur', () => {
+        formatPrincipalInput();
+        calculateAndRender();
+    });
     $('#reset-calculator').addEventListener('click', () => {
-        principalInput.value = 5000;
+        principalInput.value = '5,000';
         rateInput.value = 5;
         yearsInput.value = 10;
         monthsInput.value = 0;

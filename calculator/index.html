@@ -193,9 +193,10 @@
                                 <label class="field">
                                     <span>Initial amount</span>
                                     <div class="input-with-suffix">
-                                        <input id="principal" type="number" min="0" step="any" value="5000" inputmode="decimal">
+                                        <input id="principal" type="text" value="5,000" inputmode="decimal" autocomplete="off" aria-describedby="principal-words">
                                         <span>units</span>
                                     </div>
+                                    <span id="principal-words" class="amount-in-words" aria-live="polite">Five thousand units</span>
                                 </label>
                                 <label class="field">
                                     <span>Annual interest rate</span>

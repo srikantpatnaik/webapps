@@ -687,6 +687,13 @@ input::-webkit-outer-spin-button {
     transform: translateY(-50%);
 }
 
+.amount-in-words {
+    color: var(--subtle);
+    font-size: 0.66rem;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
 .choice-row {
     display: flex;
     align-items: center;
